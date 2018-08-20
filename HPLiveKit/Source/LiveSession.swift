@@ -14,21 +14,33 @@ class LiveSession {
     fileprivate let audioConfiguration: LiveAudioConfiguration
     fileprivate let videoConfiguration: LiveVideoConfiguration
     
-    var perview: UIView?
+    
+    fileprivate var videoCapture: LiveVideoCapture?
+    
+    var perview: UIView? {
+        get {
+            return videoCapture?.perview
+        }
+        set {
+            videoCapture?.perview = perview
+        }
+    }
     
     var streamInfo :LiveStreamInfo?
     
     init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
         self.audioConfiguration = audioConfiguration
         self.videoConfiguration = videoConfiguration
+        
+        videoCapture = LiveVideoCapture(videoConfiguration: videoConfiguration)
     }
     
     
     func startLive() {
-        
+        videoCapture?.setRunning(running: true)
     }
     
     func stopLive() {
-        
+        videoCapture?.setRunning(running: false)
     }
 }
