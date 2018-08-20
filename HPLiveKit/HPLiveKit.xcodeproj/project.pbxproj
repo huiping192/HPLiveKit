@@ -14,6 +14,14 @@
 		7D898A60212ACA9F005CE326 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7D898A5E212ACA9F005CE326 /* LaunchScreen.storyboard */; };
 		7D898A6B212ACA9F005CE326 /* HPLiveKitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A6A212ACA9F005CE326 /* HPLiveKitTests.swift */; };
 		7D898A7B212ACB22005CE326 /* LiveSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A7A212ACB22005CE326 /* LiveSession.swift */; };
+		7D898A7D212ACC96005CE326 /* LiveAudioConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A7C212ACC96005CE326 /* LiveAudioConfiguration.swift */; };
+		7D898A7F212ACCA5005CE326 /* LiveVideoConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A7E212ACCA5005CE326 /* LiveVideoConfiguration.swift */; };
+		7D898A81212ACCD1005CE326 /* LiveAudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A80212ACCD1005CE326 /* LiveAudioCapture.swift */; };
+		7D898A83212ACCDF005CE326 /* LiveVideoCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A82212ACCDF005CE326 /* LiveVideoCapture.swift */; };
+		7D898A85212ACD01005CE326 /* LiveVideoEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A84212ACD01005CE326 /* LiveVideoEncoder.swift */; };
+		7D898A87212ACD14005CE326 /* LiveAudioEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */; };
+		7D898A89212ACD61005CE326 /* StreamRtmpSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */; };
+		7D898A8B212AD01D005CE326 /* LiveStreamInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +46,14 @@
 		7D898A6A212ACA9F005CE326 /* HPLiveKitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HPLiveKitTests.swift; sourceTree = "<group>"; };
 		7D898A6C212ACA9F005CE326 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7D898A7A212ACB22005CE326 /* LiveSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSession.swift; sourceTree = "<group>"; };
+		7D898A7C212ACC96005CE326 /* LiveAudioConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioConfiguration.swift; sourceTree = "<group>"; };
+		7D898A7E212ACCA5005CE326 /* LiveVideoConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVideoConfiguration.swift; sourceTree = "<group>"; };
+		7D898A80212ACCD1005CE326 /* LiveAudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioCapture.swift; sourceTree = "<group>"; };
+		7D898A82212ACCDF005CE326 /* LiveVideoCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVideoCapture.swift; sourceTree = "<group>"; };
+		7D898A84212ACD01005CE326 /* LiveVideoEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVideoEncoder.swift; sourceTree = "<group>"; };
+		7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioEncoder.swift; sourceTree = "<group>"; };
+		7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamRtmpSocket.swift; sourceTree = "<group>"; };
+		7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStreamInfo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,9 +119,9 @@
 			isa = PBXGroup;
 			children = (
 				7D898A79212ACAF0005CE326 /* Configuration */,
+				7D898A76212ACAB8005CE326 /* Capture */,
 				7D898A78212ACAE5005CE326 /* Coder */,
 				7D898A77212ACAD4005CE326 /* Publish */,
-				7D898A76212ACAB8005CE326 /* Capture */,
 				7D898A7A212ACB22005CE326 /* LiveSession.swift */,
 			);
 			path = Source;
@@ -114,6 +130,8 @@
 		7D898A76212ACAB8005CE326 /* Capture */ = {
 			isa = PBXGroup;
 			children = (
+				7D898A80212ACCD1005CE326 /* LiveAudioCapture.swift */,
+				7D898A82212ACCDF005CE326 /* LiveVideoCapture.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -121,6 +139,7 @@
 		7D898A77212ACAD4005CE326 /* Publish */ = {
 			isa = PBXGroup;
 			children = (
+				7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */,
 			);
 			path = Publish;
 			sourceTree = "<group>";
@@ -128,6 +147,8 @@
 		7D898A78212ACAE5005CE326 /* Coder */ = {
 			isa = PBXGroup;
 			children = (
+				7D898A84212ACD01005CE326 /* LiveVideoEncoder.swift */,
+				7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */,
 			);
 			path = Coder;
 			sourceTree = "<group>";
@@ -135,6 +156,9 @@
 		7D898A79212ACAF0005CE326 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
+				7D898A7C212ACC96005CE326 /* LiveAudioConfiguration.swift */,
+				7D898A7E212ACCA5005CE326 /* LiveVideoConfiguration.swift */,
+				7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */,
 			);
 			path = Configuration;
 			sourceTree = "<group>";
@@ -241,8 +265,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				7D898A7B212ACB22005CE326 /* LiveSession.swift in Sources */,
+				7D898A83212ACCDF005CE326 /* LiveVideoCapture.swift in Sources */,
+				7D898A8B212AD01D005CE326 /* LiveStreamInfo.swift in Sources */,
+				7D898A81212ACCD1005CE326 /* LiveAudioCapture.swift in Sources */,
+				7D898A7D212ACC96005CE326 /* LiveAudioConfiguration.swift in Sources */,
+				7D898A85212ACD01005CE326 /* LiveVideoEncoder.swift in Sources */,
+				7D898A89212ACD61005CE326 /* StreamRtmpSocket.swift in Sources */,
 				7D898A58212ACA9E005CE326 /* ViewController.swift in Sources */,
 				7D898A56212ACA9E005CE326 /* AppDelegate.swift in Sources */,
+				7D898A7F212ACCA5005CE326 /* LiveVideoConfiguration.swift in Sources */,
+				7D898A87212ACD14005CE326 /* LiveAudioEncoder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

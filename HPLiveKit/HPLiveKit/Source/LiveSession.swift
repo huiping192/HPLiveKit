@@ -7,3 +7,28 @@
 //
 
 import Foundation
+import UIKit
+
+class LiveSession {
+    
+    fileprivate let audioConfiguration: LiveAudioConfiguration
+    fileprivate let videoConfiguration: LiveVideoConfiguration
+    
+    var perview: UIView?
+    
+    var streamInfo :LiveStreamInfo?
+    
+    init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
+        self.audioConfiguration = audioConfiguration
+        self.videoConfiguration = videoConfiguration
+    }
+    
+    
+    func startLive() {
+        
+    }
+    
+    func stopLive() {
+        
+    }
+}
