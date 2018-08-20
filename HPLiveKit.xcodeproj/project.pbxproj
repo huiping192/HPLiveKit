@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		665BDAAD39B969FE75ED15E8 /* Pods_HPLiveKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */; };
 		7D898A56212ACA9E005CE326 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A55212ACA9E005CE326 /* AppDelegate.swift */; };
 		7D898A58212ACA9E005CE326 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A57212ACA9E005CE326 /* ViewController.swift */; };
 		7D898A5B212ACA9E005CE326 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7D898A59212ACA9E005CE326 /* Main.storyboard */; };
@@ -35,6 +36,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HPLiveKit.debug.xcconfig"; path = "Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit.debug.xcconfig"; sourceTree = "<group>"; };
 		7D898A52212ACA9E005CE326 /* HPLiveKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HPLiveKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D898A55212ACA9E005CE326 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7D898A57212ACA9E005CE326 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -54,6 +56,8 @@
 		7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioEncoder.swift; sourceTree = "<group>"; };
 		7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamRtmpSocket.swift; sourceTree = "<group>"; };
 		7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStreamInfo.swift; sourceTree = "<group>"; };
+		B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_HPLiveKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HPLiveKit.release.xcconfig"; path = "Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +65,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				665BDAAD39B969FE75ED15E8 /* Pods_HPLiveKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,12 +79,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		121FF9ABD585BB98740BBD20 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */,
+				D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
+		409331E71E3B5F1C13D91D92 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		7D898A49212ACA9E005CE326 = {
 			isa = PBXGroup;
 			children = (
 				7D898A54212ACA9E005CE326 /* HPLiveKit */,
 				7D898A69212ACA9F005CE326 /* HPLiveKitTests */,
 				7D898A53212ACA9E005CE326 /* Products */,
+				121FF9ABD585BB98740BBD20 /* Pods */,
+				409331E71E3B5F1C13D91D92 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -170,9 +194,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7D898A6F212ACA9F005CE326 /* Build configuration list for PBXNativeTarget "HPLiveKit" */;
 			buildPhases = (
+				5113ACF321DC500C407CC35E /* [CP] Check Pods Manifest.lock */,
 				7D898A4E212ACA9E005CE326 /* Sources */,
 				7D898A4F212ACA9E005CE326 /* Frameworks */,
 				7D898A50212ACA9E005CE326 /* Resources */,
+				BA9A79D4594895E6A5AFB62F /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -258,6 +284,45 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		5113ACF321DC500C407CC35E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-HPLiveKit-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		BA9A79D4594895E6A5AFB62F /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${SRCROOT}/Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/GPUImage/GPUImage.framework",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GPUImage.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7D898A4E212ACA9E005CE326 /* Sources */ = {
@@ -432,15 +497,13 @@
 		};
 		7D898A70212ACA9F005CE326 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
@@ -450,15 +513,13 @@
 		};
 		7D898A71212ACA9F005CE326 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
@@ -474,11 +535,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKitTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
@@ -495,11 +552,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKitTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
