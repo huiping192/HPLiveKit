@@ -6,14 +6,38 @@
 [![Platform](https://img.shields.io/cocoapods/p/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
 
 
-Swift live streaming lib. Inspired by LFLiveKit https://github.com/LaiFengiOS/LFLiveKit
+**Swift rtmp base live streaming lib. Inspired by LFLiveKit https://github.com/LaiFengiOS/LFLiveKit**
+
+
+## Features
+
+- [ ] 	Background recording
+- [ ] 	Support horizontal vertical recording
+- [ ] 	Support Beauty Face With GPUImage
+- [ ] 	Support H264+AAC Hardware Encoding
+- [ ] 	Drop frames on bad network 
+- [ ] 	Dynamic switching rate
+- [ ] 	Audio configuration
+- [ ] 	Video configuration
+- [ ] 	RTMP Transport
+- [ ] 	Switch camera position
+- [ ] 	Audio Mute
+- [ ] 	Support Send Buffer
+- [ ] 	Support WaterMark
+- [ ] 	Swift Support
+- [ ] 	Support Single Video or Audio 
+- [ ] 	Support External input video or audio(Screen recording or Peripheral)
+- [ ] 	~~FLV package and send~~
+
 
 ## Example
 
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
 
 ## Requirements
-
+    - iOS 11.0+
+    - Xcode 13
+    
 ## Installation
 
 HPLiveKit is available through [CocoaPods](https://cocoapods.org). To install
@@ -23,9 +47,14 @@ it, simply add the following line to your Podfile:
 pod 'HPLiveKit'
 ```
 
+## Usage example 
+
+
 ## Author
 
 huiping_guo, huiping192@gmail.com
+
+## Release History
 
 ## License
 
