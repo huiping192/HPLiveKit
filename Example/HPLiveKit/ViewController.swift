@@ -16,7 +16,9 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        liveSession = LiveSession(audioConfiguration: .default, videoConfiguration: .default)
+        let defaultVidoeConfiguration = LiveVideoConfigurationFactory.defaultVideoConfiguration
+        
+        liveSession = LiveSession(audioConfiguration: .default, videoConfiguration: defaultVidoeConfiguration)
 
         liveSession?.perview = view
 

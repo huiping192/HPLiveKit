@@ -7,10 +7,9 @@
 //
 
 import Foundation
-import UIKit
 import AVFoundation
 
-enum LiveVideoSessionPreset {
+public enum LiveVideoSessionPreset {
     /// 低分辨率
     case preset360x640
     /// 中分辨率
@@ -31,7 +30,7 @@ enum LiveVideoSessionPreset {
 }
 
 /// 视频质量
-enum LiveVideoQuality {
+public enum LiveVideoQuality {
     /// 分辨率： 360 *640 帧数：15 码率：500Kps
     case low1
     /// 分辨率： 360 *640 帧数：24 码率：800Kps
@@ -55,25 +54,44 @@ enum LiveVideoQuality {
 }
 
 public struct LiveVideoConfiguration {
+    // 视频的分辨率，宽高务必设定为 2 的倍数，否则解码播放时可能出现绿边(这个videoSizeRespectingAspectRatio设置为YES则可能会改变)
+    let videoSize: CGSize
+   
+    // 输出图像是否等比例,默认为false
+    var videoSizeRespectingAspectRatio: Bool = false
     
-    let outputImageOrientation: UIInterfaceOrientation
-//    let autorotate: Bool
+    // 视频输出方向
+    var outputImageOrientation: UIInterfaceOrientation = .portrait
+
+    // 自动旋转(这里只支持 left 变 right  portrait 变 portraitUpsideDown)
+    var autorotate: Bool = true
     
+    // 视频的帧率，即 fps
     let videoFrameRate: UInt
     
-//    let videoMinFrameRate: UInt
-//    let videoMaxFrameRate: UInt
-//
-//
-//    let videoMaxKeyframeInterval: UInt
-    
+    // 视频的最大帧率，即 fps
+    let videoMinFrameRate: UInt
+    // 视频的最小帧率，即 fps
+    let videoMaxFrameRate: UInt
+
+    // 最大关键帧间隔，可设定为 fps 的2倍，影响一个 gop 的大小
+    var videoMaxKeyframeInterval: UInt {
+        return videoFrameRate * 2
+    }
+
+    // 视频的码率，单位是 bps
     let videoBitRate: UInt
-//    let videoMaxBitRate: UInt
-//    let videoMinBitRate: Int
+    // 视频的最大码率，单位是 bps
+    let videoMaxBitRate: UInt
     
+    // 视频的最小码率，单位是 bps
+    let videoMinBitRate: Int
+    
+    // < 分辨率
     let sessionPreset: LiveVideoSessionPreset
-    
-    public static var `default`: LiveVideoConfiguration {
-        return LiveVideoConfiguration(outputImageOrientation: .portrait, videoFrameRate: 30, videoBitRate: 80000, sessionPreset: .preset720x1280)
+
+    //< ≈sde3分辨率
+    var  avSessionPreset: String {
+        return sessionPreset.avSessionPreset
     }
 }
