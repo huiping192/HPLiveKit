@@ -17,12 +17,12 @@ class ViewController: UIViewController {
         super.viewDidLoad()
 
         let defaultVidoeConfiguration = LiveVideoConfigurationFactory.defaultVideoConfiguration
-        
+
         liveSession = LiveSession(audioConfiguration: .default, videoConfiguration: defaultVidoeConfiguration)
 
-        liveSession?.perview = view
+        liveSession!.perview = view
 
-        liveSession?.startLive()
+        liveSession!.startLive()
     }
 
     override func didReceiveMemoryWarning() {
@@ -31,4 +31,3 @@ class ViewController: UIViewController {
     }
 
 }
-

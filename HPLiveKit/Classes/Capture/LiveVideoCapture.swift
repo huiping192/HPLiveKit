@@ -10,7 +10,7 @@ import Foundation
 import GPUImage
 
 class LiveVideoCapture {
-    
+
     public var perview: UIView? {
         get {
             return previewImageView?.superview
@@ -19,7 +19,7 @@ class LiveVideoCapture {
             if previewImageView?.superview != nil {
                 previewImageView?.removeFromSuperview()
             }
-            
+
             if let perview = perview, let previewImageView = previewImageView {
                 perview.insertSubview(previewImageView, at: 0)
                 //TODO: autolayoutに移行
@@ -29,29 +29,28 @@ class LiveVideoCapture {
     }
 
     fileprivate var videoConfiguration: LiveVideoConfiguration
-    
+
     fileprivate var videoCamera: GPUImageVideoCamera?
     fileprivate var output: (GPUImageOutput & GPUImageInput)?
     fileprivate var previewImageView: GPUImageView?
-    
+
     init(videoConfiguration: LiveVideoConfiguration) {
         self.videoConfiguration = videoConfiguration
-        
+
         self.videoCamera = createVideoCamera()
         self.previewImageView = createGPUImageView()
     }
-    
-    
+
     fileprivate func createVideoCamera() -> GPUImageVideoCamera? {
         let videoCamera = GPUImageVideoCamera(sessionPreset: videoConfiguration.sessionPreset.avSessionPreset, cameraPosition: .front)
         videoCamera?.outputImageOrientation = videoConfiguration.outputImageOrientation
         videoCamera?.horizontallyMirrorRearFacingCamera = true
         videoCamera?.horizontallyMirrorFrontFacingCamera = true
         videoCamera?.frameRate = Int32(videoConfiguration.videoFrameRate)
-        
+
         return videoCamera
     }
-    
+
     fileprivate func createGPUImageView() -> GPUImageView? {
         let gpuImageView = GPUImageView(frame: UIScreen.main.bounds)
         gpuImageView.fillMode = kGPUImageFillModePreserveAspectRatioAndFill
@@ -60,7 +59,7 @@ class LiveVideoCapture {
     }
 
     fileprivate var running: Bool = false
-    
+
     func setRunning(running: Bool) {
         if self.running == running {
             return
@@ -71,26 +70,22 @@ class LiveVideoCapture {
             videoCamera?.stopCapture()
         } else {
             UIApplication.shared.isIdleTimerDisabled = true
-            
+
             reloadFilter()
-            
+
             videoCamera?.startCapture()
         }
     }
-    
+
     fileprivate func reloadFilter() {
-        
+
         videoCamera?.addTarget(previewImageView)
-        
+
         //output = GPUImageEmptyFilter()
-        
-//        videoCamera?.addTarget(output)
-//
-//        output?.addTarget(previewImageView)
+
+        //        videoCamera?.addTarget(output)
+        //
+        //        output?.addTarget(previewImageView)
     }
-    
-    
-    
-    
-    
+
 }

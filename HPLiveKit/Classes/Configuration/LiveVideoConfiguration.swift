@@ -16,7 +16,7 @@ public enum LiveVideoSessionPreset {
     case preset540x960
     /// 高分辨率
     case preset720x1280
-    
+
     var avSessionPreset: String {
         switch self {
         case .preset360x640:
@@ -56,19 +56,19 @@ public enum LiveVideoQuality {
 public struct LiveVideoConfiguration {
     // 视频的分辨率，宽高务必设定为 2 的倍数，否则解码播放时可能出现绿边(这个videoSizeRespectingAspectRatio设置为YES则可能会改变)
     let videoSize: CGSize
-   
+
     // 输出图像是否等比例,默认为false
     var videoSizeRespectingAspectRatio: Bool = false
-    
+
     // 视频输出方向
     var outputImageOrientation: UIInterfaceOrientation = .portrait
 
     // 自动旋转(这里只支持 left 变 right  portrait 变 portraitUpsideDown)
     var autorotate: Bool = true
-    
+
     // 视频的帧率，即 fps
     let videoFrameRate: UInt
-    
+
     // 视频的最大帧率，即 fps
     let videoMinFrameRate: UInt
     // 视频的最小帧率，即 fps
@@ -83,10 +83,10 @@ public struct LiveVideoConfiguration {
     let videoBitRate: UInt
     // 视频的最大码率，单位是 bps
     let videoMaxBitRate: UInt
-    
+
     // 视频的最小码率，单位是 bps
     let videoMinBitRate: Int
-    
+
     // < 分辨率
     let sessionPreset: LiveVideoSessionPreset
 

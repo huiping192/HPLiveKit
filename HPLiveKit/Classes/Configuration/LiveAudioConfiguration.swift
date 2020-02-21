@@ -8,7 +8,6 @@
 
 import Foundation
 
-
 public struct LiveAudioConfiguration {
     public static var `default`: LiveAudioConfiguration {
         return LiveAudioConfiguration()
