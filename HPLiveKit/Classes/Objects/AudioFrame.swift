@@ -9,11 +9,11 @@ import Foundation
 
 struct AudioFrame: Frame {
     var timestampe: UInt64
-    
+
     var data: Data
-    
+
     var header: Data
-    
+
     /// flv打包中aac的header
     var audioInfo: Data
 }

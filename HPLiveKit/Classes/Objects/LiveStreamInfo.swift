@@ -39,15 +39,15 @@ public enum LiveSocketErrorCode: Int {
 
 public struct LiveStreamInfo {
     let streamId: String
-    
+
     // --- FLV ---
     let host: String
     let port: Int
-    
+
     // --- rtmp ---
-    
+
     let url: String
-    
+
     ///音频配置
     let audioConfiguration: LiveAudioConfiguration
     ///视频配置
