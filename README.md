@@ -27,15 +27,15 @@
 - [ ] 	Swift Support
 - [ ] 	Support Single Video or Audio 
 - [ ] 	Support External input video or audio(Screen recording or Peripheral)
-- [ ] 	~~FLV package and send~~
-
+- [ ]   Support Radio broadcasting 
+- [ ]   Support AudioEngine
 
 ## Example
 
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
 
 ## Requirements
-    - iOS 11.0+
+    - iOS 8.0+
     - Xcode 13
     
 ## Installation
