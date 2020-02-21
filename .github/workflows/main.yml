@@ -16,4 +16,4 @@ jobs:
     - name: Install cocoapods
       run: cd Example;pod install
     - name: Build 
-      run: cd Example;xcodebuild -sdk iphonesimulator -configuration Debug build
+      run: cd Example;xcodebuild  -workspace HPLiveKit.xcworkspace -scheme HPLiveKit-Example -sdk iphonesimulator -configuration Debug build
