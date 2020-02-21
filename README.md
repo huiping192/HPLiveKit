@@ -11,13 +11,11 @@
 
 ## Features
 
-### input
-
-#### video
+### video
 - [ ]   Beauty Face
 - [ ]   WaterMark
 
-#### audio
+### audio
 - [ ] 	Audio Mute
 - [ ]   AudioEngine api
 - [ ]   Radio broadcasting 
