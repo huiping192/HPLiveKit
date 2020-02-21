@@ -10,5 +10,7 @@ import Foundation
 
 
 struct LiveAudioConfiguration {
-    
+    static var `default`: LiveAudioConfiguration {
+        return LiveAudioConfiguration()
+    }
 }

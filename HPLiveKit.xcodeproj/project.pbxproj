@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		665BDAAD39B969FE75ED15E8 /* Pods_HPLiveKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */; };
+		7D00A510212C3515005ADEE7 /* GPUImageEmptyFilter.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D00A50E212C3514005ADEE7 /* GPUImageEmptyFilter.m */; };
+		7D00A513212C352F005ADEE7 /* GPUImageBeautyFilter.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D00A511212C352E005ADEE7 /* GPUImageBeautyFilter.m */; };
 		7D898A56212ACA9E005CE326 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A55212ACA9E005CE326 /* AppDelegate.swift */; };
 		7D898A58212ACA9E005CE326 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A57212ACA9E005CE326 /* ViewController.swift */; };
 		7D898A5B212ACA9E005CE326 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7D898A59212ACA9E005CE326 /* Main.storyboard */; };
@@ -22,6 +25,7 @@
 		7D898A87212ACD14005CE326 /* LiveAudioEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */; };
 		7D898A89212ACD61005CE326 /* StreamRtmpSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */; };
 		7D898A8B212AD01D005CE326 /* LiveStreamInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */; };
+		7DC5524A212ADD77003D76BF /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DC55249212ADD77003D76BF /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +39,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HPLiveKit.debug.xcconfig"; path = "Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit.debug.xcconfig"; sourceTree = "<group>"; };
+		7D00A50D212C3514005ADEE7 /* HPLiveKit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "HPLiveKit-Bridging-Header.h"; sourceTree = "<group>"; };
+		7D00A50E212C3514005ADEE7 /* GPUImageEmptyFilter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GPUImageEmptyFilter.m; path = ../../../../../../Downloads/GPUImageEmptyFilter.m; sourceTree = "<group>"; };
+		7D00A50F212C3515005ADEE7 /* GPUImageEmptyFilter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GPUImageEmptyFilter.h; path = ../../../../../../Downloads/GPUImageEmptyFilter.h; sourceTree = "<group>"; };
+		7D00A511212C352E005ADEE7 /* GPUImageBeautyFilter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GPUImageBeautyFilter.m; path = ../../../../../../Downloads/GPUImageBeautyFilter.m; sourceTree = "<group>"; };
+		7D00A512212C352E005ADEE7 /* GPUImageBeautyFilter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GPUImageBeautyFilter.h; path = ../../../../../../Downloads/GPUImageBeautyFilter.h; sourceTree = "<group>"; };
 		7D898A52212ACA9E005CE326 /* HPLiveKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HPLiveKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D898A55212ACA9E005CE326 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7D898A57212ACA9E005CE326 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -54,6 +64,9 @@
 		7D898A86212ACD14005CE326 /* LiveAudioEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioEncoder.swift; sourceTree = "<group>"; };
 		7D898A88212ACD61005CE326 /* StreamRtmpSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamRtmpSocket.swift; sourceTree = "<group>"; };
 		7D898A8A212AD01D005CE326 /* LiveStreamInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStreamInfo.swift; sourceTree = "<group>"; };
+		7DC55249212ADD77003D76BF /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_HPLiveKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HPLiveKit.release.xcconfig"; path = "Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +74,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7DC5524A212ADD77003D76BF /* AVFoundation.framework in Frameworks */,
+				665BDAAD39B969FE75ED15E8 /* Pods_HPLiveKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,12 +89,44 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		121FF9ABD585BB98740BBD20 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */,
+				D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
+		409331E71E3B5F1C13D91D92 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7DC55249212ADD77003D76BF /* AVFoundation.framework */,
+				B3689CE709F3E55E7B81DDD2 /* Pods_HPLiveKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		7D00A50C212C34C2005ADEE7 /* Filter */ = {
+			isa = PBXGroup;
+			children = (
+				7D00A512212C352E005ADEE7 /* GPUImageBeautyFilter.h */,
+				7D00A511212C352E005ADEE7 /* GPUImageBeautyFilter.m */,
+				7D00A50F212C3515005ADEE7 /* GPUImageEmptyFilter.h */,
+				7D00A50E212C3514005ADEE7 /* GPUImageEmptyFilter.m */,
+				7D00A50D212C3514005ADEE7 /* HPLiveKit-Bridging-Header.h */,
+			);
+			path = Filter;
+			sourceTree = "<group>";
+		};
 		7D898A49212ACA9E005CE326 = {
 			isa = PBXGroup;
 			children = (
 				7D898A54212ACA9E005CE326 /* HPLiveKit */,
 				7D898A69212ACA9F005CE326 /* HPLiveKitTests */,
 				7D898A53212ACA9E005CE326 /* Products */,
+				121FF9ABD585BB98740BBD20 /* Pods */,
+				409331E71E3B5F1C13D91D92 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -130,6 +177,7 @@
 		7D898A76212ACAB8005CE326 /* Capture */ = {
 			isa = PBXGroup;
 			children = (
+				7D00A50C212C34C2005ADEE7 /* Filter */,
 				7D898A80212ACCD1005CE326 /* LiveAudioCapture.swift */,
 				7D898A82212ACCDF005CE326 /* LiveVideoCapture.swift */,
 			);
@@ -170,9 +218,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7D898A6F212ACA9F005CE326 /* Build configuration list for PBXNativeTarget "HPLiveKit" */;
 			buildPhases = (
+				5113ACF321DC500C407CC35E /* [CP] Check Pods Manifest.lock */,
 				7D898A4E212ACA9E005CE326 /* Sources */,
 				7D898A4F212ACA9E005CE326 /* Frameworks */,
 				7D898A50212ACA9E005CE326 /* Resources */,
+				BA9A79D4594895E6A5AFB62F /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -213,6 +263,7 @@
 				TargetAttributes = {
 					7D898A51212ACA9E005CE326 = {
 						CreatedOnToolsVersion = 9.4.1;
+						LastSwiftMigration = 0940;
 					};
 					7D898A65212ACA9F005CE326 = {
 						CreatedOnToolsVersion = 9.4.1;
@@ -259,6 +310,45 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		5113ACF321DC500C407CC35E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-HPLiveKit-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		BA9A79D4594895E6A5AFB62F /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${SRCROOT}/Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/GPUImage/GPUImage.framework",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GPUImage.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-HPLiveKit/Pods-HPLiveKit-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		7D898A4E212ACA9E005CE326 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -268,6 +358,7 @@
 				7D898A83212ACCDF005CE326 /* LiveVideoCapture.swift in Sources */,
 				7D898A8B212AD01D005CE326 /* LiveStreamInfo.swift in Sources */,
 				7D898A81212ACCD1005CE326 /* LiveAudioCapture.swift in Sources */,
+				7D00A510212C3515005ADEE7 /* GPUImageEmptyFilter.m in Sources */,
 				7D898A7D212ACC96005CE326 /* LiveAudioConfiguration.swift in Sources */,
 				7D898A85212ACD01005CE326 /* LiveVideoEncoder.swift in Sources */,
 				7D898A89212ACD61005CE326 /* StreamRtmpSocket.swift in Sources */,
@@ -275,6 +366,7 @@
 				7D898A56212ACA9E005CE326 /* AppDelegate.swift in Sources */,
 				7D898A7F212ACCA5005CE326 /* LiveVideoConfiguration.swift in Sources */,
 				7D898A87212ACD14005CE326 /* LiveAudioEncoder.swift in Sources */,
+				7D00A513212C352F005ADEE7 /* GPUImageBeautyFilter.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -432,8 +524,10 @@
 		};
 		7D898A70212ACA9F005CE326 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1725D48C9AA2C5A181118E46 /* Pods-HPLiveKit.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
@@ -443,6 +537,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "HPLiveKit/Source/Capture/Filter/HPLiveKit-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -450,8 +546,10 @@
 		};
 		7D898A71212ACA9F005CE326 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D494F204133A2F784615C4DA /* Pods-HPLiveKit.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2T7W7YRZT2;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
@@ -461,6 +559,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping.HPLiveKit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "HPLiveKit/Source/Capture/Filter/HPLiveKit-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
