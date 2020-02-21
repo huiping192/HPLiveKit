@@ -1,4 +1,4 @@
-# HPLiveKit *WORK IN PROGRESS*
+# HPLiveKit   [WORK IN PROGRESS]
 
 ![CI](https://github.com/huiping192/HPLiveKit/workflows/CI/badge.svg)
 [![Version](https://img.shields.io/cocoapods/v/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
@@ -11,24 +11,31 @@
 
 ## Features
 
-- [ ] 	Background recording
-- [ ] 	Support horizontal vertical recording
-- [ ] 	Support Beauty Face With GPUImage
-- [ ] 	Support H264+AAC Hardware Encoding
-- [ ] 	Drop frames on bad network 
-- [ ] 	Dynamic switching rate
-- [ ] 	Audio configuration
-- [ ] 	Video configuration
-- [ ] 	RTMP Transport
-- [ ] 	Switch camera position
+### input
+
+#### video
+- [ ]   Beauty Face
+- [ ]   WaterMark
+
+#### audio
 - [ ] 	Audio Mute
-- [ ] 	Support Send Buffer
-- [ ] 	Support WaterMark
-- [ ] 	Swift Support
-- [ ] 	Support Single Video or Audio 
-- [ ] 	Support External input video or audio(Screen recording or Peripheral)
-- [ ]   Support Radio broadcasting 
-- [ ]   Support AudioEngine
+- [ ]   AudioEngine api
+- [ ]   Radio broadcasting 
+
+
+### encoder
+- [ ]   H264
+- [ ]   AAC
+
+### publish
+
+- [ ] 	RTMP 
+- [ ] 	MP4 recording
+- [ ] 	Drop frames on bad network 
+- [ ] 	Dynamic switching bitRate
+
+
+
 
 ## Example
 
@@ -52,7 +59,7 @@ pod 'HPLiveKit'
 
 ## Author
 
-huiping_guo, huiping192@gmail.com
+Huiping Guo, huiping192@gmail.com
 
 ## Release History
 
