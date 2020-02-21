@@ -37,7 +37,7 @@ public enum LiveSocketErrorCode: Int {
     case reconnectTimeOut = 205
 }
 
-struct LiveStreamInfo {
+public struct LiveStreamInfo {
     let streamId: String
     
     // --- FLV ---
