@@ -1,6 +1,6 @@
 # HPLiveKit
 
-[![CI Status](https://img.shields.io/travis/huiping_guo/HPLiveKit.svg?style=flat)](https://travis-ci.org/huiping_guo/HPLiveKit)
+![CI](https://github.com/huiping192/HPLiveKit/workflows/CI/badge.svg)
 [![Version](https://img.shields.io/cocoapods/v/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
 [![License](https://img.shields.io/cocoapods/l/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
 [![Platform](https://img.shields.io/cocoapods/p/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
