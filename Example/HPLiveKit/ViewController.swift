@@ -17,8 +17,9 @@ class ViewController: UIViewController {
         super.viewDidLoad()
 
         let defaultVidoeConfiguration = LiveVideoConfigurationFactory.defaultVideoConfiguration
+        let defaultAudioConfiguration = LiveAudioConfigurationFactory.defaultAudioConfiguration
 
-        liveSession = LiveSession(audioConfiguration: .default, videoConfiguration: defaultVidoeConfiguration)
+        liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVidoeConfiguration)
 
         liveSession!.perview = view
 
