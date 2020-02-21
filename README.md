@@ -5,6 +5,9 @@
 [![License](https://img.shields.io/cocoapods/l/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
 [![Platform](https://img.shields.io/cocoapods/p/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
 
+
+Swift live streaming lib. Inspired by LFLiveKit https://github.com/LaiFengiOS/LFLiveKit
+
 ## Example
 
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
@@ -22,7 +25,7 @@ pod 'HPLiveKit'
 
 ## Author
 
-huiping_guo, huiping.guo@dena.jp
+huiping_guo, huiping192@gmail.com
 
 ## License
 
