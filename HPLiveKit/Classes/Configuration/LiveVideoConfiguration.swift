@@ -27,6 +27,22 @@ public enum LiveVideoSessionPreset {
             return AVCaptureSession.Preset.hd1280x720.rawValue
         }
     }
+
+    var cameraImageSize: CGSize {
+        var size: CGSize
+        switch self {
+        case .preset360x640:
+            size = CGSize(width: 360, height: 640)
+        case .preset540x960:
+            size = CGSize(width: 540, height: 960)
+        case .preset720x1280:
+            size = CGSize(width: 720, height: 1280)
+        default:
+            size = CGSize.zero
+        }
+
+        return size
+    }
 }
 
 /// 视频质量
@@ -49,8 +65,6 @@ public enum LiveVideoQuality {
     case high2
     /// 分辨率： 720 *1280 帧数：30 码率：1200Kps
     case high3
-    /// 默认配置
-    static let `default`: LiveVideoQuality = .low2
 }
 
 public struct LiveVideoConfiguration {
@@ -94,4 +108,39 @@ public struct LiveVideoConfiguration {
     var  avSessionPreset: String {
         return sessionPreset.avSessionPreset
     }
+}
+
+extension LiveVideoConfiguration {
+    private var isLandscape: Bool {
+        return outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
+    }
+
+    // for internal use
+    var internalVideoSize: CGSize {
+        if videoSizeRespectingAspectRatio {
+            return aspectRatioVideoSize
+        }
+
+        return orientationFormateVideoSize
+    }
+
+    var orientationFormateVideoSize: CGSize {
+        if !isLandscape {
+            return videoSize
+        }
+        return CGSize(width: videoSize.height, height: videoSize.width)
+    }
+
+    var aspectRatioVideoSize: CGSize {
+        let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormateVideoSize.width, height: orientationFormateVideoSize.height) )
+
+        var width: Int = Int(ceil(size.width))
+        var height: Int = Int(ceil(size.height))
+
+        width = width % 2 == 0 ? width :  width - 1
+        height = height % 2 == 0 ? height :  height - 1
+
+        return CGSize(width: width, height: height)
+    }
+
 }
