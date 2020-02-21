@@ -111,7 +111,7 @@ public struct LiveVideoConfiguration {
 }
 
 extension LiveVideoConfiguration {
-    private var isLandscape: Bool {
+    var isLandscape: Bool {
         return outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
     }
 

@@ -1,5 +1,5 @@
 //
-//  VideoEncoder.swift
+//  LiveVideoH264Encoder.swift
 //  HPLiveKit
 //
 //  Created by Huiping Guo on 2018/08/20.
@@ -8,6 +8,6 @@
 
 import Foundation
 
-struct LiveVideoEncoder {
+struct LiveVideoH264Encoder {
 
 }

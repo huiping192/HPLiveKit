@@ -21,7 +21,7 @@ public class LiveSession {
             return videoCapture?.perview
         }
         set {
-            videoCapture?.perview = perview
+            videoCapture?.perview = newValue
         }
     }
 
@@ -35,10 +35,10 @@ public class LiveSession {
     }
 
     public func startLive() {
-        videoCapture?.setRunning(running: true)
+        videoCapture?.running = true
     }
 
     public func stopLive() {
-        videoCapture?.setRunning(running: false)
+        videoCapture?.running = false
     }
 }

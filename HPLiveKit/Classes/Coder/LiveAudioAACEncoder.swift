@@ -1,5 +1,5 @@
 //
-//  AudioEncoder.swift
+//  LiveAudioAACEncoder.swift
 //  HPLiveKit
 //
 //  Created by Huiping Guo on 2018/08/20.
@@ -8,6 +8,6 @@
 
 import Foundation
 
-struct LiveAudioEncoder {
+struct LiveAudioAACEncoder {
 
 }
