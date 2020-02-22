@@ -17,14 +17,14 @@ public enum LiveVideoSessionPreset {
     /// 高分辨率
     case preset720x1280
 
-    var avSessionPreset: String {
+    var avSessionPreset: AVCaptureSession.Preset {
         switch self {
         case .preset360x640:
-            return AVCaptureSession.Preset.vga640x480.rawValue
+            return AVCaptureSession.Preset.vga640x480
         case .preset540x960:
-            return AVCaptureSession.Preset.iFrame960x540.rawValue
+            return AVCaptureSession.Preset.iFrame960x540
         case .preset720x1280:
-            return AVCaptureSession.Preset.hd1280x720.rawValue
+            return AVCaptureSession.Preset.hd1280x720
         }
     }
 
@@ -105,7 +105,7 @@ public struct LiveVideoConfiguration {
     let sessionPreset: LiveVideoSessionPreset
 
     //< ≈sde3分辨率
-    var  avSessionPreset: String {
+    var  avSessionPreset: AVCaptureSession.Preset {
         return sessionPreset.avSessionPreset
     }
 }
