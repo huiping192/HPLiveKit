@@ -277,8 +277,8 @@ func handleInputBuffer(
 
     if source.muted {
         (0..<buffers.mNumberBuffers).forEach { _ in
-            let ab = buffers.mBuffers
-            memset(ab.mData, 0, Int(ab.mDataByteSize))
+            let buffer = buffers.mBuffers
+            memset(buffer.mData, 0, Int(buffer.mDataByteSize))
         }
     }
 
