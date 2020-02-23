@@ -2,7 +2,7 @@
 disabled_rules: # rule identifiers to exclude from running
 # warning
 # - nesting
-# - identifier_name
+ - identifier_name
 # error
  - line_length
 # - file_length

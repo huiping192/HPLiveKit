@@ -275,16 +275,18 @@ func handleInputBuffer(
 
     let status = AudioUnitRender(componetInstance, ioActionFlags, inTimeStamp, inBusNumber, inNumberFrames, &buffers)
 
+    let abl = UnsafeMutableAudioBufferListPointer(&buffers)
+
     if source.muted {
-        (0..<buffers.mNumberBuffers).forEach { _ in
-            let buffer = buffers.mBuffers
+        (0..<buffers.mNumberBuffers).forEach { i in
+            let buffer = abl[Int(i)]
             memset(buffer.mData, 0, Int(buffer.mDataByteSize))
         }
     }
 
     if status == noErr {
-        if let mData = buffers.mBuffers.mData {
-            let data = Data(bytes: mData, count: Int(buffers.mBuffers.mDataByteSize))
+        if let mData = abl[0].mData {
+            let data = Data(bytes: mData, count: Int(abl[0].mDataByteSize))
             source.delegate?.captureOutput(capture: source, audioData: data as NSData)
         }
     }
