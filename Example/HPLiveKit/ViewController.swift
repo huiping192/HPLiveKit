@@ -22,7 +22,9 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        liveSession?.startLive()
+        let info = LiveStreamInfo(streamId:"", url: "")
+
+        liveSession?.startLive(streamInfo: info)
     }
 
     func configureLiveSession() {

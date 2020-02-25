@@ -7,3 +7,17 @@
 //
 
 import Foundation
+
+class RtmpPublisher: Publisher {
+    func start() {
+
+    }
+
+    func stop() {
+
+    }
+
+    func send(frame: Frame) {
+
+    }
+}

@@ -9,7 +9,7 @@ import Foundation
 
 protocol Frame {
     var timestamp: UInt64? {
-        get
+        get set
     }
     var data: Data? {
         get

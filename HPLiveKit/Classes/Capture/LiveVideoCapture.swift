@@ -9,7 +9,7 @@
 import Foundation
 import GPUImage
 
-protocol LiveVideoCaptureDelegate: class {
+protocol VideoCaptureDelegate: class {
     func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer?)
 }
 
@@ -47,7 +47,7 @@ class LiveVideoCapture {
         }
     }
 
-    weak var delegate: LiveVideoCaptureDelegate?
+    weak var delegate: VideoCaptureDelegate?
 
     fileprivate var videoConfiguration: LiveVideoConfiguration
 

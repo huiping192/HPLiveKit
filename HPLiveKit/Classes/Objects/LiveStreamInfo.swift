@@ -38,18 +38,19 @@ public enum LiveSocketErrorCode: Int {
 }
 
 public struct LiveStreamInfo {
-    let streamId: String
-
-    // --- FLV ---
-    let host: String
-    let port: Int
+    public let streamId: String
 
     // --- rtmp ---
 
-    let url: String
+    public let url: String
 
     ///音频配置
-    let audioConfiguration: LiveAudioConfiguration
+    var audioConfiguration: LiveAudioConfiguration?
     ///视频配置
-    let videoConfiguration: LiveVideoConfiguration
+    var videoConfiguration: LiveVideoConfiguration?
+
+    public init(streamId: String, url: String) {
+        self.streamId = streamId
+        self.url = url
+    }
 }
