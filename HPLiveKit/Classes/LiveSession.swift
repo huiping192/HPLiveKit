@@ -15,6 +15,7 @@ public class LiveSession {
     fileprivate let videoConfiguration: LiveVideoConfiguration
 
     fileprivate var videoCapture: LiveVideoCapture?
+    fileprivate var audioCapture: LiveAudioCapture?
 
     public var perview: UIView? {
         get {
@@ -41,13 +42,16 @@ public class LiveSession {
         self.videoConfiguration = videoConfiguration
 
         videoCapture = LiveVideoCapture(videoConfiguration: videoConfiguration)
+        audioCapture = LiveAudioCapture(configuration: audioConfiguration)
     }
 
     public func startLive() {
-        videoCapture?.running = true
+        //        videoCapture?.running = true
+        audioCapture?.running = true
     }
 
     public func stopLive() {
         videoCapture?.running = false
+        audioCapture?.running = false
     }
 }

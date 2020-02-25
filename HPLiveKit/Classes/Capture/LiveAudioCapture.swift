@@ -14,12 +14,14 @@ let HPAudioComponentFailedToCreateNotification = Notification.Name(rawValue: "Au
 
 protocol AudioCaptureDelegate: class {
     /** LFAudioCapture callback audioData */
-    func captureOutput(capture: LiveAudioCapture, audioData: NSData?)
+    func captureOutput(capture: LiveAudioCapture, audioData: Data?)
 }
 
 class LiveAudioCapture {
+
     weak var delegate: AudioCaptureDelegate?
 
+    static var current: LiveAudioCapture?
     /** The muted control callbackAudioData,muted will memset 0.*/
     var muted: Bool = false
 
@@ -31,7 +33,7 @@ class LiveAudioCapture {
         set {
             guard newValue != _running else { return }
 
-            if _running {
+            if newValue {
                 taskQueue.async { [weak self] in
                     self?._running = true
 
@@ -42,7 +44,9 @@ class LiveAudioCapture {
                         categoryOptions = [.defaultToSpeaker]
                     }
 
-                    try? self?.session.setCategory(AVAudioSessionCategoryPlayback, with: categoryOptions)
+                    try? self?.session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
+                    guard let componetInstance = self?.componetInstance else { return }
+                    AudioOutputUnitStart(componetInstance)
                 }
             } else {
                 taskQueue.async { [weak self] in
@@ -67,6 +71,8 @@ class LiveAudioCapture {
     init(configuration: LiveAudioConfiguration) {
         self.configuration = configuration
 
+        LiveAudioCapture.current = self
+
         configureNotifications()
 
         configureAudioComponent()
@@ -87,6 +93,47 @@ class LiveAudioCapture {
         }
     }
 
+    var handleInputBuffer: AURenderCallback = {(
+        inRefCon: UnsafeMutableRawPointer,
+        ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
+        inTimeStamp: UnsafePointer<AudioTimeStamp>,
+        inBusNumber: UInt32,
+        inNumberFrames: UInt32,
+        ioData: UnsafeMutablePointer<AudioBufferList>?) in
+
+        guard let source = LiveAudioCapture.current, let componetInstance = source.componetInstance else {
+            return -1
+        }
+
+        var status = noErr
+
+        let channelCount: UInt32 = 1
+
+        var bufferList = AudioBufferList()
+        bufferList.mNumberBuffers = channelCount
+        let buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &bufferList.mBuffers,
+                                                              count: Int(bufferList.mNumberBuffers))
+        buffers[0].mNumberChannels = 1
+        buffers[0].mDataByteSize = inNumberFrames * 2
+        buffers[0].mData = nil
+
+        // get the recorded samples
+        status = AudioUnitRender(componetInstance,
+                                 ioActionFlags,
+                                 inTimeStamp,
+                                 inBusNumber,
+                                 inNumberFrames,
+                                 UnsafeMutablePointer<AudioBufferList>(&bufferList))
+        if status != noErr {
+            return status
+        }
+
+        let data = Data(bytes: buffers[0].mData!, count: Int(buffers[0].mDataByteSize))
+        source.delegate?.captureOutput(capture: source, audioData: data)
+
+        return status
+
+    }
 }
 
 // notification
@@ -185,7 +232,6 @@ extension LiveAudioCapture {
     func configureAudioComponent() {
         var acd: AudioComponentDescription = AudioComponentDescription()
         acd.componentType = kAudioUnitType_Output
-        //acd.componentSubType = kAudioUnitSubType_VoiceProcessingIO;
         acd.componentSubType = kAudioUnitSubType_RemoteIO
         acd.componentManufacturer = kAudioUnitManufacturer_Apple
         acd.componentFlags = 0
@@ -226,6 +272,7 @@ extension LiveAudioCapture {
         callbackStruct.inputProcRefCon = nil
         callbackStruct.inputProc = handleInputBuffer
         AudioUnitSetProperty(componetInstance, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 1, &desc, UInt32(MemoryLayout.size(ofValue: desc)))
+
         AudioUnitSetProperty(componetInstance, kAudioOutputUnitProperty_SetInputCallback, kAudioUnitScope_Global, 1, &callbackStruct, UInt32(MemoryLayout.size(ofValue: callbackStruct)))
 
         status = AudioUnitInitialize(componetInstance)
@@ -242,54 +289,10 @@ extension LiveAudioCapture {
         } else {
             categoryOptions = [.defaultToSpeaker]
         }
-        try? session.setCategory(AVAudioSessionCategoryPlayback, with: categoryOptions)
+        try? session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
 
         try? session.setActive(true, with: [.notifyOthersOnDeactivation])
         try? session.setActive(true)
     }
-}
 
-extension LiveAudioCapture {
-
-}
-
-func handleInputBuffer(
-    inRefCon: UnsafeMutableRawPointer,
-    ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
-    inTimeStamp: UnsafePointer<AudioTimeStamp>,
-    inBusNumber: UInt32,
-    inNumberFrames: UInt32,
-    ioData: UnsafeMutablePointer<AudioBufferList>?) -> OSStatus {
-
-    let source = inRefCon.assumingMemoryBound(to: LiveAudioCapture.self).pointee
-    guard let componetInstance = source.componetInstance else {
-        return -1
-    }
-
-    var buffer = AudioBuffer()
-    buffer.mData = nil
-    buffer.mDataByteSize = 0
-    buffer.mNumberChannels = 1
-
-    var buffers = AudioBufferList(mNumberBuffers: 1, mBuffers: buffer)
-
-    let status = AudioUnitRender(componetInstance, ioActionFlags, inTimeStamp, inBusNumber, inNumberFrames, &buffers)
-
-    let abl = UnsafeMutableAudioBufferListPointer(&buffers)
-
-    if source.muted {
-        (0..<buffers.mNumberBuffers).forEach { i in
-            let buffer = abl[Int(i)]
-            memset(buffer.mData, 0, Int(buffer.mDataByteSize))
-        }
-    }
-
-    if status == noErr {
-        if let mData = abl[0].mData {
-            let data = Data(bytes: mData, count: Int(abl[0].mDataByteSize))
-            source.delegate?.captureOutput(capture: source, audioData: data as NSData)
-        }
-    }
-
-    return status
 }

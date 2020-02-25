@@ -37,5 +37,7 @@
 	</array>
     <key>NSCameraUsageDescription</key>
     <string>Necessary for broadcasting, setting profile images, sharing images within the app, etc.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Necessary for broadcasting.</string>
 </dict>
 </plist>
