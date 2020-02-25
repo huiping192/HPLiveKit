@@ -249,7 +249,7 @@ private extension LiveVideoCapture {
             }
 
             var pifxelBuffer: CVPixelBuffer?
-            CVPixelBufferCreateWithBytes(kCFAllocatorDefault, Int(videoConfiguration.internalVideoSize.width), Int(videoConfiguration.internalVideoSize.height), kCVPixelFormatType_32BGRA, imageFrameBuffer.byteBuffer(), Int(videoConfiguration.internalVideoSize.width * 4), nil, nil, nil, &pifxelBuffer)
+            CVPixelBufferCreateWithBytes(kCFAllocatorDefault, Int(videoConfiguration.internalVideoSize.width), Int(videoConfiguration.internalVideoSize.height), kCVPixelFormatType_32BGRA, imageFrameBuffer.byteBuffer(), Int(imageFrameBuffer.bytesPerRow()), nil, nil, nil, &pifxelBuffer)
 
             delegate?.captureOutput(capture: self, pixelBuffer: pifxelBuffer)
         }
