@@ -25,6 +25,15 @@ public class LiveSession {
         }
     }
 
+    public var warterMarkView: UIView? {
+        get {
+            return videoCapture?.warterMarkView
+        }
+        set {
+            videoCapture?.warterMarkView = newValue
+        }
+    }
+
     var streamInfo: LiveStreamInfo?
 
     public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {

@@ -291,6 +291,10 @@ private extension LiveVideoCapture {
         //            self.filter = [[LFGPUImageEmptyFilter alloc] init];
         //            self.beautyFilter = nil;
         //        }
+
+        let filter = GPUImageFilter()
+        self.output = GPUImageFilter()
+        self.filter = filter
     }
 
     //< 调节镜像

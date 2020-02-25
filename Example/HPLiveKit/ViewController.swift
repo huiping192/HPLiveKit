@@ -18,6 +18,12 @@ class ViewController: UIViewController {
 
        configureLiveSession()
     }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        liveSession?.startLive()
+    }
 
     func configureLiveSession() {
         let defaultVidoeConfiguration = LiveVideoConfigurationFactory.defaultVideoConfiguration
@@ -26,9 +32,8 @@ class ViewController: UIViewController {
         let liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVidoeConfiguration)
 
         liveSession.perview = view
-
-        liveSession.startLive()
-        
+//        liveSession.warterMarkView = UIView()
+                
         self.liveSession = liveSession
     }
 }

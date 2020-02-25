@@ -35,5 +35,7 @@
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 	</array>
+    <key>NSCameraUsageDescription</key>
+    <string>Necessary for broadcasting, setting profile images, sharing images within the app, etc.</string>
 </dict>
 </plist>
