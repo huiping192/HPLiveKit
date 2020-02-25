@@ -9,6 +9,10 @@
 import Foundation
 import GPUImage
 
+protocol LiveVideoCaptureDelegate: class {
+    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer?)
+}
+
 class LiveVideoCapture {
 
     public var perview: UIView? {
@@ -42,6 +46,8 @@ class LiveVideoCapture {
             reloadMirror()
         }
     }
+
+    weak var delegate: LiveVideoCaptureDelegate?
 
     fileprivate var videoConfiguration: LiveVideoConfiguration
 
@@ -236,22 +242,17 @@ private extension LiveVideoCapture {
 
 // handle image processing
 private extension LiveVideoCapture {
-    //    - (void)processVideo:(GPUImageOutput *)output {
-    //        __weak typeof(self) _self = self;
-    //        @autoreleasepool {
-    //            GPUImageFramebuffer *imageFramebuffer = output.framebufferForOutput;
-    //            CVPixelBufferRef pixelBuffer = [imageFramebuffer pixelBuffer];
-    //            if (pixelBuffer && _self.delegate && [_self.delegate respondsToSelector:@selector(captureOutput:pixelBuffer:)]) {
-    //                [_self.delegate captureOutput:_self pixelBuffer:pixelBuffer];
-    //            }
-    //        }
-    //    }
-
     func processVideo(output: GPUImageOutput) {
-        //        autoreleasepool { [weak self] in
-        //            let imageFrameBuffer = output.framebufferForOutput() as? GPUImageFramebuffer
-        //            let pixelBuffer = imageFrameBuffer.
-        //        }
+        autoreleasepool { [weak self] in
+            guard let self = self, let imageFrameBuffer = output.framebufferForOutput() as? GPUImageFramebuffer else {
+                return
+            }
+
+            var pifxelBuffer: CVPixelBuffer?
+            CVPixelBufferCreateWithBytes(kCFAllocatorDefault, Int(videoConfiguration.internalVideoSize.width), Int(videoConfiguration.internalVideoSize.height), kCVPixelFormatType_32BGRA, imageFrameBuffer.byteBuffer(), Int(videoConfiguration.internalVideoSize.width * 4), nil, nil, nil, &pifxelBuffer)
+
+            delegate?.captureOutput(capture: self, pixelBuffer: pifxelBuffer)
+        }
     }
 
     func reloadFilter() {

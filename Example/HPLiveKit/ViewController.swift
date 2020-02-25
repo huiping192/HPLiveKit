@@ -16,19 +16,19 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+       configureLiveSession()
+    }
+
+    func configureLiveSession() {
         let defaultVidoeConfiguration = LiveVideoConfigurationFactory.defaultVideoConfiguration
         let defaultAudioConfiguration = LiveAudioConfigurationFactory.defaultAudioConfiguration
 
-        liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVidoeConfiguration)
+        let liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVidoeConfiguration)
 
-        liveSession!.perview = view
+        liveSession.perview = view
 
-        liveSession!.startLive()
+        liveSession.startLive()
+        
+        self.liveSession = liveSession
     }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-
 }
