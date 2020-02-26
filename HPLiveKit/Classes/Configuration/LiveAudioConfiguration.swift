@@ -28,6 +28,42 @@ public enum LiveAudioSampleRate: Int {
     case s44100Hz = 44100
     /// 48KHz 采样率
     case s48000Hz = 48000
+
+    var sampleRateIndex: UInt8 {
+        var sampleRateIndex: UInt8 = 0
+        switch self.rawValue {
+        case 96000:
+            sampleRateIndex = 0
+        case 88200:
+            sampleRateIndex = 1
+        case 64000:
+            sampleRateIndex = 2
+        case 48000:
+            sampleRateIndex = 3
+        case 44100:
+            sampleRateIndex = 4
+        case 32000:
+            sampleRateIndex = 5
+        case 24000:
+            sampleRateIndex = 6
+        case 22050:
+            sampleRateIndex = 7
+        case 16000:
+            sampleRateIndex = 8
+        case 12000:
+            sampleRateIndex = 9
+        case 11025:
+            sampleRateIndex = 10
+        case 8000:
+            sampleRateIndex = 11
+        case 7350:
+            sampleRateIndex = 12
+        default:
+            sampleRateIndex = 15
+        }
+
+        return sampleRateIndex
+    }
 }
 
 public enum LiveAudioQuality {
@@ -43,16 +79,15 @@ public enum LiveAudioQuality {
 
 public struct LiveAudioConfiguration {
     /// 声道数目
-    let numberOfChannels: UInt
+    let numberOfChannels: UInt32
     /// 采样率
     let audioSampleRate: LiveAudioSampleRate
     /// 码率
     let audioBitRate: LiveAudioBitRate
     /// flv编码音频头 44100 为0x12 0x10
-    // FIXME: 実装
-    private(set) var asc: Character?
+    private(set) var asc: [UInt8]?
     /// 缓存区长度
-    var bufferLength: UInt {
-        return 1024*2*self.numberOfChannels
+    var bufferLength: Int {
+        return 1024 * 2 * Int(self.numberOfChannels)
     }
 }
