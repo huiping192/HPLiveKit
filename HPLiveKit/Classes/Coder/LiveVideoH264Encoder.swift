@@ -42,7 +42,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         }
     }
 
-    weak var delegate: VideoEncodingDelegate?
+    weak var delegate: VideoEncoderDelegate?
 
     required init(configuration: LiveVideoConfiguration) {
         self.configuration = configuration

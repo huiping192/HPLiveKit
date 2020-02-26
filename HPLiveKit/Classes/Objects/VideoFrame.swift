@@ -8,12 +8,12 @@
 import Foundation
 
 struct VideoFrame: Frame {
-    var timestamp: UInt64?
+    var timestamp: UInt64 = 0
     var data: Data?
 
     var header: Data?
 
-    var isKeyFrame: Bool?
+    var isKeyFrame: Bool = false
 
     var sps: Data?
     var pps: Data?

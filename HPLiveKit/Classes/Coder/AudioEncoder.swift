@@ -8,7 +8,7 @@
 import Foundation
 
 protocol AudioEncoderDelegate: class {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame?)
+    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame)
 }
 
 protocol AudioEncoder: class {

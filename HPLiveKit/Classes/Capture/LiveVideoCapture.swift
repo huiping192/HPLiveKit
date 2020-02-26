@@ -10,7 +10,7 @@ import Foundation
 import GPUImage
 
 protocol VideoCaptureDelegate: class {
-    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer?)
+    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer)
 }
 
 class LiveVideoCapture {
@@ -251,7 +251,9 @@ private extension LiveVideoCapture {
             var pifxelBuffer: CVPixelBuffer?
             CVPixelBufferCreateWithBytes(kCFAllocatorDefault, Int(videoConfiguration.internalVideoSize.width), Int(videoConfiguration.internalVideoSize.height), kCVPixelFormatType_32BGRA, imageFrameBuffer.byteBuffer(), Int(imageFrameBuffer.bytesPerRow()), nil, nil, nil, &pifxelBuffer)
 
-            delegate?.captureOutput(capture: self, pixelBuffer: pifxelBuffer)
+            if let pifxelBuffer = pifxelBuffer {
+                delegate?.captureOutput(capture: self, pixelBuffer: pifxelBuffer)
+            }
         }
     }
 

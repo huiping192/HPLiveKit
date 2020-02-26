@@ -8,7 +8,7 @@
 import Foundation
 
 // 编码器编码后回调
-protocol VideoEncodingDelegate: class {
+protocol VideoEncoderDelegate: class {
     func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
 }
 
@@ -23,7 +23,7 @@ protocol VideoEncoder: class {
 
     init(configuration: LiveVideoConfiguration)
 
-    weak var delegate: VideoEncodingDelegate? {
+    weak var delegate: VideoEncoderDelegate? {
         get
         set
     }

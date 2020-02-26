@@ -14,7 +14,7 @@ let HPAudioComponentFailedToCreateNotification = Notification.Name(rawValue: "Au
 
 protocol AudioCaptureDelegate: class {
     /** LFAudioCapture callback audioData */
-    func captureOutput(capture: LiveAudioCapture, audioData: Data?)
+    func captureOutput(capture: LiveAudioCapture, audioData: Data)
 }
 
 class LiveAudioCapture {

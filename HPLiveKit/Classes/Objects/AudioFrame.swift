@@ -8,7 +8,7 @@
 import Foundation
 
 struct AudioFrame: Frame {
-    var timestamp: UInt64?
+    var timestamp: UInt64 = 0
 
     var data: Data?
 
