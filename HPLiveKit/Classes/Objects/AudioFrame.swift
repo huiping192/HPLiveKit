@@ -7,13 +7,7 @@
 
 import Foundation
 
-struct AudioFrame: Frame {
-    var timestamp: UInt64 = 0
-
-    var data: Data?
-
-    var header: Data?
-
+class AudioFrame: Frame {
     /// flv打包中aac的header
     var audioInfo: Data?
 }

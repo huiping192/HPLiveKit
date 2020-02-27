@@ -7,12 +7,7 @@
 
 import Foundation
 
-struct VideoFrame: Frame {
-    var timestamp: UInt64 = 0
-    var data: Data?
-
-    var header: Data?
-
+class VideoFrame: Frame {
     var isKeyFrame: Bool = false
 
     var sps: Data?

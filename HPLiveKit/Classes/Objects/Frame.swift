@@ -7,16 +7,14 @@
 
 import Foundation
 
-protocol Frame {
-    var timestamp: UInt64 {
-        get set
-    }
-    var data: Data? {
-        get
-    }
+class Frame: Equatable {
+    var timestamp: UInt64 = 0
+    var data: Data?
 
     ///< flv或者rtmp包头
-    var header: Data? {
-        get
+    var header: Data?
+
+    static func ==(lhs: Frame, rhs: Frame) -> Bool {
+        return lhs.timestamp == rhs.timestamp && lhs.data == lhs.data
     }
 }

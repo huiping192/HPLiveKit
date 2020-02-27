@@ -9,6 +9,8 @@
 import Foundation
 
 class RtmpPublisher: Publisher {
+    weak var delegate: PublisherDelegate?
+
     func start() {
 
     }
