@@ -7,21 +7,16 @@
 
 import Foundation
 
-//@protocol LFStreamSocketDelegate <NSObject>
-//
-///** callback buffer current status (回调当前缓冲区情况，可实现相关切换帧率 码率等策略)*/
-//- (void)socketBufferStatus:(nullable id <LFStreamSocket>)socket status:(LFLiveBuffferState)status;
-///** callback socket current status (回调当前网络情况) */
-//- (void)socketStatus:(nullable id <LFStreamSocket>)socket status:(LFLiveState)status;
-///** callback socket errorcode */
-//- (void)socketDidError:(nullable id <LFStreamSocket>)socket errorCode:(LFLiveSocketErrorCode)errorCode;
-//@optional
-///** callback debugInfo */
-//- (void)socketDebug:(nullable id <LFStreamSocket>)socket debugInfo:(nullable LFLiveDebug *)debugInfo;
-//@end
-
 protocol PublisherDelegate: class {
-    //    func publisher(publisher: Publisher, status)
+    /** callback buffer current status (回调当前缓冲区情况，可实现相关切换帧率 码率等策略)*/
+    func socketBufferStatus(publisher: Publisher, status: BufferState)
+    /** callback socket current status (回调当前网络情况) */
+    func socketStatus(publisher: Publisher, status: LiveState)
+    /** callback socket errorcode */
+    func socketDidError(publisher: Publisher, errorCode: LiveSocketErrorCode)
+
+    /** callback debugInfo */
+    func socketDebug(publisher: Publisher, debugInfo: LiveDebug)
 }
 
 protocol Publisher {
