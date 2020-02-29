@@ -31,4 +31,6 @@ Pod::Spec.new do |s|
   
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
   s.dependency 'GPUImage'
+  s.dependency 'pili-librtmp'
+
 end

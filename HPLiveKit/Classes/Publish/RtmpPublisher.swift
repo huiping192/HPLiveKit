@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import pili_librtmp
 
 class RtmpPublisher: Publisher {
     weak var delegate: PublisherDelegate?
