@@ -185,7 +185,89 @@ class RtmpPublisher: Publisher {
     }
     
     private func sendMetaData() {
+        guard let rtmp = mRTMP?.pointee else { return }
+        var packet: PILI_RTMPPacket = PILI_RTMPPacket()
+
+                
+//        var pubf: UnsafePointer<UInt8> = &0
+//        var pend = &pubf + MemoryLayout.size(ofValue: pubf)
+        var pend: UnsafeMutablePointer<Int8> =   UnsafeMutablePointer<Int8>.allocate(capacity: 8)
+        packet.m_nChannel = 0x03                  // control channel (invoke)
+        packet.m_headerType = UInt8(RTMP_PACKET_SIZE_LARGE)
+        packet.m_packetType = UInt8(RTMP_PACKET_TYPE_INFO)
+        packet.m_nTimeStamp = 0
+        packet.m_nInfoField2 = rtmp.m_stream_id
+        packet.m_hasAbsTimestamp = 1
+//        packet.m_body = pbuf + RTMP_MAX_HEADER_SIZE;
         
+        var enc: UnsafeMutablePointer<Int8>? = packet.m_body
+        var dataFrame = av_setDataFrame
+        enc = PILI_AMF_EncodeString(enc, pend, &dataFrame)
+        var onMetaData = av_onMetaData
+        enc = PILI_AMF_EncodeString(enc, pend, &onMetaData)
+        
+        enc?.advanced(by: 1).pointee = Int8(PILI_AMF_OBJECT.rawValue)
+        
+        var duration = av_duration
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &duration, 0.0)
+        var fileSize = av_fileSize
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &fileSize, 0.0)
+
+
+        // videosize
+        var width = av_width
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &width, Double(stream.videoConfiguration?.internalVideoSize.width ?? 0.0))
+        var height = av_height
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &height, Double(stream.videoConfiguration?.internalVideoSize.height ?? 0.0))
+
+        // video
+        var videoCodecId = av_videocodecid
+        var avc1 = av_avc1
+        enc = PILI_AMF_EncodeNamedString(enc, pend, &videoCodecId, &avc1)
+        var videoDataRate = av_videodatarate
+        
+        let bitrate = Double(stream.videoConfiguration?.videoBitRate ?? 0) / 1000.0
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &videoDataRate, bitrate)
+        var avFrameRate = av_framerate
+        let frameRate = stream.videoConfiguration?.videoFrameRate ?? 0
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &avFrameRate, Double(frameRate))
+
+        // audio
+        var audioCodecId = av_audiocodecid
+        var avMp4a = av_mp4a
+        enc = PILI_AMF_EncodeNamedString(enc, pend, &audioCodecId, &avMp4a)
+        var audioDataRate = av_audiodatarate
+        var audioBitrate = Double(stream.audioConfiguration?.audioBitRate.rawValue ?? 0)
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &audioDataRate, audioBitrate)
+        
+        var avAudioSampleRate = av_audiosamplerate
+        var aduioSapleRate = Double(stream.audioConfiguration?.audioSampleRate.rawValue ?? 0)
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &avAudioSampleRate, aduioSapleRate)
+        
+        var aduioSampleSize = av_audiosamplesize
+        enc = PILI_AMF_EncodeNamedNumber(enc, pend, &aduioSampleSize, 16.0)
+
+        var avStereo = av_stereo
+        enc = PILI_AMF_EncodeNamedBoolean(enc, pend, &avStereo, stream.audioConfiguration?.numberOfChannels == 2 ? 1 : 0 )
+
+        // sdk version
+        var avEncoder = av_encoder
+        var avSDKVersion = av_SDKVersion
+        enc = PILI_AMF_EncodeNamedString(enc, pend, &avEncoder, &avSDKVersion)
+        
+        
+        
+        enc?.advanced(by: 1).pointee = 0
+        enc?.advanced(by: 1).pointee = 0
+
+        enc?.advanced(by: 1).pointee = Int8(PILI_AMF_OBJECT_END.rawValue)
+
+//        packet.m_nBodySize = (uint32_t)(enc - packet.m_body);
+        
+        if PILI_RTMP_SendPacket(mRTMP, &packet, 0, nil) == 0 {
+            return
+        }
+
     }
 }
  
