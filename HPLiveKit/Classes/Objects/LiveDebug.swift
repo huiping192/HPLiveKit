@@ -8,44 +8,43 @@
 import Foundation
 
 struct LiveDebug {
-
     ///< 流id
-    let streamId: String
+    var streamId: String?
     ///< 流地址
-    let uploadUrl: String
+    var uploadUrl: String?
     ///< 上传的分辨率
-    let videoSize: CGSize
+    var videoSize: CGSize?
     ///< 上传方式（TCP or RTMP）
-    let isRtmp: Bool
+    var isRtmp: Bool = true
 
     ///< 距离上次统计的时间 单位ms
-    let elapsedMilli: CGFloat
+    var elapsedMilli: CGFloat = 0
     ///< 当前的时间戳，从而计算1s内数据
-    let timeStamp: CGFloat
+    var timeStamp: CGFloat = 0
     ///< 总流量
-    let dataFlow: CGFloat
+    var dataFlow: CGFloat = 0
     ///< 1s内总带宽
-    let bandwidth: CGFloat
+    var bandwidth: CGFloat = 0
     ///< 上次的带宽
-    let currentBandwidth: CGFloat
+    var currentBandwidth: CGFloat = 0
 
     ///< 丢掉的帧数
-    let dropFrame: Int
+    var dropFrame: Int = 0
     ///< 总帧数
-    let totalFrame: Int
+    var totalFrame: Int = 0
 
     ///< 1s内音频捕获个数
-    let capturedAudioCount: Int
+    var capturedAudioCount: Int = 0
     ///< 1s内视频捕获个数
-    let capturedVideoCount: Int
+    var capturedVideoCount: Int = 0
 
     ///< 上次的音频捕获个数
-    let currentCapturedAudioCount: Int
+    var currentCapturedAudioCount: Int = 0
     ///< 上次的视频捕获个数
-    let currentCapturedVideoCount: Int
+    var currentCapturedVideoCount: Int = 0
 
     ///< 未发送个数（代表当前缓冲区等待发送的）
-    let unSendCount: Int
+    var unSendCount: Int = 0
 }
 
 extension LiveDebug: CustomStringConvertible {

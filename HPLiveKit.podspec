@@ -27,7 +27,7 @@ Pod::Spec.new do |s|
 
   s.ios.deployment_target = '8.0'
 
-  s.source_files = 'HPLiveKit/Classes/**/*'
+  s.source_files = 'HPLiveKit/Classes/**/*.{swift,h,m}'
   
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
   s.dependency 'GPUImage'

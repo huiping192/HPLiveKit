@@ -20,7 +20,6 @@ protocol PublisherDelegate: class {
 }
 
 protocol Publisher {
-
     var delegate: PublisherDelegate? {
         get
         set
