@@ -23,7 +23,7 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        let info = HPLiveStreamInfo()
+        let info = LiveStreamInfo(streamId: "sample1", url: "")
 
         liveSession?.startLive(streamInfo: info)
     }

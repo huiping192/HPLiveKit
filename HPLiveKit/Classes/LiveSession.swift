@@ -73,7 +73,7 @@ struct LiveCaptureTypeMask {
     /// 调试信息
     private var debugInfo: HPLiveDebug?
     /// 流信息
-    private var streamInfo: HPLiveStreamInfo?
+    private var streamInfo: LiveStreamInfo?
     /// 是否开始上传
     private var uploading: Bool = false
     /// 当前状态
@@ -129,16 +129,11 @@ struct LiveCaptureTypeMask {
         stopCapturing()
     }
 
-    public func startLive(streamInfo: HPLiveStreamInfo) {
+    public func startLive(streamInfo: LiveStreamInfo) {
         var mutableStreamInfo = streamInfo
 
-        streamInfo.audioBitrate = CGFloat(audioConfiguration.audioBitRate.rawValue)
-        streamInfo.audioSampleRate = CGFloat(audioConfiguration.audioSampleRate.rawValue)
-        streamInfo.numberOfChannels = Int32(audioConfiguration.numberOfChannels)
-
-        streamInfo.videoSize = videoConfiguration.videoSize
-        streamInfo.videoBitrate = CGFloat(videoConfiguration.videoBitRate)
-        streamInfo.videoFrameRate = CGFloat(videoConfiguration.videoFrameRate)
+        mutableStreamInfo.audioConfiguration = audioConfiguration
+        mutableStreamInfo.videoConfiguration = videoConfiguration
 
         self.streamInfo = mutableStreamInfo
 
@@ -155,6 +150,28 @@ struct LiveCaptureTypeMask {
     public func stopCapturing() {
         videoCapture?.running = false
         audioCapture?.running = false
+    }
+}
+
+private extension LiveSession {
+    func createRTMPSocket() -> HPStreamRTMPSocket {
+        guard let streamInfo = streamInfo else {
+            fatalError("streamInfo is nil")
+        }
+        var rtmpInfo = HPLiveStreamInfo()
+
+        rtmpInfo.streamId = streamInfo.streamId
+        rtmpInfo.url = streamInfo.url
+
+        rtmpInfo.audioBitrate = CGFloat(audioConfiguration.audioBitRate.rawValue)
+        rtmpInfo.audioSampleRate = CGFloat(audioConfiguration.audioSampleRate.rawValue)
+        rtmpInfo.numberOfChannels = Int32(audioConfiguration.numberOfChannels)
+
+        rtmpInfo.videoSize = videoConfiguration.videoSize
+        rtmpInfo.videoBitrate = CGFloat(videoConfiguration.videoBitRate)
+        rtmpInfo.videoFrameRate = CGFloat(videoConfiguration.videoFrameRate)
+
+        return HPStreamRTMPSocket(stream: rtmpInfo)
     }
 }
 
