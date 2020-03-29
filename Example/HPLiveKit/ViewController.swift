@@ -40,3 +40,15 @@ class ViewController: UIViewController {
         self.liveSession = liveSession
     }
 }
+
+extension ViewController: LiveSessionDelegate {
+    func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState) {
+        
+    }
+    func liveSession(session: LiveSession, debugInfo: HPLiveState) {
+        
+    }
+    func liveSession(session: LiveSession, errorCode: HPLiveState) {
+        
+    }
+}

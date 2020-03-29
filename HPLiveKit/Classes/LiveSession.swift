@@ -45,13 +45,13 @@ struct LiveCaptureTypeMask {
     static let captureDefaultMask: LiveCaptureType  = captureMaskAll
 }
 
-@objc protocol LiveSessionDelegate {
+public protocol LiveSessionDelegate: class {
     ///** live status changed will callback */
-    @objc optional func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState)
+    func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState)
     ///** live debug info callback */
-    @objc optional func liveSession(session: LiveSession, debugInfo: HPLiveState)
+    func liveSession(session: LiveSession, debugInfo: HPLiveState)
     ///** callback socket errorcode */
-    @objc optional func liveSession(session: LiveSession, errorCode: HPLiveState)
+    func liveSession(session: LiveSession, errorCode: HPLiveState)
 }
 
 @objc public class LiveSession: NSObject {
@@ -60,12 +60,12 @@ struct LiveCaptureTypeMask {
     private let videoConfiguration: LiveVideoConfiguration
 
     // video,audio data source
-    private var videoCapture: LiveVideoCapture?
-    private var audioCapture: LiveAudioCapture?
+    private let videoCapture: LiveVideoCapture
+    private let audioCapture: LiveAudioCapture
 
     // encoder
-    private var videoEncoder: VideoEncoder?
-    private var audioEncoder: LiveAudioAACEncoder?
+    private let videoEncoder: VideoEncoder
+    private let audioEncoder: AudioEncoder
 
     // publisher
     private var socket: HPStreamRTMPSocket?
@@ -101,19 +101,19 @@ struct LiveCaptureTypeMask {
 
     public var perview: UIView? {
         get {
-            return videoCapture?.perview
+            return videoCapture.perview
         }
         set {
-            videoCapture?.perview = newValue
+            videoCapture.perview = newValue
         }
     }
 
     public var warterMarkView: UIView? {
         get {
-            return videoCapture?.warterMarkView
+            return videoCapture.warterMarkView
         }
         set {
-            videoCapture?.warterMarkView = newValue
+            videoCapture.warterMarkView = newValue
         }
     }
 
@@ -123,6 +123,9 @@ struct LiveCaptureTypeMask {
 
         videoCapture = LiveVideoCapture(videoConfiguration: videoConfiguration)
         audioCapture = LiveAudioCapture(configuration: audioConfiguration)
+
+        videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
+        audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
     }
 
     deinit {
@@ -130,6 +133,9 @@ struct LiveCaptureTypeMask {
     }
 
     public func startLive(streamInfo: LiveStreamInfo) {
+        if socket == nil {
+            socket = createRTMPSocket()
+        }
         var mutableStreamInfo = streamInfo
 
         mutableStreamInfo.audioConfiguration = audioConfiguration
@@ -148,8 +154,8 @@ struct LiveCaptureTypeMask {
     }
 
     public func stopCapturing() {
-        videoCapture?.running = false
-        audioCapture?.running = false
+        videoCapture.running = false
+        audioCapture.running = false
     }
 }
 
@@ -204,13 +210,13 @@ extension LiveSession: AudioCaptureDelegate, VideoCaptureDelegate {
     func captureOutput(capture: LiveAudioCapture, audioData: Data) {
         guard uploading else { return }
 
-        audioEncoder?.encodeAudioData(data: audioData, timeStamp: .now)
+        audioEncoder.encodeAudioData(data: audioData, timeStamp: .now)
     }
 
     func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer) {
         guard uploading else { return }
 
-        videoEncoder?.encodeVideoData(pixelBuffer: pixelBuffer, timeStamp: .now)
+        videoEncoder.encodeVideoData(pixelBuffer: pixelBuffer, timeStamp: .now)
     }
 }
 
