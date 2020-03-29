@@ -8,6 +8,7 @@
 
 import Foundation
 import GPUImage
+import GPUImageBeauty
 
 protocol VideoCaptureDelegate: class {
     func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer)
@@ -71,7 +72,7 @@ class LiveVideoCapture {
     /*
      gpuimage filters
      */
-    //    private var beautyFilter: LFGPUImageBeautyFilter?
+    private var beautyFilter: HPGPUImageBeautyFilter?
     private var filter: (GPUImageOutput & GPUImageInput)?
     private var cropFilter: GPUImageCropFilter?
     private var blendFilter: GPUImageAlphaBlendFilter?
@@ -284,19 +285,15 @@ private extension LiveVideoCapture {
     }
 
     func setupBeautyFace() {
-        //        if (self.beautyFace) {
-        //            self.output = [[LFGPUImageEmptyFilter alloc] init];
-        //            self.filter = [[LFGPUImageBeautyFilter alloc] init];
-        //            self.beautyFilter = (LFGPUImageBeautyFilter*)self.filter;
-        //        } else {
-        //            self.output = [[LFGPUImageEmptyFilter alloc] init];
-        //            self.filter = [[LFGPUImageEmptyFilter alloc] init];
-        //            self.beautyFilter = nil;
-        //        }
-
-        let filter = GPUImageFilter()
-        self.output = GPUImageFilter()
-        self.filter = filter
+        if beautyFace {
+            output = HPGPUImageEmptyFilter()
+            filter = HPGPUImageBeautyFilter()
+            beautyFilter = filter as? HPGPUImageBeautyFilter
+        } else {
+            output = HPGPUImageEmptyFilter()
+            filter = HPGPUImageEmptyFilter()
+            beautyFilter = nil
+        }
     }
 
     //< 调节镜像
