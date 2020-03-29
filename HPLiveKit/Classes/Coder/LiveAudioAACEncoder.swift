@@ -9,6 +9,7 @@
 import Foundation
 import AudioToolbox
 import AVFoundation
+import HPLibRTMP
 
 class LiveAudioAACEncoder: AudioEncoder {
 
@@ -108,7 +109,7 @@ class LiveAudioAACEncoder: AudioEncoder {
             return
         }
 
-        var audioFrame = AudioFrame()
+        var audioFrame = HPAudioFrame()
         audioFrame.timestamp = timestamp
         audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
 

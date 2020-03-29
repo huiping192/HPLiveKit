@@ -8,6 +8,7 @@
 
 import UIKit
 import HPLiveKit
+import HPLibRTMP
 
 class ViewController: UIViewController {
 
@@ -22,7 +23,7 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        let info = LiveStreamInfo(streamId:"", url: "")
+        let info = HPLiveStreamInfo()
 
         liveSession?.startLive(streamInfo: info)
     }

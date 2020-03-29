@@ -8,6 +8,7 @@
 
 import Foundation
 import VideoToolbox
+import HPLibRTMP
 
 class LiveVideoH264Encoder: VideoEncoder {
     private var compressionSession: VTCompressionSession?
@@ -219,7 +220,7 @@ class LiveVideoH264Encoder: VideoEncoder {
             NALUnitLength = CFSwapInt32BigToHost(NALUnitLength)
 
             let data = Data(bytes: ptr + bufferOffset + AVCCHeaderLength, count: Int(NALUnitLength))
-            var videoFrame = VideoFrame()
+            var videoFrame = HPVideoFrame()
 
             videoFrame.timestamp = timeStamp.uint64Value
             videoFrame.data = data

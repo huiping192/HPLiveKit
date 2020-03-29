@@ -8,6 +8,8 @@
 
 import Foundation
 import UIKit
+import HPLibRTMP
+
 //< only video (External input video)
 struct LiveCaptureType: OptionSet {
     public let rawValue: Int
@@ -45,11 +47,11 @@ struct LiveCaptureTypeMask {
 
 @objc protocol LiveSessionDelegate {
     ///** live status changed will callback */
-    @objc optional func liveSession(session: LiveSession, liveStateDidChange state: LiveState)
+    @objc optional func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState)
     ///** live debug info callback */
-    @objc optional func liveSession(session: LiveSession, debugInfo: LiveState)
+    @objc optional func liveSession(session: LiveSession, debugInfo: HPLiveState)
     ///** callback socket errorcode */
-    @objc optional func liveSession(session: LiveSession, errorCode: LiveState)
+    @objc optional func liveSession(session: LiveSession, errorCode: HPLiveState)
 }
 
 @objc public class LiveSession: NSObject {
@@ -66,16 +68,16 @@ struct LiveCaptureTypeMask {
     private var audioEncoder: LiveAudioAACEncoder?
 
     // publisher
-    private var socket: Publisher?
+    private var socket: HPStreamRTMPSocket?
 
     /// 调试信息
-    private var debugInfo: LiveDebug?
+    private var debugInfo: HPLiveDebug?
     /// 流信息
-    private var streamInfo: LiveStreamInfo?
+    private var streamInfo: HPLiveStreamInfo?
     /// 是否开始上传
     private var uploading: Bool = false
     /// 当前状态
-    private var state: LiveState?
+    private var state: HPLiveState?
     /// 当前直播type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
     /// 时间戳锁
@@ -127,10 +129,16 @@ struct LiveCaptureTypeMask {
         stopCapturing()
     }
 
-    public func startLive(streamInfo: LiveStreamInfo) {
+    public func startLive(streamInfo: HPLiveStreamInfo) {
         var mutableStreamInfo = streamInfo
-        mutableStreamInfo.videoConfiguration = self.videoConfiguration
-        mutableStreamInfo.audioConfiguration = self.audioConfiguration
+
+        streamInfo.audioBitrate = CGFloat(audioConfiguration.audioBitRate.rawValue)
+        streamInfo.audioSampleRate = CGFloat(audioConfiguration.audioSampleRate.rawValue)
+        streamInfo.numberOfChannels = Int32(audioConfiguration.numberOfChannels)
+
+        streamInfo.videoSize = videoConfiguration.videoSize
+        streamInfo.videoBitrate = CGFloat(videoConfiguration.videoBitRate)
+        streamInfo.videoFrameRate = CGFloat(videoConfiguration.videoFrameRate)
 
         self.streamInfo = mutableStreamInfo
 
@@ -152,14 +160,14 @@ struct LiveCaptureTypeMask {
 
 private extension LiveSession {
 
-    func pushSendBuffer(frame: Frame) {
+    func pushSendBuffer(frame: HPFrame) {
         if relativeTimestamp == 0 {
             relativeTimestamp = frame.timestamp
         }
         var realFrame = frame
         realFrame.timestamp = uploadTimestamp(timestamp: frame.timestamp)
 
-        socket?.send(frame: realFrame)
+        socket?.send(realFrame)
     }
 
     func uploadTimestamp(timestamp: UInt64) -> UInt64 {
@@ -190,7 +198,7 @@ extension LiveSession: AudioCaptureDelegate, VideoCaptureDelegate {
 }
 
 extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
+    func audioEncoder(encoder: AudioEncoder, audioFrame: HPAudioFrame) {
         guard uploading else { return }
         hasCaptureAudio = true
 
@@ -199,7 +207,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         }
     }
 
-    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
+    func videoEncoder(encoder: VideoEncoder, frame: HPVideoFrame) {
         guard uploading else { return }
 
         if frame.isKeyFrame && self.hasCaptureAudio {
