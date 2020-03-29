@@ -15,9 +15,9 @@ public struct LiveStreamInfo {
     public let url: String
 
     ///音频配置
-    public var audioConfiguration: LiveAudioConfiguration?
+    var audioConfiguration: LiveAudioConfiguration?
     ///视频配置
-    public var videoConfiguration: LiveVideoConfiguration?
+    var videoConfiguration: LiveVideoConfiguration?
 
     public init(streamId: String, url: String) {
         self.streamId = streamId

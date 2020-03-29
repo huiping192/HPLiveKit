@@ -45,10 +45,10 @@ extension ViewController: LiveSessionDelegate {
     func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState) {
         
     }
-    func liveSession(session: LiveSession, debugInfo: HPLiveState) {
+    func liveSession(session: LiveSession, debugInfo: HPLiveDebug) {
         
     }
-    func liveSession(session: LiveSession, errorCode: HPLiveState) {
+    func liveSession(session: LiveSession, errorCode: HPLiveSocketErrorCode) {
         
     }
 }

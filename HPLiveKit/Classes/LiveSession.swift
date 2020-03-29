@@ -49,38 +49,43 @@ public protocol LiveSessionDelegate: class {
     ///** live status changed will callback */
     func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState)
     ///** live debug info callback */
-    func liveSession(session: LiveSession, debugInfo: HPLiveState)
+    func liveSession(session: LiveSession, debugInfo: HPLiveDebug)
     ///** callback socket errorcode */
-    func liveSession(session: LiveSession, errorCode: HPLiveState)
+    func liveSession(session: LiveSession, errorCode: HPLiveSocketErrorCode)
 }
 
 @objc public class LiveSession: NSObject {
 
+    public weak var delegate: LiveSessionDelegate?
+
+    public var showDebugInfo: Bool = false
+    public var adaptiveBitrate: Bool = true
+
     private let audioConfiguration: LiveAudioConfiguration
     private let videoConfiguration: LiveVideoConfiguration
 
-    // video,audio data source
+    // 视频，音频数据源 video,audio data source
     private let videoCapture: LiveVideoCapture
     private let audioCapture: LiveAudioCapture
 
-    // encoder
+    // 视频，音频编码 encoder
     private let videoEncoder: VideoEncoder
     private let audioEncoder: AudioEncoder
 
-    // publisher
+    // 推流 publisher
     private var socket: HPStreamRTMPSocket?
 
-    /// 调试信息
+    /// 调试信息 debug info
     private var debugInfo: HPLiveDebug?
-    /// 流信息
+    /// 流信息 stream info
     private var streamInfo: LiveStreamInfo?
-    /// 是否开始上传
+    /// 是否开始上传  is publishing
     private var uploading: Bool = false
-    /// 当前状态
+    /// 当前状态 current live stream state
     private var state: HPLiveState?
     /// 当前直播type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
-    /// 时间戳锁
+    /// 时间戳锁  timestamp lock
     private var lock = DispatchSemaphore(value: 0)
 
     /// 上传相对时间戳
@@ -184,13 +189,15 @@ private extension LiveSession {
 private extension LiveSession {
 
     func pushSendBuffer(frame: HPFrame) {
+        guard let socket = socket else { return }
+
         if relativeTimestamp == 0 {
             relativeTimestamp = frame.timestamp
         }
         var realFrame = frame
         realFrame.timestamp = uploadTimestamp(timestamp: frame.timestamp)
 
-        socket?.send(realFrame)
+        socket.send(realFrame)
     }
 
     func uploadTimestamp(timestamp: UInt64) -> UInt64 {
@@ -240,6 +247,57 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
             pushSendBuffer(frame: frame)
         }
     }
+}
+
+extension LiveSession: HPStreamSocketDelegate {
+    public func socketStatus(_ socket: HPStreamSocket?, status: HPLiveState) {
+        if status == .start {
+            if !uploading {
+                hasCaptureAudio = false
+                hasCaptureKeyFrame = false
+                relativeTimestamp = 0
+                uploading = true
+            }
+        }
+
+        if status == .stop || status == .error {
+            uploading = false
+        }
+
+        self.state = status
+        delegate?.liveSession(session: self, liveStateDidChange: status)
+    }
+
+    public func socketBufferStatus(_ socket: HPStreamSocket?, status: HPLiveBuffferState) {
+        guard captureType.contains(.captureVideo) && adaptiveBitrate else { return }
+        let videoBitRate = videoEncoder.videoBitRate
+
+        if status == .decline {
+            if videoBitRate < videoConfiguration.videoMaxBitRate {
+                let adjustedVideoBitRate = videoBitRate + 50 * 1000
+                videoEncoder.videoBitRate = adjustedVideoBitRate
+                print("[HPLiveKit] Increase bitrate \(adjustedVideoBitRate)")
+            }
+        } else {
+            if videoBitRate > videoConfiguration.videoMinBitRate {
+                let adjustedVideoBitRate = videoBitRate - 100 * 1000
+                videoEncoder.videoBitRate = adjustedVideoBitRate
+                print("[HPLiveKit] Decline bitrate \(adjustedVideoBitRate)")
+            }
+        }
+    }
+
+    public func socketDidError(_ socket: HPStreamSocket?, errorCode: HPLiveSocketErrorCode) {
+        delegate?.liveSession(session: self, errorCode: errorCode)
+    }
+
+    public func socketDebug(_ socket: HPStreamSocket?, debugInfo: HPLiveDebug?) {
+        self.debugInfo = debugInfo
+        if let debugInfo = debugInfo, showDebugInfo {
+            delegate?.liveSession(session: self, debugInfo: debugInfo)
+        }
+    }
+
 }
 
 extension UInt64 {
