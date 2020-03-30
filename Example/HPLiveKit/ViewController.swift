@@ -42,13 +42,13 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: LiveSessionDelegate {
-    func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState) {
+    func liveSession(session: LiveSession, liveStateDidChange state: LiveState) {
         
     }
-    func liveSession(session: LiveSession, debugInfo: HPLiveDebug) {
+    func liveSession(session: LiveSession, debugInfo: LiveDebug) {
         
     }
-    func liveSession(session: LiveSession, errorCode: HPLiveSocketErrorCode) {
+    func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode) {
         
     }
 }

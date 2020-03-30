@@ -18,12 +18,11 @@ class RtmpPublisher: Publisher {
     private let rtmpReceiveTimeout = 2
     private let dataItemsMaxCount = 100
     private let rtmpDataReserveSize = 400
-   
 
     weak var delegate: PublisherDelegate?
-        
+
     private let stream: LiveStreamInfo
-        
+
     private lazy var buffer: StreamingBuffer = {
         let buffer = StreamingBuffer()
         buffer.delegate = self
@@ -31,43 +30,38 @@ class RtmpPublisher: Publisher {
     }()
     private var debugInfo: LiveDebug = .init()
     private let rtmpSendQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.RTMPPublisher.Queue")
-    
+
     //错误信息
     private var retryTimes4netWorkBreaken: Int = 0
     private let reconnectInterval: Int
     private let reconnectCount: Int
-    
+
     // 状态
     private var isSending = false {
         //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
         didSet {
-            
+
         }
     }
     private var isConnected = false
     private var isConnecting = false
     private var isReconnecting = false
-    
+
     private var sendVideoHead = false
     private var sendAudioHead = false
-    
+
     private let rtmp: HPRTMP
-    
+
     init(stream: LiveStreamInfo, reconnectInterval: Int = 0, reconnectCount: Int = 0) {
         self.stream = stream
-    
+
         self.reconnectInterval = reconnectInterval > 0 ? reconnectInterval : retryTimesMargin
-        
+
         self.reconnectCount = reconnectCount > 0 ? reconnectCount : retryTimesBreaken
-        
-        self.rtmp = createRTMP()
-    }
-    
-    private func createRTMP() -> HPRTMP {
+
         let conf = HPRTMPConf()
-        
         conf.url = stream.url
-        
+
         conf.audioBitrate = CGFloat(stream.audioConfiguration?.audioBitRate.rawValue ?? 1000)
         conf.audioSampleRate = CGFloat(stream.audioConfiguration?.audioSampleRate.rawValue ?? 30)
         conf.numberOfChannels = Int32(stream.audioConfiguration?.numberOfChannels ?? 1)
@@ -76,10 +70,9 @@ class RtmpPublisher: Publisher {
         conf.videoBitrate = CGFloat(stream.videoConfiguration?.videoBitRate ?? 1000)
         conf.videoFrameRate = CGFloat(stream.videoConfiguration?.videoFrameRate ?? 30)
 
-        return HPRTMP(conf: conf)
+        self.rtmp =  HPRTMP(conf: conf)
     }
-    
-    
+
     func start() {
         rtmpSendQueue.async {
             self._start()
@@ -88,55 +81,47 @@ class RtmpPublisher: Publisher {
 
     private func _start() {
         guard isConnected else { return }
-        
+
         debugInfo.streamId = stream.streamId
         debugInfo.uploadUrl = stream.url
         self.debugInfo.isRtmp = true
-        
+
         guard isConnected else { return }
-        
+
         isConnected = true
         delegate?.socketStatus(publisher: self, status: .pending)
-        
-        if var mRTMP = mRTMP {
-            PILI_RTMP_Close(mRTMP, nil)
-            PILI_RTMP_Free(mRTMP)
-        }
-        
+
+        rtmp.close()
+
         RTMP264_Connect(url: stream.url)
     }
-    
+
     // CallBack
     private func RTMP264_Connect(url: String) -> Int {
-        
-        
+
         isConnected = true
         isConnecting = false
         isReconnecting = false
         isSending = false
-        
+
         return 0
     }
-    
+
     func stop() {
         rtmpSendQueue.async {
             self._stop()
             NSObject.cancelPreviousPerformRequests(withTarget: self)
         }
     }
-    
+
     private func _stop() {
         delegate?.socketStatus(publisher: self, status: .stop)
-        
-        if var mRTMP = mRTMP {
-            PILI_RTMP_Close(mRTMP, nil);
-            PILI_RTMP_Free(mRTMP);
-            self.mRTMP = nil
-        }
-        
+
+        rtmp.close()
+
         clean()
     }
-    
+
     private func clean() {
         isConnected = false
         isReconnecting = false
@@ -155,15 +140,15 @@ class RtmpPublisher: Publisher {
             sendFrame()
         }
     }
-    
+
     private func sendFrame() {
-        
+
     }
-    
+
 }
- 
+
 private extension RtmpPublisher {
-    
+
 }
 
 private extension RtmpPublisher {
@@ -184,9 +169,8 @@ private extension RtmpPublisher {
     }
 }
 
-
 extension RtmpPublisher: StreamingBufferDelegate {
     func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-        
+
     }
 }

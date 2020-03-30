@@ -32,6 +32,6 @@ Pod::Spec.new do |s|
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
   s.dependency 'GPUImage'
   s.dependency 'GPUImageBeauty'
-  s.dependency 'HPLibRTMP' , '~> 0.0.2'
+  s.dependency 'HPLibRTMP' , '~> 0.0.3'
 
 end
