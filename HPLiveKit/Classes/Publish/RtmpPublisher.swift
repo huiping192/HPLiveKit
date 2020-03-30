@@ -152,20 +152,20 @@ private extension RtmpPublisher {
 }
 
 private extension RtmpPublisher {
-    func sendVideoHeader(sps: Data, pps: Data) {
-
+    func sendVideoHeader(frame: VideoFrame) {
+        rtmp.sendVideoHeader(withSPS: frame.sps, pps: frame.pps)
     }
 
-    func sendVideoFrame() {
-
+    func sendVideoFrame(frame: VideoFrame) {
+        rtmp.sendVideo(withVideoData: frame.data, timestamp: frame.timestamp, isKeyFrame: frame.isKeyFrame)
     }
 
-    func sendAudioHeader() {
-
+    func sendAudioHeader(frame: AudioFrame) {
+        rtmp.sendAudioHeader(frame.header)
     }
 
-    func sendAudioFrame() {
-
+    func sendAudioFrame(frame: AudioFrame) {
+        rtmp.sendAudio(withAudioData: frame.data, timestamp: frame.timestamp)
     }
 }
 
