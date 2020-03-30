@@ -7,12 +7,12 @@ PODS:
   - GPUImage (0.1.7)
   - GPUImageBeauty (0.1.0):
     - GPUImage
-  - HPLibRTMP (0.0.1):
+  - HPLibRTMP (0.0.2):
     - pili-librtmp
   - HPLiveKit (0.1.0):
     - GPUImage
     - GPUImageBeauty
-    - HPLibRTMP
+    - HPLibRTMP (~> 0.0.2)
   - Nimble (7.3.4)
   - Nimble-Snapshots (6.3.0):
     - Nimble-Snapshots/Core (= 6.3.0)
@@ -32,17 +32,16 @@ DEPENDENCIES:
   - SwiftLint
 
 SPEC REPOS:
-  https://github.com/CocoaPods/Specs.git:
+  trunk:
     - FBSnapshotTestCase
     - GPUImage
-    - Nimble
-    - Nimble-Snapshots
-    - Quick
-    - SwiftLint
-  trunk:
     - GPUImageBeauty
     - HPLibRTMP
+    - Nimble
+    - Nimble-Snapshots
     - pili-librtmp
+    - Quick
+    - SwiftLint
 
 EXTERNAL SOURCES:
   HPLiveKit:
@@ -52,8 +51,8 @@ SPEC CHECKSUMS:
   FBSnapshotTestCase: 094f9f314decbabe373b87cc339bea235a63e07a
   GPUImage: 733a5f0fab92df9de1c37ba9df520a833ccb406d
   GPUImageBeauty: 6d03aaac7b698cc7771c1280c2d660ff58a34d67
-  HPLibRTMP: 1765a392016740a91a1af7263202ee61364b532e
-  HPLiveKit: e673f9ae888f04300490ee33df2edfb2985d74a5
+  HPLibRTMP: 76870cfca60a290e5672655a8b3e98b7e6086901
+  HPLiveKit: 7ffb1ab5fa0c4cf6896517958fc580694d0282de
   Nimble: 051e3d8912d40138fa5591c78594f95fb172af37
   Nimble-Snapshots: f5459b5b091678dc942d03ec4741cacb58ba4a52
   pili-librtmp: e8a06a45b0a1a166c48ae6dc718171c0963f32ea
