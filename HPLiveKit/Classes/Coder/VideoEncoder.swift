@@ -6,11 +6,10 @@
 //
 
 import Foundation
-import HPLibRTMP
 
 // 编码器编码后回调
 protocol VideoEncoderDelegate: class {
-    func videoEncoder(encoder: VideoEncoder, frame: HPVideoFrame)
+    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
 }
 
 protocol VideoEncoder: class {

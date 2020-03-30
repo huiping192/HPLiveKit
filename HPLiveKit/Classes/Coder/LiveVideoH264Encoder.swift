@@ -220,7 +220,7 @@ class LiveVideoH264Encoder: VideoEncoder {
             NALUnitLength = CFSwapInt32BigToHost(NALUnitLength)
 
             let data = Data(bytes: ptr + bufferOffset + AVCCHeaderLength, count: Int(NALUnitLength))
-            var videoFrame = HPVideoFrame()
+            var videoFrame = VideoFrame()
 
             videoFrame.timestamp = timeStamp.uint64Value
             videoFrame.data = data

@@ -8,7 +8,6 @@
 
 import Foundation
 import UIKit
-import HPLibRTMP
 
 //< only video (External input video)
 struct LiveCaptureType: OptionSet {
@@ -47,11 +46,11 @@ struct LiveCaptureTypeMask {
 
 public protocol LiveSessionDelegate: class {
     ///** live status changed will callback */
-    func liveSession(session: LiveSession, liveStateDidChange state: HPLiveState)
+    func liveSession(session: LiveSession, liveStateDidChange state: LiveState)
     ///** live debug info callback */
-    func liveSession(session: LiveSession, debugInfo: HPLiveDebug)
+    func liveSession(session: LiveSession, debugInfo: LiveDebug)
     ///** callback socket errorcode */
-    func liveSession(session: LiveSession, errorCode: HPLiveSocketErrorCode)
+    func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode)
 }
 
 @objc public class LiveSession: NSObject {
@@ -73,16 +72,16 @@ public protocol LiveSessionDelegate: class {
     private let audioEncoder: AudioEncoder
 
     // 推流 publisher
-    private var socket: HPStreamRTMPSocket?
+    private var socket: Publisher?
 
     /// 调试信息 debug info
-    private var debugInfo: HPLiveDebug?
+    private var debugInfo: LiveDebug?
     /// 流信息 stream info
     private var streamInfo: LiveStreamInfo?
     /// 是否开始上传  is publishing
     private var uploading: Bool = false
     /// 当前状态 current live stream state
-    private var state: HPLiveState?
+    private var state: LiveState?
     /// 当前直播type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
     /// 时间戳锁  timestamp lock
@@ -165,30 +164,18 @@ public protocol LiveSessionDelegate: class {
 }
 
 private extension LiveSession {
-    func createRTMPSocket() -> HPStreamRTMPSocket {
+    func createRTMPSocket() -> Publisher {
         guard let streamInfo = streamInfo else {
             fatalError("streamInfo is nil")
         }
-        var rtmpInfo = HPLiveStreamInfo()
 
-        rtmpInfo.streamId = streamInfo.streamId
-        rtmpInfo.url = streamInfo.url
-
-        rtmpInfo.audioBitrate = CGFloat(audioConfiguration.audioBitRate.rawValue)
-        rtmpInfo.audioSampleRate = CGFloat(audioConfiguration.audioSampleRate.rawValue)
-        rtmpInfo.numberOfChannels = Int32(audioConfiguration.numberOfChannels)
-
-        rtmpInfo.videoSize = videoConfiguration.videoSize
-        rtmpInfo.videoBitrate = CGFloat(videoConfiguration.videoBitRate)
-        rtmpInfo.videoFrameRate = CGFloat(videoConfiguration.videoFrameRate)
-
-        return HPStreamRTMPSocket(stream: rtmpInfo)
+        return RtmpPublisher(stream: streamInfo)
     }
 }
 
 private extension LiveSession {
 
-    func pushSendBuffer(frame: HPFrame) {
+    func pushSendBuffer(frame: Frame) {
         guard let socket = socket else { return }
 
         if relativeTimestamp == 0 {
@@ -197,7 +184,7 @@ private extension LiveSession {
         var realFrame = frame
         realFrame.timestamp = uploadTimestamp(timestamp: frame.timestamp)
 
-        socket.send(realFrame)
+        socket.send(frame: realFrame)
     }
 
     func uploadTimestamp(timestamp: UInt64) -> UInt64 {
@@ -228,7 +215,7 @@ extension LiveSession: AudioCaptureDelegate, VideoCaptureDelegate {
 }
 
 extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: HPAudioFrame) {
+    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
         guard uploading else { return }
         hasCaptureAudio = true
 
@@ -237,7 +224,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         }
     }
 
-    func videoEncoder(encoder: VideoEncoder, frame: HPVideoFrame) {
+    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
         guard uploading else { return }
 
         if frame.isKeyFrame && self.hasCaptureAudio {
@@ -249,8 +236,8 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
     }
 }
 
-extension LiveSession: HPStreamSocketDelegate {
-    public func socketStatus(_ socket: HPStreamSocket?, status: HPLiveState) {
+extension LiveSession: PublisherDelegate {
+    func socketStatus(publisher: Publisher, status: LiveState) {
         if status == .start {
             if !uploading {
                 hasCaptureAudio = false
@@ -268,7 +255,7 @@ extension LiveSession: HPStreamSocketDelegate {
         delegate?.liveSession(session: self, liveStateDidChange: status)
     }
 
-    public func socketBufferStatus(_ socket: HPStreamSocket?, status: HPLiveBuffferState) {
+    func socketBufferStatus(publisher: Publisher, status: BufferState) {
         guard captureType.contains(.captureVideo) && adaptiveBitrate else { return }
         let videoBitRate = videoEncoder.videoBitRate
 
@@ -287,13 +274,13 @@ extension LiveSession: HPStreamSocketDelegate {
         }
     }
 
-    public func socketDidError(_ socket: HPStreamSocket?, errorCode: HPLiveSocketErrorCode) {
+    func socketDidError(publisher: Publisher, errorCode: LiveSocketErrorCode) {
         delegate?.liveSession(session: self, errorCode: errorCode)
     }
 
-    public func socketDebug(_ socket: HPStreamSocket?, debugInfo: HPLiveDebug?) {
+    func socketDebug(publisher: Publisher, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
-        if let debugInfo = debugInfo, showDebugInfo {
+        if showDebugInfo {
             delegate?.liveSession(session: self, debugInfo: debugInfo)
         }
     }

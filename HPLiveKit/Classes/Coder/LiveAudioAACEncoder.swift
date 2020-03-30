@@ -109,7 +109,7 @@ class LiveAudioAACEncoder: AudioEncoder {
             return
         }
 
-        var audioFrame = HPAudioFrame()
+        var audioFrame = AudioFrame()
         audioFrame.timestamp = timestamp
         audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
 

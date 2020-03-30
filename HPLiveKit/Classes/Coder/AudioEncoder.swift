@@ -6,10 +6,9 @@
 //
 
 import Foundation
-import HPLibRTMP
 
 protocol AudioEncoderDelegate: class {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: HPAudioFrame)
+    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame)
 }
 
 protocol AudioEncoder: class {
