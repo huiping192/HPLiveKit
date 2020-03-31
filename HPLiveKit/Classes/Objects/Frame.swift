@@ -14,7 +14,7 @@ class Frame: Equatable {
     ///< flv或者rtmp包头
     var header: Data?
 
-    static func ==(lhs: Frame, rhs: Frame) -> Bool {
+    static func == (lhs: Frame, rhs: Frame) -> Bool {
         return lhs.timestamp == rhs.timestamp && lhs.data == lhs.data
     }
 }

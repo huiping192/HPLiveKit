@@ -9,7 +9,7 @@
 import Foundation
 import HPLibRTMP
 
-class RtmpPublisher: Publisher {
+class RtmpPublisher: NSObject, Publisher {
 
     ///<  重连1分钟  3秒一次 一共20次
     private let retryTimesBreaken = 5
@@ -40,7 +40,8 @@ class RtmpPublisher: Publisher {
     private var isSending = false {
         //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
         didSet {
-
+            guard !isSending else { return }
+            sendFrame()
         }
     }
     private var isConnected = false
@@ -71,6 +72,10 @@ class RtmpPublisher: Publisher {
         conf.videoFrameRate = CGFloat(stream.videoConfiguration?.videoFrameRate ?? 30)
 
         self.rtmp =  HPRTMP(conf: conf)
+
+        super.init()
+
+        self.rtmp.delegate = self
     }
 
     func start() {
@@ -93,18 +98,53 @@ class RtmpPublisher: Publisher {
 
         rtmp.close()
 
-        RTMP264_Connect(url: stream.url)
+        connect()
     }
 
     // CallBack
-    private func RTMP264_Connect(url: String) -> Int {
+    private func connect() {
+        guard self.rtmp.connect() != 0 else {
+            reconnect()
+            return
+        }
+        delegate?.socketStatus(publisher: self, status: .start)
 
         isConnected = true
         isConnecting = false
         isReconnecting = false
         isSending = false
+    }
 
-        return 0
+    private func reconnect() {
+        rtmpSendQueue.async {
+            self.retryTimes4netWorkBreaken += 1
+            if self.retryTimes4netWorkBreaken < self.reconnectCount && !self.isReconnecting {
+                self.isConnected = false
+                self.isConnecting = false
+                self.isReconnecting = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(self.reconnectInterval)) {
+                    self._reconnect()
+                }
+            } else if self.retryTimes4netWorkBreaken >= self.reconnectCount {
+                self.delegate?.socketStatus(publisher: self, status: .error)
+                self.delegate?.socketDidError(publisher: self, errorCode: .reconnectTimeOut)
+            }
+        }
+    }
+
+    private func _reconnect() {
+        self.isReconnecting = false
+        if isConnected { return }
+        if isConnected { return }
+
+        sendAudioHead = false
+        sendVideoHead = false
+
+        delegate?.socketStatus(publisher: self, status: .refresh)
+
+        rtmp.close()
+
+        connect()
     }
 
     func stop() {
@@ -137,17 +177,87 @@ class RtmpPublisher: Publisher {
     func send(frame: Frame) {
         buffer.append(frame: frame)
         if !isSending {
-            sendFrame()
+            rtmpSendQueue.async {
+                self.sendFrame()
+            }
         }
-    }
-
-    private func sendFrame() {
-
     }
 
 }
 
 private extension RtmpPublisher {
+    func sendFrame() {
+        if !self.isSending && !self.buffer.list.isEmpty {
+            self.isSending = true
+
+            if !self.isConnected || self.isReconnecting || self.isConnecting {
+                self.isSending = false
+                return
+            }
+
+            guard let frame = self.buffer.popFirstFrame() else { return }
+
+            if let frame = frame as? VideoFrame {
+                if !self.sendVideoHead {
+                    self.sendVideoHead = true
+                    if frame.sps == nil || frame.pps == nil {
+                        self.isSending = false
+                        return
+                    }
+
+                    self.sendVideoHeader(frame: frame)
+                } else {
+                    self.sendVideoFrame(frame: frame)
+                }
+            }
+
+            if let frame = frame as? AudioFrame {
+                if !self.sendAudioHead {
+                    self.sendAudioHead = true
+                    if frame.audioInfo == nil {
+                        self.isSending = false
+                        return
+                    }
+                    self.sendAudioHeader(frame: frame)
+                } else {
+                    self.sendAudioFrame(frame: frame)
+                }
+            }
+
+            //debug更新
+            self.debugInfo.totalFrame += 1
+            self.debugInfo.dropFrame += self.buffer.lastDropFrames
+            self.buffer.lastDropFrames = 0
+
+            self.debugInfo.dataFlow += CGFloat(frame.data?.count ?? 0)
+            self.debugInfo.elapsedMilli = CGFloat(CACurrentMediaTime()) * 1000 - self.debugInfo.timeStamp
+
+            if debugInfo.elapsedMilli < 1000 {
+                debugInfo.bandwidth += CGFloat(frame.data?.count ?? 0)
+                if  frame is AudioFrame {
+                    debugInfo.capturedAudioCount += 1
+                } else {
+                    debugInfo.capturedVideoCount += 1
+                }
+                debugInfo.unSendCount = buffer.list.count
+            } else {
+                debugInfo.currentBandwidth = debugInfo.bandwidth
+                debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
+                debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCount
+
+                delegate?.socketDebug(publisher: self, debugInfo: debugInfo)
+
+                debugInfo.bandwidth = 0
+                debugInfo.capturedVideoCount = 0
+                debugInfo.capturedAudioCount = 0
+                debugInfo.timeStamp = CGFloat(CACurrentMediaTime()) * 1000
+            }
+            //修改发送状态
+            DispatchQueue.global(qos: .default).async {
+                self.isSending = false
+            }
+        }
+    }
 
 }
 
@@ -171,6 +281,13 @@ private extension RtmpPublisher {
 
 extension RtmpPublisher: StreamingBufferDelegate {
     func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-
+        delegate?.socketBufferStatus(publisher: self, status: bufferState)
     }
+}
+
+extension RtmpPublisher: HPRTMPDelegate {
+    func rtmp(_ rtmp: HPRTMP!, error: Error!) {
+        self.reconnect()
+    }
+
 }
