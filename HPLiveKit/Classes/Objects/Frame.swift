@@ -8,7 +8,7 @@
 import Foundation
 
 class Frame: Equatable {
-    var timestamp: UInt64 = 0
+    var timestamp: Timestamp = 0
     var data: Data?
 
     ///< flv或者rtmp包头

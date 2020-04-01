@@ -254,7 +254,7 @@ private extension RtmpPublisher {
         self.buffer.lastDropFrames = 0
 
         self.debugInfo.dataFlow += CGFloat(frame.data?.count ?? 0)
-        self.debugInfo.elapsedMilli = CGFloat(CACurrentMediaTime()) * 1000 - self.debugInfo.timeStamp
+        self.debugInfo.elapsedMilli = CGFloat(Timestamp.now) - self.debugInfo.timeStamp
 
         if debugInfo.elapsedMilli < 1000 {
             debugInfo.bandwidth += CGFloat(frame.data?.count ?? 0)
@@ -274,7 +274,7 @@ private extension RtmpPublisher {
             debugInfo.bandwidth = 0
             debugInfo.capturedVideoCount = 0
             debugInfo.capturedAudioCount = 0
-            debugInfo.timeStamp = CGFloat(CACurrentMediaTime()) * 1000
+            debugInfo.timeStamp = CGFloat(Timestamp.now)
         }
     }
 

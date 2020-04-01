@@ -18,7 +18,7 @@ protocol AudioEncoder: class {
         set
     }
 
-    func encodeAudioData(data: Data, timeStamp: UInt64)
+    func encodeAudioData(data: Data, timeStamp: Timestamp)
 
     func stopEncoder()
 }

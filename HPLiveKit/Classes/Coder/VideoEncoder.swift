@@ -14,7 +14,7 @@ protocol VideoEncoderDelegate: class {
 
 protocol VideoEncoder: class {
 
-    func encodeVideoData(pixelBuffer: CVPixelBuffer, timeStamp: UInt64)
+    func encodeVideoData(pixelBuffer: CVPixelBuffer, timeStamp: Timestamp)
 
     var videoBitRate: UInt {
         get

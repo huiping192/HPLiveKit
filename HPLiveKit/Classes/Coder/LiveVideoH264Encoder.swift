@@ -116,7 +116,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         isBackground = false
     }
 
-    func encodeVideoData(pixelBuffer: CVPixelBuffer, timeStamp: UInt64) {
+    func encodeVideoData(pixelBuffer: CVPixelBuffer, timeStamp: Timestamp) {
         guard !isBackground else { return }
         guard let compressionSession = compressionSession else { return }
 

@@ -38,7 +38,7 @@ class LiveAudioAACEncoder: AudioEncoder {
         free(aacBuf)
     }
 
-    func encodeAudioData(data: Data, timeStamp: UInt64) {
+    func encodeAudioData(data: Data, timeStamp: Timestamp) {
         let audioData = data as NSData
         if !createAudioConvert() {
             return
@@ -79,7 +79,7 @@ class LiveAudioAACEncoder: AudioEncoder {
 
     }
 
-    private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: UInt64) {
+    private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: Timestamp) {
         guard let converter = converter else {
             return
         }

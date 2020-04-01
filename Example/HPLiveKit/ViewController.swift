@@ -34,7 +34,7 @@ class ViewController: UIViewController {
 
         let liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVidoeConfiguration)
 
-        liveSession.perview = view
+        liveSession.preview = view
 //        liveSession.warterMarkView = UIView()
                 
         self.liveSession = liveSession

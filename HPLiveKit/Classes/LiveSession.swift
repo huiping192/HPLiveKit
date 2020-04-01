@@ -53,7 +53,7 @@ public protocol LiveSessionDelegate: class {
     func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode)
 }
 
-@objc public class LiveSession: NSObject {
+public class LiveSession: NSObject {
 
     public weak var delegate: LiveSessionDelegate?
 
@@ -72,7 +72,7 @@ public protocol LiveSessionDelegate: class {
     private let audioEncoder: AudioEncoder
 
     // 推流 publisher
-    private var socket: Publisher?
+    private var publisher: Publisher?
 
     /// 调试信息 debug info
     private var debugInfo: LiveDebug?
@@ -88,9 +88,9 @@ public protocol LiveSessionDelegate: class {
     private var lock = DispatchSemaphore(value: 0)
 
     /// 上传相对时间戳
-    private var relativeTimestamp: UInt64 = 0
+    private var relativeTimestamp: Timestamp = 0
     /// 音视频是否对齐
-    private var avalignment: Bool {
+    private var avAlignment: Bool {
         if ( captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskAudio)) && (captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskVideo)) {
 
             return hasCaptureAudio && hasCaptureKeyFrame
@@ -103,9 +103,9 @@ public protocol LiveSessionDelegate: class {
     /// 当前是否采集到了关键帧
     private var hasCaptureKeyFrame: Bool = false
 
-    public var perview: UIView? {
+    public var preview: UIView? {
         get {
-            return videoCapture.perview
+            videoCapture.perview
         }
         set {
             videoCapture.perview = newValue
@@ -137,8 +137,8 @@ public protocol LiveSessionDelegate: class {
     }
 
     public func startLive(streamInfo: LiveStreamInfo) {
-        if socket == nil {
-            socket = createRTMPSocket()
+        if publisher == nil {
+            publisher = createRTMPPublisher()
         }
         var mutableStreamInfo = streamInfo
 
@@ -147,14 +147,14 @@ public protocol LiveSessionDelegate: class {
 
         self.streamInfo = mutableStreamInfo
 
-        socket?.start()
+        publisher?.start()
     }
 
     func stopLive() {
         uploading = false
 
-        socket?.stop()
-        socket = nil
+        publisher?.stop()
+        publisher = nil
     }
 
     public func stopCapturing() {
@@ -164,9 +164,9 @@ public protocol LiveSessionDelegate: class {
 }
 
 private extension LiveSession {
-    func createRTMPSocket() -> Publisher {
+    func createRTMPPublisher() -> Publisher {
         guard let streamInfo = streamInfo else {
-            fatalError("streamInfo is nil")
+            fatalError("streamInfo can not be nil!!!")
         }
 
         return RtmpPublisher(stream: streamInfo)
@@ -176,26 +176,23 @@ private extension LiveSession {
 private extension LiveSession {
 
     func pushFrame(frame: Frame) {
-        guard let socket = socket else { return }
+        guard let publisher = publisher else { return }
 
         if relativeTimestamp == 0 {
             relativeTimestamp = frame.timestamp
         }
         var realFrame = frame
-        realFrame.timestamp = uploadTimestamp(timestamp: frame.timestamp)
+        realFrame.timestamp = adjustTimestamp(timestamp: frame.timestamp)
 
-        socket.send(frame: realFrame)
+        publisher.send(frame: realFrame)
     }
 
-    func uploadTimestamp(timestamp: UInt64) -> UInt64 {
+    func adjustTimestamp(timestamp: Timestamp) -> Timestamp {
         lock.wait()
-
-        var currentts = UInt64(0)
-        currentts = timestamp - relativeTimestamp
-
+        let currentTimestamp = timestamp - relativeTimestamp
         lock.signal()
 
-        return currentts
+        return currentTimestamp
     }
 
 }
@@ -219,7 +216,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         guard uploading else { return }
         hasCaptureAudio = true
 
-        if avalignment {
+        if avAlignment {
             pushFrame(frame: audioFrame)
         }
     }
@@ -230,7 +227,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         if frame.isKeyFrame && self.hasCaptureAudio {
             hasCaptureKeyFrame = true
         }
-        if avalignment {
+        if avAlignment {
             pushFrame(frame: frame)
         }
     }
@@ -286,10 +283,4 @@ extension LiveSession: PublisherDelegate {
         }
     }
 
-}
-
-extension UInt64 {
-    static var now: UInt64 {
-        return UInt64(CACurrentMediaTime() * 1000)
-    }
 }
