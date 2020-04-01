@@ -187,75 +187,94 @@ class RtmpPublisher: NSObject, Publisher {
 
 private extension RtmpPublisher {
     func sendFrame() {
-        if !self.isSending && !self.buffer.list.isEmpty {
-            self.isSending = true
+        guard !self.isSending && !self.buffer.list.isEmpty else { return }
 
-            if !self.isConnected || self.isReconnecting || self.isConnecting {
+        self.isSending = true
+
+        if !self.isConnected || self.isReconnecting || self.isConnecting {
+            self.isSending = false
+            return
+        }
+
+        guard let frame = self.buffer.popFirstFrame() else { return }
+
+        pushFrame(frame: frame)
+
+        updateDebugInfo(frame: frame)
+
+        //修改发送状态
+        DispatchQueue.global(qos: .default).async {
+            self.isSending = false
+        }
+    }
+
+    func pushFrame(frame: Frame) {
+        if let frame = frame as? VideoFrame {
+            pushVideo(frame: frame)
+            return
+        }
+
+        if let frame = frame as? AudioFrame {
+            pushAudio(frame: frame)
+            return
+        }
+    }
+
+    func pushVideo(frame: VideoFrame) {
+        if !self.sendVideoHead {
+            self.sendVideoHead = true
+            if frame.sps == nil || frame.pps == nil {
                 self.isSending = false
                 return
             }
 
-            guard let frame = self.buffer.popFirstFrame() else { return }
+            self.sendVideoHeader(frame: frame)
+        } else {
+            self.sendVideoFrame(frame: frame)
+        }
+    }
 
-            if let frame = frame as? VideoFrame {
-                if !self.sendVideoHead {
-                    self.sendVideoHead = true
-                    if frame.sps == nil || frame.pps == nil {
-                        self.isSending = false
-                        return
-                    }
-
-                    self.sendVideoHeader(frame: frame)
-                } else {
-                    self.sendVideoFrame(frame: frame)
-                }
-            }
-
-            if let frame = frame as? AudioFrame {
-                if !self.sendAudioHead {
-                    self.sendAudioHead = true
-                    if frame.audioInfo == nil {
-                        self.isSending = false
-                        return
-                    }
-                    self.sendAudioHeader(frame: frame)
-                } else {
-                    self.sendAudioFrame(frame: frame)
-                }
-            }
-
-            //debug更新
-            self.debugInfo.totalFrame += 1
-            self.debugInfo.dropFrame += self.buffer.lastDropFrames
-            self.buffer.lastDropFrames = 0
-
-            self.debugInfo.dataFlow += CGFloat(frame.data?.count ?? 0)
-            self.debugInfo.elapsedMilli = CGFloat(CACurrentMediaTime()) * 1000 - self.debugInfo.timeStamp
-
-            if debugInfo.elapsedMilli < 1000 {
-                debugInfo.bandwidth += CGFloat(frame.data?.count ?? 0)
-                if  frame is AudioFrame {
-                    debugInfo.capturedAudioCount += 1
-                } else {
-                    debugInfo.capturedVideoCount += 1
-                }
-                debugInfo.unSendCount = buffer.list.count
-            } else {
-                debugInfo.currentBandwidth = debugInfo.bandwidth
-                debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
-                debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCount
-
-                delegate?.socketDebug(publisher: self, debugInfo: debugInfo)
-
-                debugInfo.bandwidth = 0
-                debugInfo.capturedVideoCount = 0
-                debugInfo.capturedAudioCount = 0
-                debugInfo.timeStamp = CGFloat(CACurrentMediaTime()) * 1000
-            }
-            //修改发送状态
-            DispatchQueue.global(qos: .default).async {
+    func pushAudio(frame: AudioFrame) {
+        if !self.sendAudioHead {
+            self.sendAudioHead = true
+            if frame.audioInfo == nil {
                 self.isSending = false
+                return
             }
+            self.sendAudioHeader(frame: frame)
+        } else {
+            self.sendAudioFrame(frame: frame)
+        }
+    }
+
+    func updateDebugInfo(frame: Frame) {
+        //debug更新
+        self.debugInfo.totalFrame += 1
+        self.debugInfo.dropFrame += self.buffer.lastDropFrames
+        self.buffer.lastDropFrames = 0
+
+        self.debugInfo.dataFlow += CGFloat(frame.data?.count ?? 0)
+        self.debugInfo.elapsedMilli = CGFloat(CACurrentMediaTime()) * 1000 - self.debugInfo.timeStamp
+
+        if debugInfo.elapsedMilli < 1000 {
+            debugInfo.bandwidth += CGFloat(frame.data?.count ?? 0)
+            if frame is AudioFrame {
+                debugInfo.capturedAudioCount += 1
+            } else {
+                debugInfo.capturedVideoCount += 1
+            }
+            debugInfo.unSendCount = buffer.list.count
+        } else {
+            debugInfo.currentBandwidth = debugInfo.bandwidth
+            debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
+            debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCount
+
+            delegate?.socketDebug(publisher: self, debugInfo: debugInfo)
+
+            debugInfo.bandwidth = 0
+            debugInfo.capturedVideoCount = 0
+            debugInfo.capturedAudioCount = 0
+            debugInfo.timeStamp = CGFloat(CACurrentMediaTime()) * 1000
         }
     }
 

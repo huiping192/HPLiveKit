@@ -8,7 +8,7 @@ HPLiveKit.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 ## Build generated
 build/
 DerivedData/
-
+.idea
 .DS_Store
 
 ## Various settings
