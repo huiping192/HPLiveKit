@@ -20,11 +20,11 @@ public enum LiveVideoSessionPreset {
     var avSessionPreset: AVCaptureSession.Preset {
         switch self {
         case .preset360x640:
-            return AVCaptureSession.Preset.vga640x480
+            return .vga640x480
         case .preset540x960:
-            return AVCaptureSession.Preset.iFrame960x540
+            return .iFrame960x540
         case .preset720x1280:
-            return AVCaptureSession.Preset.hd1280x720
+            return .hd1280x720
         }
     }
 
@@ -90,7 +90,7 @@ public struct LiveVideoConfiguration {
 
     // 最大关键帧间隔，可设定为 fps 的2倍，影响一个 gop 的大小
     var videoMaxKeyframeInterval: UInt {
-        return videoFrameRate * 2
+        videoFrameRate * 2
     }
 
     // 视频的码率，单位是 bps
@@ -101,18 +101,18 @@ public struct LiveVideoConfiguration {
     // 视频的最小码率，单位是 bps
     let videoMinBitRate: UInt
 
-    // < 分辨率
+    // 分辨率
     let sessionPreset: LiveVideoSessionPreset
 
-    //< ≈sde3分辨率
-    var  avSessionPreset: AVCaptureSession.Preset {
-        return sessionPreset.avSessionPreset
+    // 系统用分辨率
+    var avSessionPreset: AVCaptureSession.Preset {
+        sessionPreset.avSessionPreset
     }
 }
 
 extension LiveVideoConfiguration {
     var isLandscape: Bool {
-        return outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
+        outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
     }
 
     // for internal use
@@ -121,10 +121,10 @@ extension LiveVideoConfiguration {
             return aspectRatioVideoSize
         }
 
-        return orientationFormateVideoSize
+        return orientationFormatVideoSize
     }
 
-    var orientationFormateVideoSize: CGSize {
+    var orientationFormatVideoSize: CGSize {
         if !isLandscape {
             return videoSize
         }
@@ -132,7 +132,7 @@ extension LiveVideoConfiguration {
     }
 
     var aspectRatioVideoSize: CGSize {
-        let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormateVideoSize.width, height: orientationFormateVideoSize.height) )
+        let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormatVideoSize.width, height: orientationFormatVideoSize.height) )
 
         var width: Int = Int(ceil(size.width))
         var height: Int = Int(ceil(size.height))

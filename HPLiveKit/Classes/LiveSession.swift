@@ -93,15 +93,15 @@ public class LiveSession: NSObject {
     private var avAlignment: Bool {
         if ( captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskAudio)) && (captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskVideo)) {
 
-            return hasCaptureAudio && hasCaptureKeyFrame
+            return hasCapturedAudio && hasCapturedKeyFrame
         }
 
         return false
     }
     /// 当前是否采集到了音频
-    private var hasCaptureAudio: Bool = false
+    private var hasCapturedAudio: Bool = false
     /// 当前是否采集到了关键帧
-    private var hasCaptureKeyFrame: Bool = false
+    private var hasCapturedKeyFrame: Bool = false
 
     public var preview: UIView? {
         get {
@@ -214,7 +214,7 @@ extension LiveSession: AudioCaptureDelegate, VideoCaptureDelegate {
 extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
     func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
         guard uploading else { return }
-        hasCaptureAudio = true
+        hasCapturedAudio = true
 
         if avAlignment {
             pushFrame(frame: audioFrame)
@@ -224,8 +224,8 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
     func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
         guard uploading else { return }
 
-        if frame.isKeyFrame && self.hasCaptureAudio {
-            hasCaptureKeyFrame = true
+        if frame.isKeyFrame && self.hasCapturedAudio {
+            hasCapturedKeyFrame = true
         }
         if avAlignment {
             pushFrame(frame: frame)
@@ -237,8 +237,8 @@ extension LiveSession: PublisherDelegate {
     func publisher(publisher: Publisher, publishStatus: LiveState) {
         if publishStatus == .start {
             if !uploading {
-                hasCaptureAudio = false
-                hasCaptureKeyFrame = false
+                hasCapturedAudio = false
+                hasCapturedKeyFrame = false
                 relativeTimestamp = 0
                 uploading = true
             }

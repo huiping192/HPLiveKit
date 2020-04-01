@@ -25,43 +25,44 @@ class LiveAudioCapture {
     /** The muted control callbackAudioData,muted will memset 0.*/
     var muted: Bool = false
 
+    private var _running: Bool = false
     /** The running control start capture or stop capture*/
     var running: Bool {
         get {
-            return _running
+            _running
         }
         set {
             guard newValue != _running else { return }
 
-            if newValue {
-                taskQueue.async { [weak self] in
-                    self?._running = true
-
-                    var categoryOptions: AVAudioSession.CategoryOptions
-                    if #available(iOS 9.0, *) {
-                        categoryOptions = [.defaultToSpeaker, .interruptSpokenAudioAndMixWithOthers]
-                    } else {
-                        categoryOptions = [.defaultToSpeaker]
-                    }
-
-                    try? self?.session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
-                    guard let componetInstance = self?.componetInstance else { return }
-                    AudioOutputUnitStart(componetInstance)
-                }
-            } else {
+            if !newValue {
                 taskQueue.async { [weak self] in
                     self?._running = false
-                    guard let componetInstance = self?.componetInstance else { return }
-                    AudioOutputUnitStop(componetInstance)
+                    guard let componentInstance = self?.componentInstance else { return }
+                    AudioOutputUnitStop(componentInstance)
                 }
+                return
+            }
+
+            taskQueue.async { [weak self] in
+                guard let self = self else { return }
+                self._running = true
+
+                var categoryOptions: AVAudioSession.CategoryOptions
+                if #available(iOS 9.0, *) {
+                    categoryOptions = [.defaultToSpeaker, .interruptSpokenAudioAndMixWithOthers]
+                } else {
+                    categoryOptions = [.defaultToSpeaker]
+                }
+
+                try? self.session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
+                guard let componentInstance = self.componentInstance else { return }
+                AudioOutputUnitStart(componentInstance)
             }
         }
     }
 
-    private var _running: Bool = false
-
     private var session: AVAudioSession = .sharedInstance()
-    var componetInstance: AudioComponentInstance?
+    private var componentInstance: AudioComponentInstance?
     private var component: AudioComponent?
 
     private let taskQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.audioCapture.Queue")
@@ -84,11 +85,11 @@ class LiveAudioCapture {
         NotificationCenter.default.removeObserver(self)
 
         taskQueue.sync {
-            guard let componetInstance = componetInstance else { return }
+            guard let componentInstance = componentInstance else { return }
             self.running = false
-            AudioOutputUnitStop(componetInstance)
-            AudioComponentInstanceDispose(componetInstance)
-            self.componetInstance = nil
+            AudioOutputUnitStop(componentInstance)
+            AudioComponentInstanceDispose(componentInstance)
+            self.componentInstance = nil
             self.component = nil
         }
     }
@@ -101,7 +102,7 @@ class LiveAudioCapture {
         inNumberFrames: UInt32,
         ioData: UnsafeMutablePointer<AudioBufferList>?) in
 
-        guard let source = LiveAudioCapture.current, let componetInstance = source.componetInstance else {
+        guard let source = LiveAudioCapture.current, let componetInstance = source.componentInstance else {
             return -1
         }
 
@@ -192,7 +193,7 @@ private extension LiveAudioCapture {
             var reason = reasonNumber.intValue
 
             if reason == AVAudioSession.InterruptionType.began.rawValue && running {
-                guard let componetInstance = componetInstance else { return }
+                guard let componetInstance = componentInstance else { return }
                 taskQueue.sync {
                     print("MicrophoneSource: stopRunning")
                     AudioOutputUnitStop(componetInstance)
@@ -208,7 +209,7 @@ private extension LiveAudioCapture {
                 var seccondReason = reasonNumber.intValue
 
                 if seccondReason == AVAudioSession.InterruptionOptions.shouldResume.rawValue && running {
-                    guard let componetInstance = componetInstance else { return }
+                    guard let componetInstance = componentInstance else { return }
                     taskQueue.sync {
                         print("MicrophoneSource: startRunning")
                         AudioOutputUnitStart(componetInstance)
@@ -245,13 +246,13 @@ extension LiveAudioCapture {
         guard let component = component else { return }
 
         var status = noErr
-        status = AudioComponentInstanceNew(component, &componetInstance)
+        status = AudioComponentInstanceNew(component, &componentInstance)
 
         if status != noErr {
             handleAudioComponentCreationFailure()
         }
 
-        guard let componetInstance = componetInstance else { return }
+        guard let componetInstance = componentInstance else { return }
 
         var flagOne: UInt32 = 1
 

@@ -84,10 +84,8 @@ public struct LiveAudioConfiguration {
     let audioSampleRate: LiveAudioSampleRate
     /// 码率
     let audioBitRate: LiveAudioBitRate
-    /// flv编码音频头 44100 为0x12 0x10
-    private(set) var asc: [UInt8]?
     /// 缓存区长度
     var bufferLength: Int {
-        return 1024 * 2 * Int(self.numberOfChannels)
+        1024 * 2 * Int(self.numberOfChannels)
     }
 }

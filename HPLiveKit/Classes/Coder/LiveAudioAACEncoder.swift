@@ -28,8 +28,8 @@ class LiveAudioAACEncoder: AudioEncoder {
 
         print("LiveAudioAACEncoder init")
 
-        leftBuf = malloc(Int(configuration.bufferLength))
-        aacBuf = malloc(Int(configuration.bufferLength))
+        leftBuf = malloc(configuration.bufferLength)
+        aacBuf = malloc(configuration.bufferLength)
     }
 
     deinit {
@@ -112,13 +112,6 @@ class LiveAudioAACEncoder: AudioEncoder {
         var audioFrame = AudioFrame()
         audioFrame.timestamp = timestamp
         audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
-
-        if let asc = configuration.asc {
-            var exeData = [UInt8]()
-            exeData[0] = asc[0]
-            exeData[1] = asc[1]
-            audioFrame.audioInfo = NSData(bytes: exeData, length: 2) as Data
-        }
 
         delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
     }
