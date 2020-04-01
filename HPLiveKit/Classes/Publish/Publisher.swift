@@ -9,14 +9,13 @@ import Foundation
 
 protocol PublisherDelegate: class {
     /** callback buffer current status (回调当前缓冲区情况，可实现相关切换帧率 码率等策略)*/
-    func socketBufferStatus(publisher: Publisher, status: BufferState)
-    /** callback socket current status (回调当前网络情况) */
-    func socketStatus(publisher: Publisher, status: LiveState)
-    /** callback socket errorcode */
-    func socketDidError(publisher: Publisher, errorCode: LiveSocketErrorCode)
-
+    func publisher(publisher: Publisher, bufferStatus: BufferState)
+    /** callback publish current status (回调当前网络情况) */
+    func publisher(publisher: Publisher, publishStatus: LiveState)
+    /** callback publish error */
+    func publisher(publisher: Publisher, errorCode: LiveSocketErrorCode)
     /** callback debugInfo */
-    func socketDebug(publisher: Publisher, debugInfo: LiveDebug)
+    func publisher(publisher: Publisher, debugInfo: LiveDebug)
 }
 
 protocol Publisher {

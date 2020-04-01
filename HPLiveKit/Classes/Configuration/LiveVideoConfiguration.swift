@@ -99,7 +99,7 @@ public struct LiveVideoConfiguration {
     let videoMaxBitRate: UInt
 
     // 视频的最小码率，单位是 bps
-    let videoMinBitRate: Int
+    let videoMinBitRate: UInt
 
     // < 分辨率
     let sessionPreset: LiveVideoSessionPreset

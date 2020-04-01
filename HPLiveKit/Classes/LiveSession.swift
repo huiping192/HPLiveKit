@@ -90,7 +90,7 @@ public protocol LiveSessionDelegate: class {
     /// 上传相对时间戳
     private var relativeTimestamp: UInt64 = 0
     /// 音视频是否对齐
-    private var avalignment: Bool? {
+    private var avalignment: Bool {
         if ( captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskAudio)) && (captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskVideo)) {
 
             return hasCaptureAudio && hasCaptureKeyFrame
@@ -175,7 +175,7 @@ private extension LiveSession {
 
 private extension LiveSession {
 
-    func pushSendBuffer(frame: Frame) {
+    func pushFrame(frame: Frame) {
         guard let socket = socket else { return }
 
         if relativeTimestamp == 0 {
@@ -219,8 +219,8 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         guard uploading else { return }
         hasCaptureAudio = true
 
-        if avalignment ?? false {
-            pushSendBuffer(frame: audioFrame)
+        if avalignment {
+            pushFrame(frame: audioFrame)
         }
     }
 
@@ -230,15 +230,15 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         if frame.isKeyFrame && self.hasCaptureAudio {
             hasCaptureKeyFrame = true
         }
-        if avalignment ?? false {
-            pushSendBuffer(frame: frame)
+        if avalignment {
+            pushFrame(frame: frame)
         }
     }
 }
 
 extension LiveSession: PublisherDelegate {
-    func socketStatus(publisher: Publisher, status: LiveState) {
-        if status == .start {
+    func publisher(publisher: Publisher, publishStatus: LiveState) {
+        if publishStatus == .start {
             if !uploading {
                 hasCaptureAudio = false
                 hasCaptureKeyFrame = false
@@ -247,38 +247,39 @@ extension LiveSession: PublisherDelegate {
             }
         }
 
-        if status == .stop || status == .error {
+        if publishStatus == .stop || publishStatus == .error {
             uploading = false
         }
 
-        self.state = status
-        delegate?.liveSession(session: self, liveStateDidChange: status)
+        self.state = publishStatus
+        delegate?.liveSession(session: self, liveStateDidChange: publishStatus)
     }
 
-    func socketBufferStatus(publisher: Publisher, status: BufferState) {
+    func publisher(publisher: Publisher, bufferStatus: BufferState) {
         guard captureType.contains(.captureVideo) && adaptiveBitrate else { return }
         let videoBitRate = videoEncoder.videoBitRate
 
-        if status == .decline {
-            if videoBitRate < videoConfiguration.videoMaxBitRate {
-                let adjustedVideoBitRate = videoBitRate + 50 * 1000
-                videoEncoder.videoBitRate = adjustedVideoBitRate
-                print("[HPLiveKit] Increase bitrate \(adjustedVideoBitRate)")
-            }
-        } else {
-            if videoBitRate > videoConfiguration.videoMinBitRate {
-                let adjustedVideoBitRate = videoBitRate - 100 * 1000
-                videoEncoder.videoBitRate = adjustedVideoBitRate
-                print("[HPLiveKit] Decline bitrate \(adjustedVideoBitRate)")
-            }
+        if bufferStatus == .decline && videoBitRate < videoConfiguration.videoMaxBitRate {
+            let adjustedVideoBitRate = videoBitRate + 50 * 1000 <= videoConfiguration.videoMaxBitRate ? videoBitRate + 50 * 1000 : videoConfiguration.videoMaxBitRate
+            videoEncoder.videoBitRate = adjustedVideoBitRate
+            print("[HPLiveKit] Increase bitrate \(adjustedVideoBitRate)")
+            return
         }
+
+        if bufferStatus == .increase && videoBitRate > videoConfiguration.videoMinBitRate {
+            let adjustedVideoBitRate = videoBitRate - 100 * 1000 >= videoConfiguration.videoMinBitRate ? videoBitRate - 100 * 1000 : videoConfiguration.videoMinBitRate
+            videoEncoder.videoBitRate = adjustedVideoBitRate
+            print("[HPLiveKit] Decline bitrate \(adjustedVideoBitRate)")
+            return
+        }
+
     }
 
-    func socketDidError(publisher: Publisher, errorCode: LiveSocketErrorCode) {
+    func publisher(publisher: Publisher, errorCode: LiveSocketErrorCode) {
         delegate?.liveSession(session: self, errorCode: errorCode)
     }
 
-    func socketDebug(publisher: Publisher, debugInfo: LiveDebug) {
+    func publisher(publisher: Publisher, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
         if showDebugInfo {
             delegate?.liveSession(session: self, debugInfo: debugInfo)

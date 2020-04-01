@@ -94,7 +94,7 @@ class RtmpPublisher: NSObject, Publisher {
         guard isConnected else { return }
 
         isConnected = true
-        delegate?.socketStatus(publisher: self, status: .pending)
+        delegate?.publisher(publisher: self, publishStatus: .pending)
 
         rtmp.close()
 
@@ -107,7 +107,7 @@ class RtmpPublisher: NSObject, Publisher {
             reconnect()
             return
         }
-        delegate?.socketStatus(publisher: self, status: .start)
+        delegate?.publisher(publisher: self, publishStatus: .start)
 
         isConnected = true
         isConnecting = false
@@ -126,8 +126,8 @@ class RtmpPublisher: NSObject, Publisher {
                     self._reconnect()
                 }
             } else if self.retryTimes4netWorkBreaken >= self.reconnectCount {
-                self.delegate?.socketStatus(publisher: self, status: .error)
-                self.delegate?.socketDidError(publisher: self, errorCode: .reconnectTimeOut)
+                self.delegate?.publisher(publisher: self, publishStatus: .error)
+                self.delegate?.publisher(publisher: self, errorCode: .reconnectTimeOut)
             }
         }
     }
@@ -140,7 +140,7 @@ class RtmpPublisher: NSObject, Publisher {
         sendAudioHead = false
         sendVideoHead = false
 
-        delegate?.socketStatus(publisher: self, status: .refresh)
+        delegate?.publisher(publisher: self, publishStatus: .refresh)
 
         rtmp.close()
 
@@ -155,7 +155,7 @@ class RtmpPublisher: NSObject, Publisher {
     }
 
     private func _stop() {
-        delegate?.socketStatus(publisher: self, status: .stop)
+        delegate?.publisher(publisher: self, publishStatus: .stop)
 
         rtmp.close()
 
@@ -269,7 +269,7 @@ private extension RtmpPublisher {
             debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
             debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCount
 
-            delegate?.socketDebug(publisher: self, debugInfo: debugInfo)
+            delegate?.publisher(publisher: self, debugInfo: debugInfo)
 
             debugInfo.bandwidth = 0
             debugInfo.capturedVideoCount = 0
@@ -300,7 +300,7 @@ private extension RtmpPublisher {
 
 extension RtmpPublisher: StreamingBufferDelegate {
     func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-        delegate?.socketBufferStatus(publisher: self, status: bufferState)
+        delegate?.publisher(publisher: self, bufferStatus: bufferState)
     }
 }
 
