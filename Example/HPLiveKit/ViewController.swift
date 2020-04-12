@@ -23,7 +23,7 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        let info = LiveStreamInfo(streamId: "sample1", url: "")
+        let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://10.0.1.14:8089/live?key=huiping")
 
         liveSession?.startLive(streamInfo: info)
     }
