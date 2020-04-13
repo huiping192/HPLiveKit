@@ -45,7 +45,7 @@ class StreamingBuffer {
     /** count of drop frames in last time */
     var lastDropFrames: Int = 0
 
-    private var lock = DispatchSemaphore(value: 0)
+    private var lock = DispatchSemaphore(value: 1)
 
     private var sortList: [Frame] = .init()
     private var thresholdList: [Int] = .init()

@@ -85,7 +85,7 @@ public class LiveSession: NSObject {
     /// 当前直播type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
     /// 时间戳锁  timestamp lock
-    private var lock = DispatchSemaphore(value: 0)
+    private var lock = DispatchSemaphore(value: 1)
 
     /// 上传相对时间戳
     private var relativeTimestamp: Timestamp = 0
@@ -130,6 +130,13 @@ public class LiveSession: NSObject {
 
         videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
         audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
+
+        super.init()
+
+        videoCapture.delegate = self
+        audioCapture.delegate = self
+        videoEncoder.delegate = self
+        audioEncoder.delegate = self
     }
 
     deinit {
@@ -146,6 +153,7 @@ public class LiveSession: NSObject {
 
         if publisher == nil {
             publisher = createRTMPPublisher()
+            publisher?.delegate = self
         }
         publisher?.start()
     }
@@ -155,6 +163,11 @@ public class LiveSession: NSObject {
 
         publisher?.stop()
         publisher = nil
+    }
+
+    public func startCapturing() {
+        videoCapture.running = true
+        audioCapture.running = true
     }
 
     public func stopCapturing() {

@@ -29,7 +29,8 @@ class RtmpPublisher: NSObject, Publisher {
         return buffer
     }()
     private var debugInfo: LiveDebug = .init()
-    private let rtmpSendQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.RTMPPublisher.Queue")
+
+    private let rtmpSendQueue = DispatchQueue.global(qos: .userInitiated)
 
     //错误信息
     private var retryTimes4netWorkBreaken: Int = 0
@@ -41,7 +42,9 @@ class RtmpPublisher: NSObject, Publisher {
         //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
         didSet {
             guard !isSending else { return }
-            sendFrame()
+            rtmpSendQueue.async {
+                self.sendFrame()
+            }
         }
     }
     private var isConnected = false
@@ -85,13 +88,13 @@ class RtmpPublisher: NSObject, Publisher {
     }
 
     private func _start() {
-        guard isConnected else { return }
+        guard !isConnected else { return }
 
         debugInfo.streamId = stream.streamId
         debugInfo.uploadUrl = stream.url
         self.debugInfo.isRtmp = true
 
-        guard isConnected else { return }
+        guard !isConnected else { return }
 
         isConnected = true
         delegate?.publisher(publisher: self, publishStatus: .pending)
@@ -103,7 +106,7 @@ class RtmpPublisher: NSObject, Publisher {
 
     // CallBack
     private func connect() {
-        guard self.rtmp.connect() != 0 else {
+        guard self.rtmp.connect() == 0 else {
             reconnect()
             return
         }
@@ -203,7 +206,7 @@ private extension RtmpPublisher {
         updateDebugInfo(frame: frame)
 
         //修改发送状态
-        DispatchQueue.global(qos: .default).async {
+        DispatchQueue.global(qos: .userInitiated).async {
             self.isSending = false
         }
     }

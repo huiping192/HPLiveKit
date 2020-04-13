@@ -172,15 +172,12 @@ class LiveVideoH264Encoder: VideoEncoder {
         }
 
         let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
-        guard let timeStamp = UnsafeMutablePointer<NSNumber>(OpaquePointer(sourceFrameRefCon))?.pointee else {
-            fatalError("Receive video frame timeStamp error!!")
-        }
 
-        guard let videoEncoder = UnsafeMutablePointer<LiveVideoH264Encoder>(OpaquePointer(outputCallbackRefCon))?.pointee else {
-            fatalError("Receive LiveVideoH264Encoder instance error!!")
-        }
+        let timeStamp = Unmanaged<NSNumber>.fromOpaque(sourceFrameRefCon!).takeUnretainedValue()
 
-        if isKeyframe && videoEncoder.sps != nil {
+        let videoEncoder = Unmanaged<LiveVideoH264Encoder>.fromOpaque(outputCallbackRefCon!).takeUnretainedValue()
+
+        if isKeyframe && (videoEncoder.sps == nil || videoEncoder.pps == nil) {
             getSps(sampleBuffer: sampleBuffer, videoEncoder: videoEncoder)
         }
 
@@ -255,7 +252,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         var pparameterSetSize: size_t = 0
         var pparameterSetCount: size_t = 0
         var pps: UnsafePointer<UInt8>?
-        let ppsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, 0, &pps, &sparameterSetSize, &sparameterSetCount, nil)
+        let ppsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, 1, &pps, &pparameterSetSize, &pparameterSetCount, nil)
 
         if ppsStatusCode != noErr {
             print("Receive h264 pps error")
@@ -268,7 +265,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         }
 
         videoEncoder.sps = Data(bytes: spsBytes, count: sparameterSetSize)
-        videoEncoder.sps = Data(bytes: ppsBytes, count: pparameterSetSize)
+        videoEncoder.pps = Data(bytes: ppsBytes, count: pparameterSetSize)
     }
 
 }
