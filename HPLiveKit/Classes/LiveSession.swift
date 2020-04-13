@@ -137,9 +137,6 @@ public class LiveSession: NSObject {
     }
 
     public func startLive(streamInfo: LiveStreamInfo) {
-        if publisher == nil {
-            publisher = createRTMPPublisher()
-        }
         var mutableStreamInfo = streamInfo
 
         mutableStreamInfo.audioConfiguration = audioConfiguration
@@ -147,6 +144,9 @@ public class LiveSession: NSObject {
 
         self.streamInfo = mutableStreamInfo
 
+        if publisher == nil {
+            publisher = createRTMPPublisher()
+        }
         publisher?.start()
     }
 
