@@ -18,18 +18,18 @@
 ### audio
 - [ ] 	Audio Mute
 - [ ]   AudioEngine api
-- [ ]   Radio broadcasting 
-
+- [ ]   Audio only broadcasting 
+- [ ]   Audio broadcasting in background
 
 ### encoder
-- [ ]   H264
-- [ ]   AAC
+- [x]   H264
+- [x]   AAC
 
 ### publish
 
-- [ ] 	RTMP 
+- [x] 	RTMP 
 - [ ] 	MP4 recording
-- [ ] 	Drop frames on bad network 
+- [x] 	Drop frames on bad network 
 - [ ] 	Dynamic switching bitRate
 
 
