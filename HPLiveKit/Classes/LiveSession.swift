@@ -120,15 +120,6 @@ public class LiveSession: NSObject {
         }
     }
 
-    public var warterMarkView: UIView? {
-        get {
-            return videoCapture.warterMarkView
-        }
-        set {
-            videoCapture.warterMarkView = newValue
-        }
-    }
-
     public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
         self.audioConfiguration = audioConfiguration
         self.videoConfiguration = videoConfiguration
@@ -277,7 +268,7 @@ extension LiveSession: PublisherDelegate {
     func publisher(publisher: Publisher, bufferStatus: BufferState) {
         // only adjust video bitrate, audio cannot
         guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
-        
+
         let videoBitRate = videoEncoder.videoBitRate
 
         if bufferStatus == .decline && videoBitRate < videoConfiguration.videoMaxBitRate {

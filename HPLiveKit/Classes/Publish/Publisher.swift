@@ -24,8 +24,12 @@ protocol Publisher {
         set
     }
 
+    // start publishing
     func start()
+    
+    // stop publishing
     func stop()
 
+    // send video or video frame data
     func send(frame: Frame)
 }

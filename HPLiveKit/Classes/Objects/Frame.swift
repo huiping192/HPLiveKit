@@ -8,10 +8,14 @@
 import Foundation
 
 class Frame: Equatable {
+    // pts
     var timestamp: Timestamp = 0
+
+    // frame data
     var data: Data?
 
-    ///< flv或者rtmp包头
+    // rtmp包头
+    // rtmp header data
     var header: Data?
 
     static func == (lhs: Frame, rhs: Frame) -> Bool {

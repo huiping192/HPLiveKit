@@ -92,7 +92,6 @@ class RtmpPublisher: NSObject, Publisher {
 
         debugInfo.streamId = stream.streamId
         debugInfo.uploadUrl = stream.url
-        self.debugInfo.isRtmp = true
 
         guard !isConnected else { return }
 
@@ -252,32 +251,32 @@ private extension RtmpPublisher {
 
     func updateDebugInfo(frame: Frame) {
         //debug更新
-        self.debugInfo.totalFrame += 1
-        self.debugInfo.dropFrame += self.buffer.lastDropFrames
+        self.debugInfo.totalFrameCount += 1
+        self.debugInfo.dropFrameCount += self.buffer.lastDropFrames
         self.buffer.lastDropFrames = 0
 
-        self.debugInfo.dataFlow += CGFloat(frame.data?.count ?? 0)
-        self.debugInfo.elapsedMilli = CGFloat(Timestamp.now) - self.debugInfo.timeStamp
+        self.debugInfo.allDataSize += CGFloat(frame.data?.count ?? 0)
+        self.debugInfo.elapsedMilli = CGFloat(Timestamp.now) - self.debugInfo.currentTimeStamp
 
         if debugInfo.elapsedMilli < 1000 {
-            debugInfo.bandwidth += CGFloat(frame.data?.count ?? 0)
+            debugInfo.bandwidthPerSec += CGFloat(frame.data?.count ?? 0)
             if frame is AudioFrame {
-                debugInfo.capturedAudioCount += 1
+                debugInfo.capturedAudioCountPerSec += 1
             } else {
-                debugInfo.capturedVideoCount += 1
+                debugInfo.capturedVideoCountPerSec += 1
             }
-            debugInfo.unSendCount = buffer.list.count
+            debugInfo.unsendCount = buffer.list.count
         } else {
-            debugInfo.currentBandwidth = debugInfo.bandwidth
+            debugInfo.currentBandwidth = debugInfo.bandwidthPerSec
             debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
-            debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCount
+            debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCountPerSec
 
             delegate?.publisher(publisher: self, debugInfo: debugInfo)
 
-            debugInfo.bandwidth = 0
-            debugInfo.capturedVideoCount = 0
-            debugInfo.capturedAudioCount = 0
-            debugInfo.timeStamp = CGFloat(Timestamp.now)
+            debugInfo.bandwidthPerSec = 0
+            debugInfo.capturedVideoCountPerSec = 0
+            debugInfo.capturedAudioCountPerSec = 0
+            debugInfo.currentTimeStamp = CGFloat(Timestamp.now)
         }
     }
 

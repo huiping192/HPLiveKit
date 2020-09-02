@@ -9,7 +9,7 @@
 import Foundation
 
 // 流状态
-@objc public enum LiveState: Int {
+public enum LiveState: Int {
     /// 准备
     case ready = 0
     /// 连接中
