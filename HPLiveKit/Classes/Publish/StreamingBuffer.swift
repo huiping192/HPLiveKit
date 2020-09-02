@@ -13,10 +13,10 @@ enum BufferState {
     // 未知
     case unknown
     // 缓冲区状态差应该降低码率
-    // buffer stack increase
+    // buffer stack increase, should decline bitrate
     case increase
     // 缓冲区状态好应该提升码率
-    // buffer stack decline
+    // buffer stack decline, should increase bitrate
     case decline
 }
 

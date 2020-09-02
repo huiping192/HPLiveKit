@@ -47,50 +47,58 @@ struct LiveCaptureTypeMask {
 public protocol LiveSessionDelegate: class {
     ///** live status changed will callback */
     func liveSession(session: LiveSession, liveStateDidChange state: LiveState)
-    ///** live debug info callback */
-    func liveSession(session: LiveSession, debugInfo: LiveDebug)
+
     ///** callback socket errorcode */
     func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode)
+
+    ///** live debug info callback */
+    func liveSession(session: LiveSession, debugInfo: LiveDebug)
+}
+
+extension LiveSessionDelegate {
+    func liveSession(session: LiveSession, debugInfo: LiveDebug) {}
 }
 
 public class LiveSession: NSObject {
 
+    // live stream call back delegate
     public weak var delegate: LiveSessionDelegate?
 
-    public var showDebugInfo: Bool = false
-    public var adaptiveBitrate: Bool = true
+    /*  The adaptiveVideoBitrate control auto adjust video bitrate. Default is true */
+    public var adaptiveVideoBitrate: Bool = true
 
+    // video, audio configuration
     private let audioConfiguration: LiveAudioConfiguration
     private let videoConfiguration: LiveVideoConfiguration
 
-    // 视频，音频数据源 video,audio data source
+    // video,audio data source
     private let videoCapture: LiveVideoCapture
     private let audioCapture: LiveAudioCapture
 
-    // 视频，音频编码 encoder
+    // video,audio encoder
     private let videoEncoder: VideoEncoder
     private let audioEncoder: AudioEncoder
 
     // 推流 publisher
     private var publisher: Publisher?
 
-    /// 调试信息 debug info
+    // 调试信息 debug info
     private var debugInfo: LiveDebug?
-    /// 流信息 stream info
+    // 流信息 stream info
     private var streamInfo: LiveStreamInfo?
-    /// 是否开始上传  is publishing
+    // 是否开始上传  is publishing
     private var uploading: Bool = false
-    /// 当前状态 current live stream state
+    // 当前状态 current live stream state
     private var state: LiveState?
-    /// 当前直播type
+    // 当前直播type current live type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
     /// 时间戳锁  timestamp lock
     private var lock = DispatchSemaphore(value: 1)
-
-    /// 上传相对时间戳
+    // 相对时间戳
     private var relativeTimestamp: Timestamp = 0
+
     /// 音视频是否对齐
-    private var avAlignment: Bool {
+    private var isAvAlignment: Bool {
         if ( captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskAudio)) && (captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskVideo)) {
 
             return hasCapturedAudio && hasCapturedKeyFrame
@@ -179,7 +187,7 @@ public class LiveSession: NSObject {
 private extension LiveSession {
     func createRTMPPublisher() -> Publisher {
         guard let streamInfo = streamInfo else {
-            fatalError("streamInfo can not be nil!!!")
+            fatalError("[HPLiveKit] streamInfo can not be nil!!!")
         }
 
         return RtmpPublisher(stream: streamInfo)
@@ -191,21 +199,22 @@ private extension LiveSession {
     func pushFrame(frame: Frame) {
         guard let publisher = publisher else { return }
 
-        if relativeTimestamp == 0 {
-            relativeTimestamp = frame.timestamp
-        }
         var realFrame = frame
-        realFrame.timestamp = adjustTimestamp(timestamp: frame.timestamp)
+        adjustFrameTimestampIfNeeded(frame: &realFrame)
 
         publisher.send(frame: realFrame)
     }
 
-    func adjustTimestamp(timestamp: Timestamp) -> Timestamp {
+    func adjustFrameTimestampIfNeeded(frame: inout Frame) {
+        let timestamp = frame.timestamp
+        if relativeTimestamp == 0 {
+            relativeTimestamp = frame.timestamp
+        }
         lock.wait()
         let currentTimestamp = timestamp - relativeTimestamp
         lock.signal()
 
-        return currentTimestamp
+        frame.timestamp = currentTimestamp
     }
 
 }
@@ -229,7 +238,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         guard uploading else { return }
         hasCapturedAudio = true
 
-        if avAlignment {
+        if isAvAlignment {
             pushFrame(frame: audioFrame)
         }
     }
@@ -240,7 +249,7 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         if frame.isKeyFrame && self.hasCapturedAudio {
             hasCapturedKeyFrame = true
         }
-        if avAlignment {
+        if isAvAlignment {
             pushFrame(frame: frame)
         }
     }
@@ -248,15 +257,15 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
 
 extension LiveSession: PublisherDelegate {
     func publisher(publisher: Publisher, publishStatus: LiveState) {
-        if publishStatus == .start {
-            if !uploading {
-                hasCapturedAudio = false
-                hasCapturedKeyFrame = false
-                relativeTimestamp = 0
-                uploading = true
-            }
+        // reset status and start uploading data
+        if publishStatus == .start && !uploading {
+            hasCapturedAudio = false
+            hasCapturedKeyFrame = false
+            relativeTimestamp = 0
+            uploading = true
         }
 
+        // stop uploading
         if publishStatus == .stop || publishStatus == .error {
             uploading = false
         }
@@ -266,20 +275,26 @@ extension LiveSession: PublisherDelegate {
     }
 
     func publisher(publisher: Publisher, bufferStatus: BufferState) {
-        guard captureType.contains(.captureVideo) && adaptiveBitrate else { return }
+        // only adjust video bitrate, audio cannot
+        guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
+        
         let videoBitRate = videoEncoder.videoBitRate
 
         if bufferStatus == .decline && videoBitRate < videoConfiguration.videoMaxBitRate {
-            let adjustedVideoBitRate = videoBitRate + 50 * 1000 <= videoConfiguration.videoMaxBitRate ? videoBitRate + 50 * 1000 : videoConfiguration.videoMaxBitRate
+            let adjustedVideoBitRate = min(videoBitRate + 50 * 1000, videoConfiguration.videoMaxBitRate)
             videoEncoder.videoBitRate = adjustedVideoBitRate
-            print("[HPLiveKit] Increase bitrate \(adjustedVideoBitRate)")
+            #if DEBUG
+            print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+            #endif
             return
         }
 
         if bufferStatus == .increase && videoBitRate > videoConfiguration.videoMinBitRate {
-            let adjustedVideoBitRate = videoBitRate - 100 * 1000 >= videoConfiguration.videoMinBitRate ? videoBitRate - 100 * 1000 : videoConfiguration.videoMinBitRate
+            let adjustedVideoBitRate = max(videoBitRate - 100 * 1000, videoConfiguration.videoMinBitRate)
             videoEncoder.videoBitRate = adjustedVideoBitRate
-            print("[HPLiveKit] Decline bitrate \(adjustedVideoBitRate)")
+            #if DEBUG
+            print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+            #endif
             return
         }
 
@@ -291,9 +306,7 @@ extension LiveSession: PublisherDelegate {
 
     func publisher(publisher: Publisher, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
-        if showDebugInfo {
-            delegate?.liveSession(session: self, debugInfo: debugInfo)
-        }
+        delegate?.liveSession(session: self, debugInfo: debugInfo)
     }
 
 }
