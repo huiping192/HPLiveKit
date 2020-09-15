@@ -30,8 +30,6 @@ Pod::Spec.new do |s|
   s.source_files = 'HPLiveKit/Classes/**/*.{swift,h,m}'
   
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
-  s.dependency 'GPUImage'
-  s.dependency 'GPUImageBeauty'
   s.dependency 'HPLibRTMP' , '~> 0.0.3'
 
 end
