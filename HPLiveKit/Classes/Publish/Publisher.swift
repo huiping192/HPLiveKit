@@ -26,7 +26,7 @@ protocol Publisher {
 
     // start publishing
     func start()
-    
+
     // stop publishing
     func stop()
 

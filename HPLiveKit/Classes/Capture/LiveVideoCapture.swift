@@ -7,44 +7,161 @@
 //
 
 import Foundation
-import GPUImage
-import GPUImageBeauty
+import AVFoundation
+
+private class PreviewView: UIView {
+    override class var layerClass: AnyClass {
+        return AVCaptureVideoPreviewLayer.self
+    }
+
+    var videoPreviewLayer: AVCaptureVideoPreviewLayer? {
+        return layer as? AVCaptureVideoPreviewLayer
+    }
+}
 
 protocol VideoCaptureDelegate: class {
     func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer)
 }
 
-class LiveVideoCapture {
+extension LiveVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        delegate?.captureOutput(capture: self, pixelBuffer: pixelBuffer)
+    }
+}
+
+class LiveVideoCapture: NSObject {
+
+    let captureSession = AVCaptureSession()
+
+    var videoDevice: AVCaptureDevice?
+    var videoInput: AVCaptureDeviceInput?
+
+    let videoCaptureQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.VideoCaptureQueue")
+
+    private var previewVideoView: PreviewView?
+
+    private func configure() {
+        configureVideo()
+
+        configurePreview()
+    }
+
+    private func configureVideo() {
+        guard let videoDevice = AVCaptureDevice.devices(for: .video).filter({ $0.position == .front}).first else {
+            fatalError("[HPLiveKit] Can not found font video device!")
+        }
+        guard let videoInput = try? AVCaptureDeviceInput.init(device: videoDevice) else {
+            fatalError("[HPLiveKit] Init video CaptureDeviceInput failed!")
+        }
+
+        if captureSession.canAddInput(videoInput) {
+            captureSession.addInput(videoInput)
+        }
+
+        self.videoDevice = videoDevice
+        self.videoInput = videoInput
+
+        let output = AVCaptureVideoDataOutput()
+        output.videoSettings = [kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA] as [String: Any]
+        output.setSampleBufferDelegate(self, queue: videoCaptureQueue)
+
+        if captureSession.canAddOutput(output) {
+            captureSession.addOutput(output)
+        }
+
+        // 视频输出的方向
+        let videoConnection = output.connection(with: .video)
+        videoConnection?.videoOrientation = .portrait
+    }
+
+    private func configurePreview() {
+        let previewVideoView = PreviewView(frame: CGRect.zero)
+        previewVideoView.videoPreviewLayer?.session = captureSession
+
+        self.previewVideoView = previewVideoView
+    }
 
     public var perview: UIView? {
         get {
-            return previewImageView?.superview
+            return previewVideoView?.superview
         }
         set {
-            if previewImageView?.superview != nil {
-                previewImageView?.removeFromSuperview()
+            if previewVideoView?.superview != nil {
+                previewVideoView?.removeFromSuperview()
             }
 
-            if let perview = newValue, let previewImageView = previewImageView {
-                perview.insertSubview(previewImageView, at: 0)
-                previewImageView.frame = CGRect(origin: .zero, size: perview.frame.size)
+            if let perview = newValue, let previewVideoView = previewVideoView {
+                perview.insertSubview(previewVideoView, at: 0)
+
+                if #available(iOS 9.0, *) {
+                    previewVideoView.translatesAutoresizingMaskIntoConstraints = false
+                    NSLayoutConstraint.activate([
+                        perview.topAnchor.constraint(equalTo: previewVideoView.topAnchor),
+                        perview.rightAnchor.constraint(equalTo: previewVideoView.rightAnchor),
+                        perview.leftAnchor.constraint(equalTo: previewVideoView.leftAnchor),
+                        perview.bottomAnchor.constraint(equalTo: previewVideoView.bottomAnchor)
+                    ])
+                } else {
+                    previewVideoView.frame = CGRect(origin: .zero, size: perview.frame.size)
+                }
             }
         }
     }
 
     var captureDevicePosition: AVCaptureDevice.Position? {
         get {
-            return videoCamera?.cameraPosition()
+            return videoDevice?.position ?? .unspecified
         }
         set {
-            guard newValue != videoCamera?.cameraPosition() else {
+            guard newValue != videoDevice?.position else {
                 return
             }
 
-            videoCamera?.rotateCamera()
-            videoCamera?.frameRate = Int32(videoConfiguration.videoFrameRate)
+            if newValue == .front {
+                guard let videoDevice = AVCaptureDevice.devices(for: .video).filter({ $0.position == .front}).first else {
+                    fatalError("[HPLiveKit] Can not found font video device!")
+                }
+                guard let videoInput = try? AVCaptureDeviceInput.init(device: videoDevice) else {
+                    fatalError("[HPLiveKit] Init video CaptureDeviceInput failed!")
+                }
 
-            reloadMirror()
+                captureSession.beginConfiguration()
+
+                if let oldInput = self.videoInput {
+                    captureSession.removeInput(oldInput)
+                }
+                if captureSession.canAddInput(videoInput) {
+                    captureSession.addInput(videoInput)
+                }
+                captureSession.commitConfiguration()
+                self.videoDevice = videoDevice
+                self.videoInput = videoInput
+            }
+
+            if newValue == .back {
+                guard let videoDevice = AVCaptureDevice.devices(for: .video).filter({ $0.position == .back}).first else {
+                    fatalError("[HPLiveKit] Can not found font video device!")
+                }
+                guard let videoInput = try? AVCaptureDeviceInput.init(device: videoDevice) else {
+                    fatalError("[HPLiveKit] Init video CaptureDeviceInput failed!")
+                }
+
+                captureSession.beginConfiguration()
+
+                if let oldInput = self.videoInput {
+                    captureSession.removeInput(oldInput)
+                }
+                if captureSession.canAddInput(videoInput) {
+                    captureSession.addInput(videoInput)
+                }
+                captureSession.commitConfiguration()
+
+                self.videoDevice = videoDevice
+                self.videoInput = videoInput
+            }
+
+            videoFrameRate = Int32(videoConfiguration.videoFrameRate)
         }
     }
 
@@ -52,95 +169,24 @@ class LiveVideoCapture {
 
     fileprivate var videoConfiguration: LiveVideoConfiguration
 
-    fileprivate var videoCamera: GPUImageVideoCamera?
-    fileprivate var output: (GPUImageOutput & GPUImageInput)?
-    fileprivate var previewImageView: GPUImageView?
-
-    var warterMarkView: UIView? {
-        didSet {
-            guard let warterMarkView = warterMarkView else { return }
-            if warterMarkView.superview != nil {
-                warterMarkView.removeFromSuperview()
-            }
-
-            blendFilter?.mix = warterMarkView.alpha
-            waterMarkContentView?.addSubview(warterMarkView)
-
-            reloadFilter()
-        }
-    }
-    /*
-     gpuimage filters
-     */
-    private var beautyFilter: HPGPUImageBeautyFilter?
-    private var filter: (GPUImageOutput & GPUImageInput)?
-    private var cropFilter: GPUImageCropFilter?
-    private var blendFilter: GPUImageAlphaBlendFilter?
-    private var uiElementInput: GPUImageUIElement?
-
-    private var waterMarkContentView: UIView?
-
-    private var movieWriter: MovieWriter?
-
-    /* The saveLocalVideo is save the local video */
-    var saveLocalVideo: Bool = false
-    /* The saveLocalVideoPath is save the local video  path */
-    var saveLocalVideoPath: URL?
-
-    var currentImage: UIImage? {
-        guard let filter = filter else {
-            return nil
-        }
-
-        filter.useNextFrameForImageCapture()
-        return filter.imageFromCurrentFramebuffer()
-    }
-
-    // 美颜参数
-    var beautyFace: Bool = true {
-        didSet {
-            reloadFilter()
-        }
-    }
-    var beautyLevel: CGFloat = 0.5 {
-        didSet {
-
-        }
-    }
-    var brightLevel: CGFloat = 0.5 {
-        didSet {
-
-        }
-    }
-
-    var zoomScale: CGFloat = 1.0 {
-        didSet {
-            guard let device = videoCamera?.inputCamera as? AVCaptureDevice else { return }
-            try? device.lockForConfiguration()
-            device.videoZoomFactor = zoomScale
-            try? device.unlockForConfiguration()
-        }
-    }
-
-    fileprivate var mirror: Bool = true
-
     init(videoConfiguration: LiveVideoConfiguration) {
         self.videoConfiguration = videoConfiguration
 
-        configureNotifications()
+        super.init()
 
-        self.videoCamera = createVideoCamera()
-        self.previewImageView = createGPUImageView()
+        self.configureNotifications()
+
+        self.configure()
     }
 
     deinit {
         UIApplication.shared.isIdleTimerDisabled = false
         NotificationCenter.default.removeObserver(self)
 
-        videoCamera?.stopCapture()
+        captureSession.stopRunning()
 
-        previewImageView?.removeFromSuperview()
-        previewImageView = nil
+        previewVideoView?.removeFromSuperview()
+        previewVideoView = nil
     }
 
     var running: Bool = false {
@@ -148,203 +194,34 @@ class LiveVideoCapture {
             guard running != oldValue else { return }
             if running {
                 UIApplication.shared.isIdleTimerDisabled = true
-
-                reloadFilter()
-
-                videoCamera?.startCapture()
+                captureSession.startRunning()
             } else {
                 UIApplication.shared.isIdleTimerDisabled = false
-                videoCamera?.stopCapture()
+                captureSession.stopRunning()
             }
         }
     }
 
-    var torch: Bool {
-        get {
-            return videoCamera?.inputCamera?.torchMode == .on
-        }
-        set {
-            guard let session = videoCamera?.captureSession else { return }
-
-            session.beginConfiguration()
-
-            if videoCamera?.inputCamera.isTorchAvailable ?? false {
-                try? videoCamera?.inputCamera.lockForConfiguration()
-                try videoCamera?.inputCamera.torchMode = newValue ? .on : .off
-                try? videoCamera?.inputCamera.unlockForConfiguration()
-            }
-
-            session.commitConfiguration()
-        }
-    }
-
-    private func reloadMirror() {
-        self.videoCamera?.horizontallyMirrorFrontFacingCamera = mirror && self.captureDevicePosition == .front
-    }
-
+    private var _frameRate: Int32 = 0
     var videoFrameRate: Int32 {
         get {
-            return videoCamera?.frameRate ?? 0
+            return _frameRate
         }
         set {
-            guard newValue > 0 else { return }
-            guard newValue != videoCamera?.frameRate else { return }
+            guard newValue > 0, newValue != _frameRate else { return }
+            guard let device = videoDevice  else { return }
+            do {
+                try device.lockForConfiguration()
 
-            videoCamera?.frameRate = newValue
-        }
-    }
+                device.activeVideoMinFrameDuration = CMTimeMake(1, newValue)
+                device.activeVideoMaxFrameDuration = CMTimeMake(1, newValue)
 
-}
+                device.unlockForConfiguration()
 
-private extension LiveVideoCapture {
-
-    fileprivate func createVideoCamera() -> GPUImageVideoCamera? {
-        let videoCamera = GPUImageVideoCamera(sessionPreset: videoConfiguration.sessionPreset.avSessionPreset.rawValue, cameraPosition: .front)
-        videoCamera?.outputImageOrientation = videoConfiguration.outputImageOrientation
-        videoCamera?.horizontallyMirrorRearFacingCamera = true
-        videoCamera?.horizontallyMirrorFrontFacingCamera = true
-        videoCamera?.frameRate = Int32(videoConfiguration.videoFrameRate)
-
-        return videoCamera
-    }
-
-    fileprivate func createGPUImageView() -> GPUImageView? {
-        let gpuImageView = GPUImageView(frame: UIScreen.main.bounds)
-        gpuImageView.fillMode = kGPUImageFillModePreserveAspectRatioAndFill
-        gpuImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        return gpuImageView
-    }
-    func createUIElementInput() -> GPUImageUIElement {
-        return GPUImageUIElement(view: self.waterMarkContentView)
-    }
-
-    func createBlendFilter() -> GPUImageAlphaBlendFilter {
-        let blendFilter = GPUImageAlphaBlendFilter()
-        blendFilter.mix = 1.0
-        blendFilter.disableSecondFrameCheck()
-
-        return blendFilter
-    }
-
-    func createWaterMarkContentView() -> UIView {
-        let waterMarkContentView = UIView()
-        waterMarkContentView.frame = CGRect(x: 0, y: 0, width: videoConfiguration.internalVideoSize.width, height: videoConfiguration.internalVideoSize.height)
-        waterMarkContentView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-
-        return waterMarkContentView
-    }
-
-    func createMovieWriterIfNeeded() {
-        guard let url = saveLocalVideoPath, saveLocalVideo else { return }
-
-        self.movieWriter = MovieWriter(url: url, size: videoConfiguration.internalVideoSize)
-    }
-}
-
-// handle image processing
-private extension LiveVideoCapture {
-    func processVideo(output: GPUImageOutput) {
-        autoreleasepool { [weak self] in
-            guard let self = self, let imageFrameBuffer = output.framebufferForOutput() as? GPUImageFramebuffer else {
-                return
+                _frameRate = newValue
+            } catch {
+                print("[HPLiveKit] Setting frame rate failed! frame raate: \(newValue)")
             }
-
-            var pifxelBuffer: CVPixelBuffer?
-            CVPixelBufferCreateWithBytes(kCFAllocatorDefault, Int(videoConfiguration.internalVideoSize.width), Int(videoConfiguration.internalVideoSize.height), kCVPixelFormatType_32BGRA, imageFrameBuffer.byteBuffer(), Int(imageFrameBuffer.bytesPerRow()), nil, nil, nil, &pifxelBuffer)
-
-            if let pifxelBuffer = pifxelBuffer {
-                delegate?.captureOutput(capture: self, pixelBuffer: pifxelBuffer)
-            }
-        }
-    }
-
-    func reloadFilter() {
-
-        cleanFilterIfNeeded()
-
-        setupBeautyFace()
-
-        reloadMirror()
-
-        setupCrop()
-
-        setupWarterMark()
-
-        adjustOutputSize()
-
-        passRawData()
-    }
-
-    func cleanFilterIfNeeded() {
-        filter?.removeAllTargets()
-        blendFilter?.removeAllTargets()
-        uiElementInput?.removeAllTargets()
-        videoCamera?.removeAllTargets()
-        output?.removeAllTargets()
-        cropFilter?.removeAllTargets()
-    }
-
-    func setupBeautyFace() {
-        if beautyFace {
-            output = HPGPUImageEmptyFilter()
-            filter = HPGPUImageBeautyFilter()
-            beautyFilter = filter as? HPGPUImageBeautyFilter
-        } else {
-            output = HPGPUImageEmptyFilter()
-            filter = HPGPUImageEmptyFilter()
-            beautyFilter = nil
-        }
-    }
-
-    //< 调节镜像
-    func setupCrop() {
-        //< 480*640 比例为4:3  强制转换为16:9
-        if videoConfiguration.avSessionPreset == .vga640x480 {
-            let cropRect = videoConfiguration.isLandscape ? CGRect(x: 0, y: 0.125, width: 1, height: 0.75) : CGRect(x: 0.125, y: 0, width: 0.75, height: 1)
-
-            cropFilter = GPUImageCropFilter(cropRegion: cropRect)
-            videoCamera?.addTarget(cropFilter)
-            cropFilter?.addTarget(filter)
-        } else {
-            videoCamera?.addTarget(filter)
-        }
-    }
-
-    //< 添加水印
-    func setupWarterMark() {
-        if let waterMarkView = warterMarkView {
-            filter?.addTarget(blendFilter)
-            uiElementInput?.addTarget(blendFilter)
-            blendFilter?.addTarget(previewImageView)
-            if saveLocalVideo {
-                output?.addTarget(movieWriter?.writer)
-            }
-
-            filter?.addTarget(output)
-            uiElementInput?.update()
-        } else {
-            filter?.addTarget(output)
-            output?.addTarget(previewImageView)
-
-            if saveLocalVideo {
-                output?.addTarget(movieWriter?.writer)
-            }
-        }
-
-    }
-
-    func adjustOutputSize() {
-        filter?.forceProcessing(at: videoConfiguration.internalVideoSize)
-        output?.forceProcessing(at: videoConfiguration.internalVideoSize)
-        blendFilter?.forceProcessing(at: videoConfiguration.internalVideoSize)
-        uiElementInput?.forceProcessing(at: videoConfiguration.internalVideoSize)
-    }
-
-    //< 输出数据
-    func passRawData() {
-        output?.frameProcessingCompletionBlock = { [weak self]output, time in
-            guard let output = output else { return }
-            self?.processVideo(output: output)
         }
     }
 
@@ -364,15 +241,11 @@ extension LiveVideoCapture {
     @objc func handleWillEnterBackground() {
         UIApplication.shared.isIdleTimerDisabled = false
 
-        videoCamera?.pauseCapture()
-
-        runSynchronouslyOnVideoProcessingQueue {
-            glFinish()
-        }
+        captureSession.stopRunning()
     }
 
     @objc func handleWillEnterForeground() {
-        videoCamera?.resumeCameraCapture()
+        captureSession.startRunning()
 
         UIApplication.shared.isIdleTimerDisabled = true
     }
@@ -382,19 +255,20 @@ extension LiveVideoCapture {
 
         let statusBarOrientation = UIApplication.shared.statusBarOrientation
 
-        if videoConfiguration.isLandscape {
-            if statusBarOrientation == .landscapeLeft {
-                videoCamera?.outputImageOrientation = .landscapeRight
-            } else if statusBarOrientation == .landscapeRight {
-                videoCamera?.outputImageOrientation = .landscapeLeft
-            }
-        } else {
-            if statusBarOrientation == .portrait {
-                videoCamera?.outputImageOrientation = .portraitUpsideDown
-            } else if statusBarOrientation == .portraitUpsideDown {
-                videoCamera?.outputImageOrientation = .portrait
-            }
-        }
+        // FIXME: handling
 
+        //        if videoConfiguration.isLandscape {
+        //            if statusBarOrientation == .landscapeLeft {
+        //                videoCamera?.outputImageOrientation = .landscapeRight
+        //            } else if statusBarOrientation == .landscapeRight {
+        //                videoCamera?.outputImageOrientation = .landscapeLeft
+        //            }
+        //        } else {
+        //            if statusBarOrientation == .portrait {
+        //                videoCamera?.outputImageOrientation = .portraitUpsideDown
+        //            } else if statusBarOrientation == .portraitUpsideDown {
+        //                videoCamera?.outputImageOrientation = .portrait
+        //            }
+        //        }
     }
 }

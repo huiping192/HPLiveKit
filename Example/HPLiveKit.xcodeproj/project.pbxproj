@@ -342,16 +342,12 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-HPLiveKit_Example/Pods-HPLiveKit_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/GPUImage/GPUImage.framework",
-				"${BUILT_PRODUCTS_DIR}/GPUImageBeauty/GPUImageBeauty.framework",
 				"${BUILT_PRODUCTS_DIR}/HPLibRTMP/HPLibRTMP.framework",
 				"${BUILT_PRODUCTS_DIR}/HPLiveKit/HPLiveKit.framework",
 				"${BUILT_PRODUCTS_DIR}/pili-librtmp/pili_librtmp.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GPUImage.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/GPUImageBeauty.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLibRTMP.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLiveKit.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/pili_librtmp.framework",
