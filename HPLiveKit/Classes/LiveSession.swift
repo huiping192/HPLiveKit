@@ -81,6 +81,9 @@ public class LiveSession: NSObject {
 
     // 推流 publisher
     private var publisher: Publisher?
+    
+    // 视频保存 archive to local document
+    private var filePublisher: FilePublisher = FilePublisher()
 
     // 调试信息 debug info
     private var debugInfo: LiveDebug?
@@ -125,6 +128,10 @@ public class LiveSession: NSObject {
             audioCapture.muted = mute
         }
     }
+    
+    // 是否保存在本地文件
+    // should save to local file, default is no
+    public var saveLocalVideo: Bool = false
 
     public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
         self.audioConfiguration = audioConfiguration
@@ -200,6 +207,11 @@ private extension LiveSession {
         adjustFrameTimestampIfNeeded(frame: &realFrame)
 
         publisher.send(frame: realFrame)
+        
+        // save to file
+        if saveLocalVideo {
+            filePublisher.save(frame: realFrame)
+        }
     }
 
     func adjustFrameTimestampIfNeeded(frame: inout Frame) {
