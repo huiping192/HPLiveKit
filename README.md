@@ -12,25 +12,27 @@
 ## Features
 
 ### video
-- [ ]   Beauty Face
-- [ ]   WaterMark
+- [x]   Video configuration
+- [ ]   ~~Beauty Face
+- [ ]   ~~WaterMark
 
 ### audio
+- [x]   Audio configuration
 - [ ] 	Audio Mute
-- [ ]   AudioEngine api
+- [ ]   AudioEngine support
 - [ ]   Audio only broadcasting 
 - [ ]   Audio broadcasting in background
 
 ### encoder
-- [x]   H264
-- [x]   AAC
+- [x]   H264 Hardware Encoding 
+- [x]   AAC Hardware Encoding
 
 ### publish
 
 - [x] 	RTMP 
-- [ ] 	MP4 recording
 - [x] 	Drop frames on bad network 
-- [ ] 	Dynamic switching bitRate
+- [x] 	Dynamic switching bitRate
+- [ ] 	local MP4 recording
 
 
 
