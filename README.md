@@ -51,6 +51,8 @@ HPLiveKit is available through [CocoaPods](https://cocoapods.org). To install
 it, simply add the following line to your Podfile:
 
 ```ruby
+platform :ios, '8.0'
+
 pod 'HPLiveKit'
 ```
 
