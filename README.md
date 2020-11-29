@@ -18,7 +18,7 @@
 
 ### audio
 - [x]   Audio configuration
-- [ ] 	Audio Mute
+- [x] 	 Audio Mute
 - [ ]   AudioEngine support
 - [ ]   Audio only broadcasting 
 - [ ]   Audio broadcasting in background

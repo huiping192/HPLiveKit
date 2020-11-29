@@ -119,6 +119,12 @@ public class LiveSession: NSObject {
             videoCapture.perview = newValue
         }
     }
+    
+    public var mute: Bool = false {
+        didSet {
+            audioCapture.muted = mute
+        }
+    }
 
     public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
         self.audioConfiguration = audioConfiguration
