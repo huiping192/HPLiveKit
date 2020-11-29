@@ -29,6 +29,10 @@ extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
         let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
 
         for audioBuffer in buffers {
+            if muted {
+                memset(audioBuffer.mData, 0, Int(audioBuffer.mDataByteSize))
+            }
+            
             let frame = audioBuffer.mData?.assumingMemoryBound(to: UInt8.self)
             data.append(frame!, count: Int(audioBuffer.mDataByteSize))
         }
