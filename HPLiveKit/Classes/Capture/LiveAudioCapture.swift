@@ -17,12 +17,11 @@ protocol AudioCaptureDelegate: class {
     func captureOutput(capture: LiveAudioCapture, audioData: Data)
 }
 
-
 extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         var audioBufferList = AudioBufferList()
         var data = Data()
-        var blockBuffer : CMBlockBuffer?
+        var blockBuffer: CMBlockBuffer?
 
         CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, nil, &audioBufferList, MemoryLayout<AudioBufferList>.size, nil, nil, 0, &blockBuffer)
 
@@ -93,7 +92,7 @@ class LiveAudioCapture: NSObject {
         self.configuration = configuration
 
         super.init()
-        
+
         configureAudioSession()
         configureAudio()
     }
@@ -107,7 +106,7 @@ class LiveAudioCapture: NSObject {
 }
 
 extension LiveAudioCapture {
-    
+
     func configureAudioSession() {
         try? session.setPreferredSampleRate(Double(configuration.audioSampleRate.rawValue))
         var categoryOptions: AVAudioSession.CategoryOptions
@@ -129,20 +128,17 @@ extension LiveAudioCapture {
         guard let audioDeviceInput = try? AVCaptureDeviceInput.init(device: audioDevice) else {
             fatalError("[HPLiveKit] Init audio CaptureDeviceInput failed!")
         }
-        
+
         if captureSession.canAddInput(audioDeviceInput) {
             captureSession.addInput(audioDeviceInput)
         }
-        
+
         let audioOutput = AVCaptureAudioDataOutput()
         audioOutput.setSampleBufferDelegate(self, queue: taskQueue)
-        
+
         if captureSession.canAddOutput(audioOutput) {
             captureSession.addOutput(audioOutput)
         }
     }
-    
 
 }
-
-
