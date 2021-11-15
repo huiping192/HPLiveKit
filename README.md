@@ -13,8 +13,8 @@
 
 ### video
 - [x]   Video configuration
-- [ ]   ~~Beauty Face~~
-- [ ]   ~~WaterMark~~
+- [ ]   Beauty Face
+- [ ]   WaterMark
 
 ### audio
 - [x]   Audio configuration
