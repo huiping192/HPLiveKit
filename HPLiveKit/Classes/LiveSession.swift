@@ -75,8 +75,7 @@ public class LiveSession: NSObject {
     private let capture: CaptureManager
 
     // video,audio encoder
-    private let videoEncoder: VideoEncoder
-    private let audioEncoder: AudioEncoder
+    private let encoder: EncoderManager
 
     // 推流 publisher
     private var publisher: Publisher?
@@ -137,16 +136,13 @@ public class LiveSession: NSObject {
         self.videoConfiguration = videoConfiguration
 
         capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
-
-        videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
-        audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
+        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
 
         super.init()
 
         capture.delegate = self
 
-        videoEncoder.delegate = self
-        audioEncoder.delegate = self
+        encoder.delegate = self
     }
 
     deinit {
@@ -228,18 +224,18 @@ extension LiveSession: CaptureManagerDelegate {
     func captureOutput(captureManager: CaptureManager, audio: Data) {
         guard uploading else { return }
 
-        audioEncoder.encodeAudioData(data: audio, timeStamp: .now)
+        encoder.encodeAudio(data: audio)
     }
 
     func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer) {
         guard uploading else { return }
 
-        videoEncoder.encodeVideoData(pixelBuffer: video, timeStamp: .now)
+        encoder.encodeVideo(pixelBuffer: video)
     }
 }
 
-extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
+extension LiveSession: EncoderManagerDelegate {
+    func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
         guard uploading else { return }
         hasCapturedAudio = true
 
@@ -248,14 +244,14 @@ extension LiveSession: AudioEncoderDelegate, VideoEncoderDelegate {
         }
     }
 
-    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
+    func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
         guard uploading else { return }
 
-        if frame.isKeyFrame && self.hasCapturedAudio {
+        if videoFrame.isKeyFrame && self.hasCapturedAudio {
             hasCapturedKeyFrame = true
         }
         if isAvAlignment {
-            pushFrame(frame: frame)
+            pushFrame(frame: videoFrame)
         }
     }
 }
@@ -283,11 +279,11 @@ extension LiveSession: PublisherDelegate {
         // only adjust video bitrate, audio cannot
         guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
 
-        let videoBitRate = videoEncoder.videoBitRate
+        let videoBitRate = encoder.videoBitRate
 
         if bufferStatus == .decline && videoBitRate < videoConfiguration.videoMaxBitRate {
             let adjustedVideoBitRate = min(videoBitRate + 50 * 1000, videoConfiguration.videoMaxBitRate)
-            videoEncoder.videoBitRate = adjustedVideoBitRate
+            encoder.videoBitRate = adjustedVideoBitRate
             #if DEBUG
             print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
             #endif
@@ -296,7 +292,7 @@ extension LiveSession: PublisherDelegate {
 
         if bufferStatus == .increase && videoBitRate > videoConfiguration.videoMinBitRate {
             let adjustedVideoBitRate = max(videoBitRate - 100 * 1000, videoConfiguration.videoMinBitRate)
-            videoEncoder.videoBitRate = adjustedVideoBitRate
+            encoder.videoBitRate = adjustedVideoBitRate
             #if DEBUG
             print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
             #endif
