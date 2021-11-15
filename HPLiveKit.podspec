@@ -26,7 +26,7 @@ Pod::Spec.new do |s|
   s.social_media_url = 'https://twitter.com/huiping192'
 
   s.ios.deployment_target = '8.0'
-
+  s.swift_version = '4.0'
   s.source_files = 'HPLiveKit/Classes/**/*.{swift,h,m}'
   
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
