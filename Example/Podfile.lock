@@ -1,39 +1,19 @@
 PODS:
-  - FBSnapshotTestCase (2.1.4):
-    - FBSnapshotTestCase/SwiftSupport (= 2.1.4)
-  - FBSnapshotTestCase/Core (2.1.4)
-  - FBSnapshotTestCase/SwiftSupport (2.1.4):
-    - FBSnapshotTestCase/Core
   - HPLibRTMP (0.0.3):
     - pili-librtmp
   - HPLiveKit (0.1.0):
     - HPLibRTMP (~> 0.0.3)
-  - Nimble (7.3.4)
-  - Nimble-Snapshots (6.3.0):
-    - Nimble-Snapshots/Core (= 6.3.0)
-  - Nimble-Snapshots/Core (6.3.0):
-    - FBSnapshotTestCase (~> 2.0)
-    - Nimble (~> 7.0)
   - pili-librtmp (1.0.7)
-  - Quick (1.2.0)
   - SwiftLint (0.39.1)
 
 DEPENDENCIES:
-  - FBSnapshotTestCase (~> 2.1.4)
   - HPLiveKit (from `../`)
-  - Nimble (~> 7.0)
-  - Nimble-Snapshots (~> 6.3.0)
-  - Quick (~> 1.2.0)
   - SwiftLint
 
 SPEC REPOS:
   https://github.com/CocoaPods/Specs.git:
-    - FBSnapshotTestCase
     - HPLibRTMP
-    - Nimble
-    - Nimble-Snapshots
     - pili-librtmp
-    - Quick
     - SwiftLint
 
 EXTERNAL SOURCES:
@@ -41,15 +21,11 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  FBSnapshotTestCase: 094f9f314decbabe373b87cc339bea235a63e07a
   HPLibRTMP: d98a46cad6eeb3156ed241c81243301ee6d74a01
   HPLiveKit: f42207a86fd248c12b7419db17d2e4452a9ebae6
-  Nimble: 051e3d8912d40138fa5591c78594f95fb172af37
-  Nimble-Snapshots: f5459b5b091678dc942d03ec4741cacb58ba4a52
   pili-librtmp: e8a06a45b0a1a166c48ae6dc718171c0963f32ea
-  Quick: 58d203b1c5e27fff7229c4c1ae445ad7069a7a08
   SwiftLint: 55e96a4a4d537d4a3156859fc1c54bd24851a046
 
-PODFILE CHECKSUM: daf2a9fc6971b9d6f3daa229dfd81816c8fe7c1e
+PODFILE CHECKSUM: e4ac513a07b4bff8a84cbd2ca59ffa4981a754ca
 
 COCOAPODS: 1.10.0

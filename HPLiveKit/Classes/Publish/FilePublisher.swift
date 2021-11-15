@@ -21,11 +21,11 @@ class FilePublisher: NSObject {
         guard let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first else {
             fatalError("cannot find document path")
         }
-        
+
         let timestamp = Date().timeIntervalSince1970
         return documentsPath + "/video_\(timestamp).h264"
     }
-    
+
     private var naluHeader: Data {
         let header: [UInt8] = [0x00, 0x00, 0x00, 0x01]
         return Data(bytes: header)
@@ -53,7 +53,7 @@ class FilePublisher: NSObject {
                 self.save(frameData: frame.data!)
                 return
             }
-            
+
             self.save(frameData: frame.data!)
         }
     }
