@@ -7,9 +7,9 @@
 
 import Foundation
 
-class VideoFrame: Frame {
-    var isKeyFrame: Bool = false
+public class VideoFrame: Frame {
+    public var isKeyFrame: Bool = false
 
-    var sps: Data?
-    var pps: Data?
+    public var sps: Data?
+    public var pps: Data?
 }

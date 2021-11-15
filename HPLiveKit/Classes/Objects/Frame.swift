@@ -7,18 +7,18 @@
 
 import Foundation
 
-class Frame: Equatable {
+public class Frame: Equatable {
     // pts
-    var timestamp: Timestamp = 0
+    public var timestamp: Timestamp = 0
 
     // frame data
-    var data: Data?
+    public var data: Data?
 
     // rtmp包头
     // rtmp header data
-    var header: Data?
+    public var header: Data?
 
-    static func == (lhs: Frame, rhs: Frame) -> Bool {
+    public static func == (lhs: Frame, rhs: Frame) -> Bool {
         return lhs.timestamp == rhs.timestamp && lhs.data == lhs.data
     }
 }

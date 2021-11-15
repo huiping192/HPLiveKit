@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol EncoderManagerDelegate: class {
+public protocol EncoderManagerDelegate: class {
     func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame)
     func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame)
 }
 
-class EncoderManager: NSObject {
+public class EncoderManager: NSObject {
 
     // video,audio encoder
     private let videoEncoder: VideoEncoder

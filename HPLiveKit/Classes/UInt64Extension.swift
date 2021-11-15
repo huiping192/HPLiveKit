@@ -7,7 +7,7 @@
 
 import Foundation
 
-typealias Timestamp = UInt64
+public typealias Timestamp = UInt64
 
 extension UInt64 {
     static var now: UInt64 {

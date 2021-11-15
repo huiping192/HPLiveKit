@@ -7,12 +7,12 @@
 
 import Foundation
 
-protocol CaptureManagerDelegate: class {
+public protocol CaptureManagerDelegate: class {
     func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer)
     func captureOutput(captureManager: CaptureManager, audio: Data)
 }
 
-class CaptureManager: NSObject {
+public class CaptureManager: NSObject {
     // video, audio configuration
     private let audioConfiguration: LiveAudioConfiguration
     private let videoConfiguration: LiveVideoConfiguration

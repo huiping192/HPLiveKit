@@ -221,13 +221,13 @@ private extension LiveSession {
 }
 
 extension LiveSession: CaptureManagerDelegate {
-    func captureOutput(captureManager: CaptureManager, audio: Data) {
+    public func captureOutput(captureManager: CaptureManager, audio: Data) {
         guard uploading else { return }
 
         encoder.encodeAudio(data: audio)
     }
 
-    func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer) {
+    public func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer) {
         guard uploading else { return }
 
         encoder.encodeVideo(pixelBuffer: video)
@@ -235,7 +235,7 @@ extension LiveSession: CaptureManagerDelegate {
 }
 
 extension LiveSession: EncoderManagerDelegate {
-    func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
+    public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
         guard uploading else { return }
         hasCapturedAudio = true
 
@@ -244,7 +244,7 @@ extension LiveSession: EncoderManagerDelegate {
         }
     }
 
-    func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
+    public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
         guard uploading else { return }
 
         if videoFrame.isKeyFrame && self.hasCapturedAudio {
