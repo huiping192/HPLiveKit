@@ -72,8 +72,7 @@ public class LiveSession: NSObject {
     private let videoConfiguration: LiveVideoConfiguration
 
     // video,audio data source
-    private let videoCapture: LiveVideoCapture
-    private let audioCapture: LiveAudioCapture
+    private let capture: CaptureManager
 
     // video,audio encoder
     private let videoEncoder: VideoEncoder
@@ -116,16 +115,16 @@ public class LiveSession: NSObject {
 
     public var preview: UIView? {
         get {
-            videoCapture.perview
+            capture.preview
         }
         set {
-            videoCapture.perview = newValue
+            capture.preview = newValue
         }
     }
 
     public var mute: Bool = false {
         didSet {
-            audioCapture.muted = mute
+            capture.mute = mute
         }
     }
 
@@ -137,16 +136,15 @@ public class LiveSession: NSObject {
         self.audioConfiguration = audioConfiguration
         self.videoConfiguration = videoConfiguration
 
-        videoCapture = LiveVideoCapture(videoConfiguration: videoConfiguration)
-        audioCapture = LiveAudioCapture(configuration: audioConfiguration)
+        capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
 
         videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
         audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
 
         super.init()
 
-        videoCapture.delegate = self
-        audioCapture.delegate = self
+        capture.delegate = self
+
         videoEncoder.delegate = self
         audioEncoder.delegate = self
     }
@@ -178,13 +176,11 @@ public class LiveSession: NSObject {
     }
 
     public func startCapturing() {
-        videoCapture.running = true
-        audioCapture.running = true
+        capture.startCapturing()
     }
 
     public func stopCapturing() {
-        videoCapture.running = false
-        audioCapture.running = false
+        capture.stopCapturing()
     }
 }
 
@@ -228,17 +224,17 @@ private extension LiveSession {
 
 }
 
-extension LiveSession: AudioCaptureDelegate, VideoCaptureDelegate {
-    func captureOutput(capture: LiveAudioCapture, audioData: Data) {
+extension LiveSession: CaptureManagerDelegate {
+    func captureOutput(captureManager: CaptureManager, audio: Data) {
         guard uploading else { return }
 
-        audioEncoder.encodeAudioData(data: audioData, timeStamp: .now)
+        audioEncoder.encodeAudioData(data: audio, timeStamp: .now)
     }
 
-    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer) {
+    func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer) {
         guard uploading else { return }
 
-        videoEncoder.encodeVideoData(pixelBuffer: pixelBuffer, timeStamp: .now)
+        videoEncoder.encodeVideoData(pixelBuffer: video, timeStamp: .now)
     }
 }
 

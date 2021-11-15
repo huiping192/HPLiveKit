@@ -82,7 +82,7 @@ class LiveVideoCapture: NSObject {
         self.previewVideoView = previewVideoView
     }
 
-    public var perview: UIView? {
+    public var preview: UIView? {
         get {
             return previewVideoView?.superview
         }
