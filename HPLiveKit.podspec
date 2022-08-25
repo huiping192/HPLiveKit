@@ -27,7 +27,7 @@ Pod::Spec.new do |s|
 
   s.ios.deployment_target = '8.0'
   s.swift_version = '4.0'
-  s.source_files = 'HPLiveKit/Classes/**/*.{swift,h,m}'
+  s.source_files = 'Sources/HPLiveKit/**/*.{swift,h,m}'
   
   s.frameworks = "VideoToolbox", "AudioToolbox","AVFoundation","Foundation","UIKit"
   s.dependency 'HPLibRTMP' , '~> 0.0.3'
