@@ -314,15 +314,17 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-HPLiveKit_Example/Pods-HPLiveKit_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/HPLibRTMP/HPLibRTMP.framework",
+				"${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework",
 				"${BUILT_PRODUCTS_DIR}/HPLiveKit/HPLiveKit.framework",
-				"${BUILT_PRODUCTS_DIR}/pili-librtmp/pili_librtmp.framework",
+				"${BUILT_PRODUCTS_DIR}/HPRTMP/HPRTMP.framework",
+				"${BUILT_PRODUCTS_DIR}/Network/Network.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLibRTMP.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Alamofire.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLiveKit.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/pili_librtmp.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPRTMP.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Network.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

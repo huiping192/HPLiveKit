@@ -11,7 +11,7 @@ let package = Package(
         name: "HPLiveKit",
         targets: ["HPLiveKit"]),
     ], dependencies: [
-      .package(url: "https://github.com/huiping192/HPRTMP", .branch("main")),
+      .package(url: "https://github.com/huiping192/HPRTMP", branch: "main"),
     ],
     targets: [
       .target(
