@@ -8,7 +8,7 @@
 
 import UIKit
 import HPLiveKit
-import HPLibRTMP
+import HPRTMP
 
 class ViewController: UIViewController {
 

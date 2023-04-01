@@ -1,11 +1,7 @@
 PODS:
-  - Alamofire (5.6.4)
   - HPLiveKit (0.1.0):
     - HPRTMP
-  - HPRTMP (0.0.3):
-    - Network
-  - Network (3.0.8):
-    - Alamofire
+  - HPRTMP (0.0.3)
   - SwiftLint (0.39.1)
 
 DEPENDENCIES:
@@ -15,8 +11,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   https://github.com/CocoaPods/Specs.git:
-    - Alamofire
-    - Network
     - SwiftLint
 
 EXTERNAL SOURCES:
@@ -26,10 +20,8 @@ EXTERNAL SOURCES:
     :path: "/Users/huipingguo/git/HPRTMP"
 
 SPEC CHECKSUMS:
-  Alamofire: 4e95d97098eacb88856099c4fc79b526a299e48c
   HPLiveKit: 5ec7a8e5ad47439fbacdf4f70be266f0bcd8a6b3
-  HPRTMP: 7c08a9ee066357c01068599972951ed93b420457
-  Network: 21c432dff7f150944c5b48ed54e0fa351e49453e
+  HPRTMP: 1b5a516e7860c49e20577d56f28eca05225f0d8f
   SwiftLint: 55e96a4a4d537d4a3156859fc1c54bd24851a046
 
 PODFILE CHECKSUM: bbe71b6e8bef5fc8ffa89b1fb8206c3591a3c3f5
