@@ -8,7 +8,8 @@
 
 import Foundation
 import VideoToolbox
-import HPLibRTMP
+import HPRTMP
+import UIKit
 
 class LiveVideoH264Encoder: VideoEncoder {
     private var compressionSession: VTCompressionSession?
@@ -32,13 +33,13 @@ class LiveVideoH264Encoder: VideoEncoder {
 
             guard let compressionSession = compressionSession else { return }
 
-            VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_AverageBitRate, NSNumber(value: videoBitRate))
+          VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: videoBitRate))
 
             let bytes = Int64(Double(videoBitRate) * kLimitToAverageBitRateFactor / 8)
             let duration = Int64(1)
 
             let limit = [bytes, duration] as CFArray
-            VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_DataRateLimits, limit)
+          VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_DataRateLimits, value: limit)
             currentVideoBitRate = newValue
         }
     }
@@ -57,7 +58,7 @@ class LiveVideoH264Encoder: VideoEncoder {
 
     deinit {
         if let compressionSession = compressionSession {
-            VTCompressionSessionCompleteFrames(compressionSession, kCMTimeInvalid)
+          VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.invalid)
             VTCompressionSessionInvalidate(compressionSession)
 
             self.compressionSession = nil
@@ -68,13 +69,13 @@ class LiveVideoH264Encoder: VideoEncoder {
 
     private func resetCompressionSession() {
         if let compressionSession = compressionSession {
-            VTCompressionSessionCompleteFrames(compressionSession, kCMTimeInvalid)
+          VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.invalid)
 
             VTCompressionSessionInvalidate(compressionSession)
             self.compressionSession = nil
         }
 
-        let status = VTCompressionSessionCreate(nil, Int32(configuration.internalVideoSize.width), Int32(configuration.internalVideoSize.height), kCMVideoCodecType_H264, nil, nil, nil, vtCallback, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()), &compressionSession)
+      let status = VTCompressionSessionCreate(allocator: nil, width: Int32(configuration.internalVideoSize.width), height: Int32(configuration.internalVideoSize.height), codecType: kCMVideoCodecType_H264, encoderSpecification: nil, imageBufferAttributes: nil, compressedDataAllocator: nil, outputCallback: vtCallback, refcon: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()), compressionSessionOut: &compressionSession)
 
         if status != noErr {
             print("VTCompressionSessionCreate failed!!")
@@ -82,29 +83,29 @@ class LiveVideoH264Encoder: VideoEncoder {
         }
 
         guard let compressionSession = compressionSession else { return }
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_MaxKeyFrameInterval, NSNumber(value: configuration.videoMaxKeyframeInterval))
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, NSNumber(value: configuration.videoMaxKeyframeInterval / configuration.videoFrameRate))
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_ExpectedFrameRate, NSNumber(value: configuration.videoFrameRate))
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_AverageBitRate, NSNumber(value: configuration.videoBitRate))
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: NSNumber(value: configuration.videoMaxKeyframeInterval))
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: NSNumber(value: configuration.videoMaxKeyframeInterval / configuration.videoFrameRate))
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: NSNumber(value: configuration.videoFrameRate))
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: configuration.videoBitRate))
 
         let bytes = Int64(Double(videoBitRate) * kLimitToAverageBitRateFactor / 8)
         let duration = Int64(1)
 
         let limit = [bytes, duration] as CFArray
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_DataRateLimits, limit)
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_DataRateLimits, value: limit)
 
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_RealTime, kCFBooleanTrue)
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Main_AutoLevel)
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanTrue)
-        VTSessionSetProperty(compressionSession, kVTCompressionPropertyKey_H264EntropyMode, kVTH264EntropyMode_CABAC)
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_Main_AutoLevel)
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanTrue)
+      VTSessionSetProperty(compressionSession, key: kVTCompressionPropertyKey_H264EntropyMode, value: kVTH264EntropyMode_CABAC)
 
         VTCompressionSessionPrepareToEncodeFrames(compressionSession)
     }
 
     private func configureNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(self.handleWillEnterBackground), name: Notification.Name.UIApplicationWillResignActive, object: nil)
+      NotificationCenter.default.addObserver(self, selector: #selector(self.handleWillEnterBackground), name: UIApplication.willResignActiveNotification, object: nil)
 
-        NotificationCenter.default.addObserver(self, selector: #selector(self.handlewillEnterForeground), name: Notification.Name.UIApplicationDidBecomeActive, object: nil)
+      NotificationCenter.default.addObserver(self, selector: #selector(self.handlewillEnterForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc func handleWillEnterBackground() {
@@ -138,7 +139,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         let timeNumber = NSNumber(value: timeStamp)
         let time = UnsafeMutableRawPointer(Unmanaged.passRetained(timeNumber).toOpaque())
 
-        let status = VTCompressionSessionEncodeFrame(compressionSession, pixelBuffer, presentationTimeStamp, duration, properties as NSDictionary?, time, &flags)
+      let status = VTCompressionSessionEncodeFrame(compressionSession, imageBuffer: pixelBuffer, presentationTimeStamp: presentationTimeStamp, duration: duration, frameProperties: properties as NSDictionary?, sourceFrameRefcon: time, infoFlagsOut: &flags)
 
         if status != noErr {
             print("Encode video frame error!!")
@@ -148,7 +149,7 @@ class LiveVideoH264Encoder: VideoEncoder {
 
     func stopEncoder() {
         guard let compressionSession = compressionSession else { return }
-        VTCompressionSessionCompleteFrames(compressionSession, kCMTimeIndefinite)
+      VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.indefinite)
     }
 
     private var vtCallback: VTCompressionOutputCallback = { (
@@ -165,7 +166,7 @@ class LiveVideoH264Encoder: VideoEncoder {
 
         guard let sampleBuffer = sampleBuffer else { return }
 
-        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, true) as? NSArray else { return }
+      guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: true) as? NSArray else { return }
 
         guard let attachment = attachments[0] as? NSDictionary else {
             return
@@ -194,7 +195,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         var totalLength: size_t = 0
         var dataPointer: UnsafeMutablePointer<Int8>?
 
-        let statusCodeRet = CMBlockBufferGetDataPointer(dataBuffer, 0, &length, &totalLength, &dataPointer)
+      let statusCodeRet = CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: &length, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
 
         if statusCodeRet != noErr {
             print("Receive data pointer error!!")
@@ -241,7 +242,7 @@ class LiveVideoH264Encoder: VideoEncoder {
 
         var sps: UnsafePointer<UInt8>?
 
-        let spsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, 0, &sps, &sparameterSetSize, &sparameterSetCount, nil)
+      let spsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: 0, parameterSetPointerOut: &sps, parameterSetSizeOut: &sparameterSetSize, parameterSetCountOut: &sparameterSetCount, nalUnitHeaderLengthOut: nil)
 
         if spsStatusCode != noErr {
             print("Receive h264 sps error")
@@ -252,7 +253,7 @@ class LiveVideoH264Encoder: VideoEncoder {
         var pparameterSetSize: size_t = 0
         var pparameterSetCount: size_t = 0
         var pps: UnsafePointer<UInt8>?
-        let ppsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, 1, &pps, &pparameterSetSize, &pparameterSetCount, nil)
+      let ppsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: 1, parameterSetPointerOut: &pps, parameterSetSizeOut: &pparameterSetSize, parameterSetCountOut: &pparameterSetCount, nalUnitHeaderLengthOut: nil)
 
         if ppsStatusCode != noErr {
             print("Receive h264 pps error")

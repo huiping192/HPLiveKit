@@ -5,27 +5,29 @@ import PackageDescription
 
 let package = Package(
     name: "HPLiveKit",
-    platforms: [
-            .iOS(.v8)
-        ],
-    dependencies: [
-        .package(url: "https://github.com/huiping192/HPLibRTMP", from: "0.0.3"),
+    platforms: [.iOS(.v13)],
+    products: [
+      .library(
+        name: "HPLiveKit",
+        targets: ["HPLiveKit"]),
+    ], dependencies: [
+      .package(url: "https://github.com/huiping192/HPRTMP", .branch("main")),
     ],
     targets: [
-        .executableTarget(
-            name: "HPLiveKit",
-            dependencies: [
-                "HPLibRTMP"
-            ],
-            linkerSettings: [
-                .linkedFramework("VideoToolbox"),
-                .linkedFramework("AudioToolbox"),
-                .linkedFramework("AVFoundation"),
-                .linkedFramework("Foundation"),
-                .linkedFramework("UIKit"),
-            ]),
-        .testTarget(
-            name: "HPLiveKitTests",
-            dependencies: ["HPLiveKit"]),
+      .target(
+        name: "HPLiveKit",
+        dependencies: [
+          .product(name: "HPRTMP", package: "HPRTMP")
+        ],
+        linkerSettings: [
+          .linkedFramework("VideoToolbox"),
+          .linkedFramework("AudioToolbox"),
+          .linkedFramework("AVFoundation"),
+          .linkedFramework("Foundation"),
+          .linkedFramework("UIKit"),
+        ]),
+      .testTarget(
+        name: "HPLiveKitTests",
+        dependencies: ["HPLiveKit"]),
     ]
 )

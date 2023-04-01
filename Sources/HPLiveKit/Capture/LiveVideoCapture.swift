@@ -8,6 +8,8 @@
 
 import Foundation
 import AVFoundation
+import UIKit
+import CoreVideo
 
 private class PreviewView: UIView {
     override class var layerClass: AnyClass {
@@ -213,8 +215,8 @@ class LiveVideoCapture: NSObject {
             do {
                 try device.lockForConfiguration()
 
-                device.activeVideoMinFrameDuration = CMTimeMake(1, newValue)
-                device.activeVideoMaxFrameDuration = CMTimeMake(1, newValue)
+              device.activeVideoMinFrameDuration = CMTimeMake(value: 1, timescale: newValue)
+                device.activeVideoMaxFrameDuration = CMTimeMake(value: 1, timescale: newValue)
 
                 device.unlockForConfiguration()
 
@@ -231,11 +233,11 @@ class LiveVideoCapture: NSObject {
 extension LiveVideoCapture {
 
     func configureNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(handleWillEnterBackground), name: Notification.Name.UIApplicationWillResignActive, object: nil)
+      NotificationCenter.default.addObserver(self, selector: #selector(handleWillEnterBackground), name: UIApplication.willResignActiveNotification, object: nil)
 
-        NotificationCenter.default.addObserver(self, selector: #selector(handleWillEnterForeground), name: Notification.Name.UIApplicationWillEnterForeground, object: nil)
+      NotificationCenter.default.addObserver(self, selector: #selector(handleWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
 
-        NotificationCenter.default.addObserver(self, selector: #selector(handleStatusBarChanged), name: Notification.Name.UIApplicationWillChangeStatusBarOrientation, object: nil)
+      NotificationCenter.default.addObserver(self, selector: #selector(handleStatusBarChanged), name: UIApplication.willChangeStatusBarOrientationNotification, object: nil)
     }
 
     @objc func handleWillEnterBackground() {

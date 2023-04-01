@@ -8,6 +8,7 @@
 
 import Foundation
 import AVFoundation
+import UIKit
 
 public enum LiveVideoSessionPreset {
     /// 低分辨率

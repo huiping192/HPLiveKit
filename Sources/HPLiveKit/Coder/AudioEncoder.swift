@@ -7,13 +7,12 @@
 
 import Foundation
 
-protocol AudioEncoderDelegate: class {
+protocol AudioEncoderDelegate: AnyObject {
     func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame)
 }
 
-protocol AudioEncoder: class {
-
-    weak var delegate: AudioEncoderDelegate? {
+protocol AudioEncoder: AnyObject {
+    var delegate: AudioEncoderDelegate? {
         get
         set
     }

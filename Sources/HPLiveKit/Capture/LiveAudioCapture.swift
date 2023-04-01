@@ -23,7 +23,7 @@ extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
         var data = Data()
         var blockBuffer: CMBlockBuffer?
 
-        CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, nil, &audioBufferList, MemoryLayout<AudioBufferList>.size, nil, nil, 0, &blockBuffer)
+      CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, bufferListSizeNeededOut: nil, bufferListOut: &audioBufferList, bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &blockBuffer)
 
         let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
 
@@ -76,7 +76,7 @@ class LiveAudioCapture: NSObject {
                     categoryOptions = [.defaultToSpeaker]
                 }
 
-                try? self.session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
+              try? self.session.setCategory(AVAudioSession.Category.playAndRecord, options: categoryOptions)
                 self.captureSession.startRunning()
             }
         }
@@ -115,9 +115,9 @@ extension LiveAudioCapture {
         } else {
             categoryOptions = [.defaultToSpeaker]
         }
-        try? session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: categoryOptions)
+      try? session.setCategory(AVAudioSession.Category.playAndRecord, options: categoryOptions)
 
-        try? session.setActive(true, with: [.notifyOthersOnDeactivation])
+      try? session.setActive(true, options: [.notifyOthersOnDeactivation])
         try? session.setActive(true)
     }
 

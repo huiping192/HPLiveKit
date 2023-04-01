@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreVideo
 
 public protocol EncoderManagerDelegate: class {
     func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame)

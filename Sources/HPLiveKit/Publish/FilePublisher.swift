@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import HPLibRTMP
+import HPRTMP
 
 class FilePublisher: NSObject {
 

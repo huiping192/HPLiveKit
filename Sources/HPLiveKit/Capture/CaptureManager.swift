@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import UIKit
 
-public protocol CaptureManagerDelegate: class {
+public protocol CaptureManagerDelegate: AnyObject {
     func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer)
     func captureOutput(captureManager: CaptureManager, audio: Data)
 }

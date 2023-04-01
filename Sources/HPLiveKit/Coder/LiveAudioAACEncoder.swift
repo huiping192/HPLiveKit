@@ -9,7 +9,7 @@
 import Foundation
 import AudioToolbox
 import AVFoundation
-import HPLibRTMP
+import HPRTMP
 
 class LiveAudioAACEncoder: AudioEncoder {
 

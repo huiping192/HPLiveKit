@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AVFoundation
 
 // 编码器编码后回调
 protocol VideoEncoderDelegate: class {
@@ -23,7 +24,7 @@ protocol VideoEncoder: class {
 
     init(configuration: LiveVideoConfiguration)
 
-    weak var delegate: VideoEncoderDelegate? {
+    var delegate: VideoEncoderDelegate? {
         get
         set
     }
