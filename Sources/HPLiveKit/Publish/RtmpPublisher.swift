@@ -301,32 +301,87 @@ private extension RtmpPublisher {
 
 private extension RtmpPublisher {
   func sendVideoHeader(frame: VideoFrame) {
-//    rtmp.sendVideoHeader(withSPS: frame.sps, pps: frame.pps)
-//
-//    Task {
-//      rtmp.publishVideoHeader(data:time:)
-//    }
-   
+    Task {
+      guard let sps = frame.sps, let pps = frame.pps else { return }
+      var data = Data()
+      data.append(contentsOf: [0x17, 0x00, 0x00, 0x00, 0x00])
+      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+      data.append(contentsOf: sps.count.bigEndian.data)
+      data.append(contentsOf: sps)
+      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+      data.append(contentsOf: pps.count.bigEndian.data)
+      data.append(contentsOf: pps)
+      try await rtmp.publishVideoHeader(data: data, time:0)
+    }
   }
   
   func sendVideoFrame(frame: VideoFrame) {
 //    rtmp.sendVideo(withVideoData: frame.data, timestamp: frame.timestamp, isKeyFrame: frame.isKeyFrame)
     Task {
       guard let data = frame.data else { return }
+      /*
+       Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
+
+       Codec ID: a 4-bit field that indicates the codec used to encode the video data, such as H.264 or VP6.
+
+       AVC Packet Type: an 8-bit field that indicates the type of AVC packet, such as a sequence header or a NALU.
+
+       Composition Time: a 24-bit field that indicates the composition time of the video frame.
+
+       Video Data Payload: the actual video data payload, which includes the NAL units of the frame.
+       */
+      var descData = Data()
+      let frameType = frame.isKeyFrame ? VideoData.FrameType.keyframe : VideoData.FrameType.inter
+      let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
+      descData.append(Data([frameAndCode]))
+      descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
+      
+      // 24bit
+      let convert = UInt32(frame.timestamp).bigEndian.data
+      descData.append(convert[1...(convert.count-1)])
+      descData.append(data)
       try await rtmp.publishVideo(data: data, delta: UInt32(frame.timestamp))
     }
   }
   
   func sendAudioHeader(frame: AudioFrame) {
-//    rtmp.sendAudioHeader(frame.header)
+    Task {
+      guard let asc = frame.header else {
+        return
+      }
+      
+      var data = Data()
+      
+      // Set the message header type to audio (0x08)
+      data.append(contentsOf: [0xaf, 0x00, 0x00, 0x00])
+      
+      // Append the Audio Specific Configuration data
+      data.append(contentsOf: asc)
+      
+      // Publish the audio header to the RTMP server
+      try? await rtmp.publishAudioHeader(data: data, time: 0)
+    }
   }
   
   func sendAudioFrame(frame: AudioFrame) {
-//    rtmp.sendAudio(withAudioData: frame.data, timestamp: frame.timestamp)
-    
     Task {
-      guard let data = frame.data else { return }
-      try await rtmp.publishAudio(data: data, delta: UInt32(frame.timestamp))
+      guard let data = frame.data else {
+        return
+      }
+      let packetType: UInt8 = AudioData.AACPacketType.raw.rawValue
+      let dataLen: UInt32 = UInt32(data.count)
+      let timestamp: UInt32 = UInt32(frame.timestamp)
+      let body: [UInt8] = [packetType,
+                           UInt8((dataLen >> 16) & 0xff),
+                           UInt8((dataLen >> 8) & 0xff),
+                           UInt8(dataLen & 0xff),
+                           UInt8((timestamp >> 16) & 0xff),
+                           UInt8((timestamp >> 8) & 0xff),
+                           UInt8(timestamp & 0xff),
+                           0x00]
+      var audioPacketData = Data(bytes: body, count: body.count)
+      audioPacketData.append(data)
+      try await rtmp.publishAudio(data: audioPacketData, delta: UInt32(frame.timestamp))
     }
   }
 }
@@ -348,4 +403,12 @@ extension RtmpPublisher: RTMPPublishSessionDelegate {
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
     
   }
+}
+
+
+extension ExpressibleByIntegerLiteral {
+  var data: Data {
+         var value: Self = self
+         return Data(bytes: &value, count: MemoryLayout<Self>.size)
+     }
 }

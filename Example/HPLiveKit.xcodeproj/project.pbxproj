@@ -215,7 +215,7 @@
 					};
 					607FACE41AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
-						DevelopmentTeam = GTQ588K3AS;
+						DevelopmentTeam = Q2N4A2LNJ8;
 						LastSwiftMigration = 0900;
 						TestTargetID = 607FACCF1AFB9204008FA782;
 					};
@@ -518,7 +518,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 853699EC8560574066E199F2 /* Pods-HPLiveKit_Tests.debug.xcconfig */;
 			buildSettings = {
-				DEVELOPMENT_TEAM = GTQ588K3AS;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",
@@ -542,7 +542,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = DC0FAC953F4A565EE1DE7D3F /* Pods-HPLiveKit_Tests.release.xcconfig */;
 			buildSettings = {
-				DEVELOPMENT_TEAM = GTQ588K3AS;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",

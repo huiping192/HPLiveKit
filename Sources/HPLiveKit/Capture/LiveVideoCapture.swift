@@ -196,7 +196,9 @@ class LiveVideoCapture: NSObject {
             guard running != oldValue else { return }
             if running {
                 UIApplication.shared.isIdleTimerDisabled = true
-                captureSession.startRunning()
+              DispatchQueue.global(qos: .default).async {
+                self.captureSession.startRunning()
+              }
             } else {
                 UIApplication.shared.isIdleTimerDisabled = false
                 captureSession.stopRunning()

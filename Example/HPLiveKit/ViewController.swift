@@ -26,7 +26,7 @@ class ViewController: UIViewController {
         
         liveSession?.startCapturing()
         
-        let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://10.0.1.14/live?key=huiping")
+        let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23/live/haha")
         liveSession?.startLive(streamInfo: info)
     }
 

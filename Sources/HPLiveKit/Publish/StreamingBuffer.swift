@@ -88,7 +88,7 @@ class StreamingBuffer {
     /** pop the first frome buffer */
     func popFirstFrame() -> Frame? {
         lock.wait()
-        let firstFrame = list.first
+      guard let firstFrame = list.first else { return nil }
         list.removeFirst()
         lock.signal()
 
