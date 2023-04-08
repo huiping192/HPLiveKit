@@ -257,7 +257,7 @@ private extension RtmpPublisher {
   func pushAudio(frame: AudioFrame) {
     if !self.sendAudioHead {
       self.sendAudioHead = true
-      if frame.audioInfo == nil {
+      if frame.header == nil {
         self.isSending = false
         return
       }
@@ -371,20 +371,11 @@ private extension RtmpPublisher {
     guard rtmp.publishStatus == .publishStart else { return }
 
     Task {
-      guard let asc = frame.header else {
+      guard let header = frame.header else {
         return
       }
-      
-      var data = Data()
-      
-      // Set the message header type to audio (0x08)
-      data.append(contentsOf: [0xaf, 0x00, 0x00, 0x00])
-      
-      // Append the Audio Specific Configuration data
-      data.append(contentsOf: asc)
-      
       // Publish the audio header to the RTMP server
-      try? await rtmp.publishAudioHeader(data: data, time: 0)
+      try? await rtmp.publishAudioHeader(data: header, time: 0)
     }
   }
   
