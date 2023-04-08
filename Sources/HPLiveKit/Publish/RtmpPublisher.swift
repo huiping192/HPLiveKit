@@ -306,14 +306,6 @@ private extension RtmpPublisher {
     Task {
       guard let sps = frame.sps, let pps = frame.pps else { return }
       var body = Data()
-//      data.append(contentsOf: [0x17, 0x00, 0x00, 0x00, 0x00])
-//      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-//      data.append(contentsOf: sps.count.bigEndian.data)
-//      data.append(contentsOf: sps)
-//      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-//      data.append(contentsOf: pps.count.bigEndian.data)
-//      data.append(contentsOf: pps)
-      
       body.append(Data([0x17]))
       body.append(Data([0x00]))
 
@@ -321,20 +313,20 @@ private extension RtmpPublisher {
 
       body.append(Data([0x01]))
 
-      let sps_len = sps.count
+      let spsSize = sps.count
 
       body.append(Data([sps[1], sps[2], sps[3], 0xff]))
 
       /*sps*/
       body.append(Data([0xe1]))
-      body.append(Data([(UInt8(sps_len) >> 8) & 0xff, UInt8(sps_len) & 0xff]))
+      body.append(Data([(UInt8(spsSize) >> 8) & 0xff, UInt8(spsSize) & 0xff]))
       body.append(Data(sps))
 
-      let pps_len = pps.count
+      let ppsSize = pps.count
 
       /*pps*/
       body.append(Data([0x01]))
-      body.append(Data([(UInt8(pps_len) >> 8) & 0xff, UInt8(pps_len) & 0xff]))
+      body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
       body.append(Data(pps))
       
       self.startVideoTimestamp = frame.timestamp
