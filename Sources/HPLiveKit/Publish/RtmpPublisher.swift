@@ -37,7 +37,7 @@ class RtmpPublisher: NSObject, Publisher {
   private let reconnectInterval: Int
   private let reconnectCount: Int
   
-  private var startVideoTimestamp: UInt64 = 0
+  private var lastVideoTimestamp: UInt64 = 0
   // 状态
   private var isSending = false {
     //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
@@ -329,7 +329,7 @@ private extension RtmpPublisher {
       body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
       body.append(Data(pps))
       
-      self.startVideoTimestamp = frame.timestamp
+      self.lastVideoTimestamp = frame.timestamp
       try await rtmp.publishVideoHeader(data: body, time: 0)
     }
   }
@@ -358,9 +358,11 @@ private extension RtmpPublisher {
       descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
 
       // 24bit
-      descData.writeU24(Int(frame.timestamp), bigEndian: true)
+      let delta = UInt32(frame.timestamp - lastVideoTimestamp)
+      descData.writeU24(Int(delta), bigEndian: true)
       descData.append(data)
-      try await rtmp.publishVideo(data: descData, delta: UInt32(frame.timestamp - startVideoTimestamp))
+      try await rtmp.publishVideo(data: descData, delta: delta)
+      lastVideoTimestamp = frame.timestamp
     }
   }
   
