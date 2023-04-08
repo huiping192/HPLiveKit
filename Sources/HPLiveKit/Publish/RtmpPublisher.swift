@@ -37,6 +37,7 @@ class RtmpPublisher: NSObject, Publisher {
   private let reconnectInterval: Int
   private let reconnectCount: Int
   
+  private var startVideoTimestamp: UInt64 = 0
   // 状态
   private var isSending = false {
     //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
@@ -301,21 +302,49 @@ private extension RtmpPublisher {
 
 private extension RtmpPublisher {
   func sendVideoHeader(frame: VideoFrame) {
+    guard rtmp.publishStatus == .publishStart else { return }
     Task {
       guard let sps = frame.sps, let pps = frame.pps else { return }
-      var data = Data()
-      data.append(contentsOf: [0x17, 0x00, 0x00, 0x00, 0x00])
-      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-      data.append(contentsOf: sps.count.bigEndian.data)
-      data.append(contentsOf: sps)
-      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-      data.append(contentsOf: pps.count.bigEndian.data)
-      data.append(contentsOf: pps)
-      try await rtmp.publishVideoHeader(data: data, time:0)
+      var body = Data()
+//      data.append(contentsOf: [0x17, 0x00, 0x00, 0x00, 0x00])
+//      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+//      data.append(contentsOf: sps.count.bigEndian.data)
+//      data.append(contentsOf: sps)
+//      data.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+//      data.append(contentsOf: pps.count.bigEndian.data)
+//      data.append(contentsOf: pps)
+      
+      body.append(Data([0x17]))
+      body.append(Data([0x00]))
+
+      body.append(Data([0x00, 0x00, 0x00]))
+
+      body.append(Data([0x01]))
+
+      let sps_len = sps.count
+
+      body.append(Data([sps[1], sps[2], sps[3], 0xff]))
+
+      /*sps*/
+      body.append(Data([0xe1]))
+      body.append(Data([(UInt8(sps_len) >> 8) & 0xff, UInt8(sps_len) & 0xff]))
+      body.append(Data(sps))
+
+      let pps_len = pps.count
+
+      /*pps*/
+      body.append(Data([0x01]))
+      body.append(Data([(UInt8(pps_len) >> 8) & 0xff, UInt8(pps_len) & 0xff]))
+      body.append(Data(pps))
+      
+      self.startVideoTimestamp = frame.timestamp
+      try await rtmp.publishVideoHeader(data: body, time: 0)
     }
   }
   
   func sendVideoFrame(frame: VideoFrame) {
+    guard rtmp.publishStatus == .publishStart else { return }
+
 //    rtmp.sendVideo(withVideoData: frame.data, timestamp: frame.timestamp, isKeyFrame: frame.isKeyFrame)
     Task {
       guard let data = frame.data else { return }
@@ -335,16 +364,18 @@ private extension RtmpPublisher {
       let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
       descData.append(Data([frameAndCode]))
       descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
-      
+
       // 24bit
-      let convert = UInt32(frame.timestamp).bigEndian.data
-      descData.append(convert[1...(convert.count-1)])
+      descData.writeU24(Int(frame.timestamp), bigEndian: true)
       descData.append(data)
-      try await rtmp.publishVideo(data: data, delta: UInt32(frame.timestamp))
+      try await rtmp.publishVideo(data: descData, delta: UInt32(frame.timestamp - startVideoTimestamp))
     }
   }
   
   func sendAudioHeader(frame: AudioFrame) {
+    return
+    guard rtmp.publishStatus == .publishStart else { return }
+
     Task {
       guard let asc = frame.header else {
         return
@@ -364,6 +395,9 @@ private extension RtmpPublisher {
   }
   
   func sendAudioFrame(frame: AudioFrame) {
+    return
+    guard rtmp.publishStatus == .publishStart else { return }
+
     Task {
       guard let data = frame.data else {
         return

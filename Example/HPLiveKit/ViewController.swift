@@ -17,17 +17,18 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-       configureLiveSession()
+      configureLiveSession()
+
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        
-        liveSession?.startCapturing()
-        
-        let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23/live/haha")
-        liveSession?.startLive(streamInfo: info)
+      
+      liveSession?.startCapturing()
+      
+      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.48/live/haha")
+      liveSession?.startLive(streamInfo: info)
     }
 
     func configureLiveSession() {

@@ -186,50 +186,44 @@ class LiveVideoH264Encoder: VideoEncoder {
     }
 
     static func getFrame(sampleBuffer: CMSampleBuffer, isKeyFrame: Bool, timeStamp: NSNumber, videoEncoder: LiveVideoH264Encoder) {
-        guard let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
-            print("Receive databuffer error!!")
-            return
-        }
+       
+      
+      guard let bufferData = CMSampleBufferGetDataBuffer(sampleBuffer)?.data else {
+          return
+      }
+      var videoFrame = VideoFrame()
+      
+      videoFrame.timestamp = timeStamp.uint64Value
+      videoFrame.data = bufferData
+      videoFrame.isKeyFrame = isKeyFrame
+      videoFrame.sps = videoEncoder.sps
+      videoFrame.pps = videoEncoder.pps
+      
+      videoEncoder.delegate?.videoEncoder(encoder: videoEncoder, frame: videoFrame)
 
-        var length: size_t = 0
-        var totalLength: size_t = 0
-        var dataPointer: UnsafeMutablePointer<Int8>?
-
-      let statusCodeRet = CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: &length, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
-
-        if statusCodeRet != noErr {
-            print("Receive data pointer error!!")
-            return
-        }
-
-        guard let ptr = dataPointer else {
-            print("Receive data pointer is nil!!")
-            return
-        }
-
-        var bufferOffset: size_t = 0
-        let AVCCHeaderLength: size_t = 4
-
-        while bufferOffset < totalLength - AVCCHeaderLength {
-            // Read the NAL unit length
-            var NALUnitLength: UInt32 = 0
-            memcpy(&NALUnitLength, ptr + bufferOffset, AVCCHeaderLength)
-
-            NALUnitLength = CFSwapInt32BigToHost(NALUnitLength)
-
-            let data = Data(bytes: ptr + bufferOffset + AVCCHeaderLength, count: Int(NALUnitLength))
-            var videoFrame = VideoFrame()
-
-            videoFrame.timestamp = timeStamp.uint64Value
-            videoFrame.data = data
-            videoFrame.isKeyFrame = isKeyFrame
-            videoFrame.sps = videoEncoder.sps
-            videoFrame.pps = videoEncoder.pps
-
-            videoEncoder.delegate?.videoEncoder(encoder: videoEncoder, frame: videoFrame)
-
-            bufferOffset += AVCCHeaderLength + Int(NALUnitLength)
-        }
+//        var bufferOffset: size_t = 0
+//        let AVCCHeaderLength: size_t = 4
+//
+//        while bufferOffset < totalLength - AVCCHeaderLength {
+//            // Read the NAL unit length
+//            var NALUnitLength: UInt32 = 0
+//            memcpy(&NALUnitLength, ptr + bufferOffset, AVCCHeaderLength)
+//
+//            NALUnitLength = CFSwapInt32BigToHost(NALUnitLength)
+//
+//            let data = Data(bytes: ptr + bufferOffset + AVCCHeaderLength, count: Int(NALUnitLength))
+//            var videoFrame = VideoFrame()
+//
+//            videoFrame.timestamp = timeStamp.uint64Value
+//            videoFrame.data = data
+//            videoFrame.isKeyFrame = isKeyFrame
+//            videoFrame.sps = videoEncoder.sps
+//            videoFrame.pps = videoEncoder.pps
+//
+//            videoEncoder.delegate?.videoEncoder(encoder: videoEncoder, frame: videoFrame)
+//
+//            bufferOffset += AVCCHeaderLength + Int(NALUnitLength)
+//        }
 
     }
 
@@ -267,6 +261,27 @@ class LiveVideoH264Encoder: VideoEncoder {
 
         videoEncoder.sps = Data(bytes: spsBytes, count: sparameterSetSize)
         videoEncoder.pps = Data(bytes: ppsBytes, count: pparameterSetSize)
+    }
+
+}
+
+extension CMBlockBuffer {
+    
+    var data: Data? {
+        
+        var length: Int = 0
+        var pointer: UnsafeMutablePointer<Int8>?
+        
+        guard CMBlockBufferGetDataPointer(self, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &length, dataPointerOut: &pointer) == noErr,
+              let p = pointer else {
+            return nil
+        }
+        return Data(bytes: p, count: length)
+    }
+    
+    var length: Int {
+        
+        return CMBlockBufferGetDataLength(self)
     }
 
 }
