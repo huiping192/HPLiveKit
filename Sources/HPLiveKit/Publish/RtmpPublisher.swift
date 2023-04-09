@@ -38,6 +38,7 @@ class RtmpPublisher: NSObject, Publisher {
   private let reconnectCount: Int
   
   private var lastVideoTimestamp: UInt64 = 0
+  private var lastAudioTimestamp: UInt64 = 0
   // 状态
   private var isSending = false {
     //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
@@ -340,6 +341,10 @@ private extension RtmpPublisher {
 //    rtmp.sendVideo(withVideoData: frame.data, timestamp: frame.timestamp, isKeyFrame: frame.isKeyFrame)
     Task {
       guard let data = frame.data else { return }
+      
+      
+      guard frame.timestamp > lastVideoTimestamp else { return }
+
       /*
        Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
 
@@ -357,50 +362,41 @@ private extension RtmpPublisher {
       descData.append(Data([frameAndCode]))
       descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
 
+      let delta = frame.timestamp - lastVideoTimestamp
       // 24bit
-      let delta = UInt32(frame.timestamp - lastVideoTimestamp)
       descData.writeU24(Int(delta), bigEndian: true)
       descData.append(data)
-      try await rtmp.publishVideo(data: descData, delta: delta)
+      try await rtmp.publishVideo(data: descData, delta: UInt32(delta))
       lastVideoTimestamp = frame.timestamp
     }
   }
   
   func sendAudioHeader(frame: AudioFrame) {
-    return
     guard rtmp.publishStatus == .publishStart else { return }
-
     Task {
       guard let header = frame.header else {
         return
       }
       // Publish the audio header to the RTMP server
       try? await rtmp.publishAudioHeader(data: header, time: 0)
+      lastVideoTimestamp = frame.timestamp
     }
   }
   
   func sendAudioFrame(frame: AudioFrame) {
-    return
     guard rtmp.publishStatus == .publishStart else { return }
-
     Task {
-      guard let data = frame.data else {
+      guard let data = frame.data, let aacHeader = frame.aacHeader  else {
         return
       }
-      let packetType: UInt8 = AudioData.AACPacketType.raw.rawValue
-      let dataLen: UInt32 = UInt32(data.count)
-      let timestamp: UInt32 = UInt32(frame.timestamp)
-      let body: [UInt8] = [packetType,
-                           UInt8((dataLen >> 16) & 0xff),
-                           UInt8((dataLen >> 8) & 0xff),
-                           UInt8(dataLen & 0xff),
-                           UInt8((timestamp >> 16) & 0xff),
-                           UInt8((timestamp >> 8) & 0xff),
-                           UInt8(timestamp & 0xff),
-                           0x00]
-      var audioPacketData = Data(bytes: body, count: body.count)
+      guard frame.timestamp > lastVideoTimestamp else { return }
+      var audioPacketData = Data()
+      audioPacketData.append(aacHeader)
+      audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
       audioPacketData.append(data)
-      try await rtmp.publishAudio(data: audioPacketData, delta: UInt32(frame.timestamp))
+      let delta = UInt32(frame.timestamp - lastVideoTimestamp)
+      try await rtmp.publishAudio(data: audioPacketData, delta: delta)
+      lastVideoTimestamp = frame.timestamp
     }
   }
 }

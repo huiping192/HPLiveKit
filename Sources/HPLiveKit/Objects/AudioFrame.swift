@@ -10,4 +10,6 @@ import Foundation
 public class AudioFrame: Frame {
     /// flv打包中aac的header
     public var audioInfo: Data?
+  
+  public var aacHeader: Data?
 }

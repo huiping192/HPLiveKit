@@ -104,6 +104,12 @@ class LiveAudioAACEncoder: AudioEncoder {
     }
   }
   
+  /*
+   Sound format: a 4-bit field that indicates the audio format, such as AAC or MP3.
+   Sound rate: a 2-bit field that indicates the audio sample rate, such as 44.1 kHz or 48 kHz.
+   Sound size: a 1-bit field that indicates the audio sample size, such as 16-bit or 8-bit.
+   Sound type: a 1-bit field that indicates the audio channel configuration, such as stereo or mono.
+   */
   var aacHeader: Data {
     get {
       guard let desc = self.outFormatDescription,
@@ -173,7 +179,7 @@ class LiveAudioAACEncoder: AudioEncoder {
   func stopEncoder() {
     
   }
-  
+    
   private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: Timestamp) {
     guard let converter = converter else {
       return
@@ -206,6 +212,7 @@ class LiveAudioAACEncoder: AudioEncoder {
     
     var audioFrame = AudioFrame()
     audioFrame.header = audioHeader
+    audioFrame.aacHeader = aacHeader
     audioFrame.timestamp = timestamp
     audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
     
