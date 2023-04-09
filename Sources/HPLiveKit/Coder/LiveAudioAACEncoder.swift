@@ -260,6 +260,7 @@ class LiveAudioAACEncoder: AudioEncoder {
     var outputFormat = AudioStreamBasicDescription()
     memset(&outputFormat, 0, MemoryLayout.size(ofValue: outputFormat))
     outputFormat.mSampleRate = inputFormat.mSampleRate // 采样率保持一致
+    outputFormat.mFormatFlags = UInt32(MPEG4ObjectID.AAC_LC.rawValue)
     outputFormat.mFormatID = kAudioFormatMPEG4AAC // AAC编码 kAudioFormatMPEG4AAC kAudioFormatMPEG4AAC_HE_V2
     outputFormat.mChannelsPerFrame = configuration.numberOfChannels
     outputFormat.mFramesPerPacket = 1024 // AAC一帧是1024个字节
