@@ -337,11 +337,8 @@ private extension RtmpPublisher {
   
   func sendVideoFrame(frame: VideoFrame) {
     guard rtmp.publishStatus == .publishStart else { return }
-
-//    rtmp.sendVideo(withVideoData: frame.data, timestamp: frame.timestamp, isKeyFrame: frame.isKeyFrame)
     Task {
       guard let data = frame.data else { return }
-      
       
       guard frame.timestamp > lastVideoTimestamp else { return }
 
@@ -364,7 +361,7 @@ private extension RtmpPublisher {
 
       let delta = frame.timestamp - lastVideoTimestamp
       // 24bit
-      descData.writeU24(Int(delta), bigEndian: true)
+      descData.writeU24(Int(frame.compositionTime), bigEndian: true)
       descData.append(data)
       try await rtmp.publishVideo(data: descData, delta: UInt32(delta))
       lastVideoTimestamp = frame.timestamp

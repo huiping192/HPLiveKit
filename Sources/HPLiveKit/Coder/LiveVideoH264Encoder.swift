@@ -193,38 +193,14 @@ class LiveVideoH264Encoder: VideoEncoder {
       }
       var videoFrame = VideoFrame()
       
-      videoFrame.timestamp = timeStamp.uint64Value
+      videoFrame.timestamp = UInt64(sampleBuffer.decodeTimeStamp.seconds * 1000)
+      videoFrame.compositionTime = Int32((sampleBuffer.presentationTimeStamp.seconds - sampleBuffer.decodeTimeStamp.seconds) * 1000)
       videoFrame.data = bufferData
       videoFrame.isKeyFrame = isKeyFrame
       videoFrame.sps = videoEncoder.sps
       videoFrame.pps = videoEncoder.pps
       
       videoEncoder.delegate?.videoEncoder(encoder: videoEncoder, frame: videoFrame)
-
-//        var bufferOffset: size_t = 0
-//        let AVCCHeaderLength: size_t = 4
-//
-//        while bufferOffset < totalLength - AVCCHeaderLength {
-//            // Read the NAL unit length
-//            var NALUnitLength: UInt32 = 0
-//            memcpy(&NALUnitLength, ptr + bufferOffset, AVCCHeaderLength)
-//
-//            NALUnitLength = CFSwapInt32BigToHost(NALUnitLength)
-//
-//            let data = Data(bytes: ptr + bufferOffset + AVCCHeaderLength, count: Int(NALUnitLength))
-//            var videoFrame = VideoFrame()
-//
-//            videoFrame.timestamp = timeStamp.uint64Value
-//            videoFrame.data = data
-//            videoFrame.isKeyFrame = isKeyFrame
-//            videoFrame.sps = videoEncoder.sps
-//            videoFrame.pps = videoEncoder.pps
-//
-//            videoEncoder.delegate?.videoEncoder(encoder: videoEncoder, frame: videoFrame)
-//
-//            bufferOffset += AVCCHeaderLength + Int(NALUnitLength)
-//        }
-
     }
 
     static func getSps(sampleBuffer: CMSampleBuffer, videoEncoder: LiveVideoH264Encoder) {
