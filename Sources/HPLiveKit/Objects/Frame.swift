@@ -9,7 +9,7 @@ import Foundation
 
 public class Frame: Equatable {
   // decodeTimeStamp
-  public var timestamp: Timestamp = 0
+  public var timestamp: UInt64 = 0
     
   // frame data
   public var data: Data?

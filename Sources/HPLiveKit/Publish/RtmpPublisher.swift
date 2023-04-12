@@ -264,7 +264,7 @@ private extension RtmpPublisher {
     self.buffer.lastDropFrames = 0
     
     self.debugInfo.allDataSize += CGFloat(frame.data?.count ?? 0)
-    self.debugInfo.elapsedMilli = CGFloat(Timestamp.now) - self.debugInfo.currentTimeStamp
+    self.debugInfo.elapsedMilli = CGFloat(UInt64(CACurrentMediaTime() * 1000)) - self.debugInfo.currentTimeStamp
     
     if debugInfo.elapsedMilli < 1000 {
       debugInfo.bandwidthPerSec += CGFloat(frame.data?.count ?? 0)
@@ -284,7 +284,7 @@ private extension RtmpPublisher {
       debugInfo.bandwidthPerSec = 0
       debugInfo.capturedVideoCountPerSec = 0
       debugInfo.capturedAudioCountPerSec = 0
-      debugInfo.currentTimeStamp = CGFloat(Timestamp.now)
+      debugInfo.currentTimeStamp = CGFloat(UInt64(CACurrentMediaTime() * 1000))
     }
   }
   
@@ -350,7 +350,7 @@ private extension RtmpPublisher {
 
       let delta = frame.timestamp - lastVideoTimestamp
       // 24bit
-      descData.writeU24(Int(frame.compositionTime), bigEndian: true)
+      descData.write24(Int32(frame.compositionTime), bigEndian: true)
       descData.append(data)
       try await rtmp.publishVideo(data: descData, delta: UInt32(delta))
       lastVideoTimestamp = frame.timestamp
@@ -358,20 +358,20 @@ private extension RtmpPublisher {
   }
   
   func sendAudioHeader(frame: AudioFrame) {
-    return
+//    return
     guard rtmp.publishStatus == .publishStart else { return }
     Task {
       guard let header = frame.header else {
         return
       }
       // Publish the audio header to the RTMP server
-      try? await rtmp.publishAudioHeader(data: header)
       lastAudioTimestamp = frame.timestamp
+      try? await rtmp.publishAudioHeader(data: header)
     }
   }
   
   func sendAudioFrame(frame: AudioFrame) {
-    return
+//    return
     guard rtmp.publishStatus == .publishStart else { return }
     Task {
       guard let data = frame.data, let aacHeader = frame.aacHeader  else {
@@ -382,7 +382,8 @@ private extension RtmpPublisher {
       audioPacketData.append(aacHeader)
       audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
       audioPacketData.append(data)
-      let delta = UInt32(frame.timestamp - lastVideoTimestamp)
+      let delta = UInt32(frame.timestamp - lastAudioTimestamp)
+      print("[test] \(delta)")
       try await rtmp.publishAudio(data: audioPacketData, delta: delta)
       lastAudioTimestamp = frame.timestamp
     }

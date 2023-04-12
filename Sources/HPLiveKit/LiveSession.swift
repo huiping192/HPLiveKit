@@ -97,7 +97,7 @@ public class LiveSession: NSObject {
     /// 时间戳锁  timestamp lock
     private var lock = DispatchSemaphore(value: 1)
     // 相对时间戳
-    private var relativeTimestamp: Timestamp = 0
+    private var relativeTimestamp: UInt64 = 0
 
     /// 音视频是否对齐
     private var isAvAlignment: Bool {
@@ -222,10 +222,10 @@ private extension LiveSession {
 }
 
 extension LiveSession: CaptureManagerDelegate {
-  public func captureOutput(captureManager: CaptureManager, audio: Data) {
+  public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
     
-    encoder.encodeAudio(data: audio)
+    encoder.encodeAudio(sampleBuffer: audio)
   }
   
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {

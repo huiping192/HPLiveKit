@@ -14,28 +14,12 @@ let HPAudioComponentFailedToCreateNotification = Notification.Name(rawValue: "Au
 
 protocol AudioCaptureDelegate: class {
     /** LFAudioCapture callback audioData */
-    func captureOutput(capture: LiveAudioCapture, audioData: Data)
+    func captureOutput(capture: LiveAudioCapture, sampleBuffer: CMSampleBuffer)
 }
 
 extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        var audioBufferList = AudioBufferList()
-        var data = Data()
-        var blockBuffer: CMBlockBuffer?
-
-      CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, bufferListSizeNeededOut: nil, bufferListOut: &audioBufferList, bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &blockBuffer)
-
-        let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
-
-        for audioBuffer in buffers {
-            if muted {
-                memset(audioBuffer.mData, 0, Int(audioBuffer.mDataByteSize))
-            }
-
-            let frame = audioBuffer.mData?.assumingMemoryBound(to: UInt8.self)
-            data.append(frame!, count: Int(audioBuffer.mDataByteSize))
-        }
-        delegate?.captureOutput(capture: self, audioData: data)
+      delegate?.captureOutput(capture: self, sampleBuffer: sampleBuffer)
     }
 }
 

@@ -41,8 +41,8 @@ public class EncoderManager: NSObject {
         audioEncoder.delegate = self
     }
 
-    public func encodeAudio(data: Data) {
-        audioEncoder.encodeAudioData(data: data, timeStamp: .now)
+  public func encodeAudio(sampleBuffer: CMSampleBuffer) {
+    audioEncoder.encodeAudioData(sampleBuffer: sampleBuffer)
     }
 
     public func encodeVideo(sampleBuffer: CMSampleBuffer) {

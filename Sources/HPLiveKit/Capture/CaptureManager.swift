@@ -11,7 +11,7 @@ import CoreMedia
 
 public protocol CaptureManagerDelegate: AnyObject {
     func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer)
-    func captureOutput(captureManager: CaptureManager, audio: Data)
+    func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer)
 }
 
 public class CaptureManager: NSObject {
@@ -65,8 +65,8 @@ public class CaptureManager: NSObject {
 }
 
 extension CaptureManager: AudioCaptureDelegate, VideoCaptureDelegate {
-    func captureOutput(capture: LiveAudioCapture, audioData: Data) {
-        delegate?.captureOutput(captureManager: self, audio: audioData)
+    func captureOutput(capture: LiveAudioCapture, sampleBuffer: CMSampleBuffer) {
+        delegate?.captureOutput(captureManager: self, audio: sampleBuffer)
     }
 
     func captureOutput(capture: LiveVideoCapture, video sampleBuffer: CMSampleBuffer) {

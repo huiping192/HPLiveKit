@@ -134,7 +134,7 @@ class StreamingBuffer {
 
     private func expirePFrames() -> [Frame] {
         var iframes = [Frame]()
-        var timestamp = Timestamp(0)
+        var timestamp = UInt64(0)
 
         for frame in list {
             if let frame = frame as? VideoFrame, frame.isKeyFrame {

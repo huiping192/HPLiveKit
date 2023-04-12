@@ -139,7 +139,23 @@ class LiveAudioAACEncoder: AudioEncoder {
     free(aacBuf)
   }
   
-  func encodeAudioData(data: Data, timeStamp: Timestamp) {
+  func encodeAudioData(sampleBuffer: CMSampleBuffer) {
+    var audioBufferList = AudioBufferList()
+    var data = Data()
+    var blockBuffer: CMBlockBuffer?
+    
+    CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, bufferListSizeNeededOut: nil, bufferListOut: &audioBufferList, bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &blockBuffer)
+    
+    let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
+    
+    for audioBuffer in buffers {
+//      if muted {
+//        memset(audioBuffer.mData, 0, Int(audioBuffer.mDataByteSize))
+//      }
+      
+      let frame = audioBuffer.mData?.assumingMemoryBound(to: UInt8.self)
+      data.append(frame!, count: Int(audioBuffer.mDataByteSize))
+    }
     let audioData = data as NSData
     if !createAudioConvert() {
       return
@@ -156,8 +172,9 @@ class LiveAudioAACEncoder: AudioEncoder {
       memcpy(totalBuf, leftBuf, leftLength)
       memcpy(totalBuf + leftLength, audioData.bytes, audioData.length)
       
+      let presentationTimeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
       for _ in 0 ..< encodeCount {
-        encodeBuffer(buf: p, timestamp: timeStamp)
+        encodeBuffer(buf: p, timestamp: presentationTimeStamp)
         p += configuration.bufferLength
       }
       
@@ -180,7 +197,7 @@ class LiveAudioAACEncoder: AudioEncoder {
     
   }
     
-  private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: Timestamp) {
+  private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: CMTime) {
     guard let converter = converter else {
       return
     }
@@ -213,7 +230,7 @@ class LiveAudioAACEncoder: AudioEncoder {
     var audioFrame = AudioFrame()
     audioFrame.header = audioHeader
     audioFrame.aacHeader = aacHeader
-    audioFrame.timestamp = timestamp
+    audioFrame.timestamp = UInt64(timestamp.seconds * 1000)
     audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
     
     delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
