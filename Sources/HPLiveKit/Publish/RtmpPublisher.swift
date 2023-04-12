@@ -67,17 +67,6 @@ class RtmpPublisher: NSObject, Publisher {
     
     self.reconnectCount = reconnectCount > 0 ? reconnectCount : retryTimesBreaken
     
-//    let conf = HPRTMPConf()
-//    conf.url = stream.url
-//
-//    conf.audioBitrate = CGFloat(stream.audioConfiguration?.audioBitRate.rawValue ?? 1000)
-//    conf.audioSampleRate = CGFloat(stream.audioConfiguration?.audioSampleRate.rawValue ?? 30)
-//    conf.numberOfChannels = Int32(stream.audioConfiguration?.numberOfChannels ?? 1)
-//
-//    let videoSize = stream.videoConfiguration?.videoSize ?? CGSize.zero
-//    conf.videoBitrate = CGFloat(stream.videoConfiguration?.videoBitRate ?? 1000)
-//    conf.videoFrameRate = CGFloat(stream.videoConfiguration?.videoFrameRate ?? 30)
-    
     let videoSize = stream.videoConfiguration?.videoSize ?? CGSize.zero
     let conf = PublishConfigure(
         width: Int(videoSize.width),
@@ -114,17 +103,17 @@ class RtmpPublisher: NSObject, Publisher {
     isConnected = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
     
-//    rtmp.close()
+    rtmp.invalidate()
     
     connect()
   }
   
   // CallBack
   private func connect() {
-//    guard self.rtmp.connect() == 0 else {
-//      reconnect()
-//      return
-//    }
+    guard rtmp.publishStatus != .publishStart else {
+      reconnect()
+      return
+    }
     
     rtmp.publish(url: stream.url, configure: configure)
     
@@ -163,7 +152,7 @@ class RtmpPublisher: NSObject, Publisher {
     
     delegate?.publisher(publisher: self, publishStatus: .refresh)
     
-//    rtmp.close()
+    rtmp.invalidate()
     
     connect()
   }
@@ -178,7 +167,7 @@ class RtmpPublisher: NSObject, Publisher {
   private func _stop() {
     delegate?.publisher(publisher: self, publishStatus: .stop)
     
-//    rtmp.close()
+    rtmp.invalidate()
     
     clean()
   }
@@ -340,7 +329,7 @@ private extension RtmpPublisher {
     Task {
       guard let data = frame.data else { return }
       
-      guard frame.timestamp > lastVideoTimestamp else { return }
+      guard frame.timestamp >= lastVideoTimestamp else { return }
 
       /*
        Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
@@ -369,31 +358,33 @@ private extension RtmpPublisher {
   }
   
   func sendAudioHeader(frame: AudioFrame) {
+    return
     guard rtmp.publishStatus == .publishStart else { return }
     Task {
       guard let header = frame.header else {
         return
       }
       // Publish the audio header to the RTMP server
-      try? await rtmp.publishAudioHeader(data: header, time: 0)
-      lastVideoTimestamp = frame.timestamp
+      try? await rtmp.publishAudioHeader(data: header)
+      lastAudioTimestamp = frame.timestamp
     }
   }
   
   func sendAudioFrame(frame: AudioFrame) {
+    return
     guard rtmp.publishStatus == .publishStart else { return }
     Task {
       guard let data = frame.data, let aacHeader = frame.aacHeader  else {
         return
       }
-      guard frame.timestamp > lastVideoTimestamp else { return }
+      guard frame.timestamp >= lastAudioTimestamp else { return }
       var audioPacketData = Data()
       audioPacketData.append(aacHeader)
       audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
       audioPacketData.append(data)
       let delta = UInt32(frame.timestamp - lastVideoTimestamp)
       try await rtmp.publishAudio(data: audioPacketData, delta: delta)
-      lastVideoTimestamp = frame.timestamp
+      lastAudioTimestamp = frame.timestamp
     }
   }
 }

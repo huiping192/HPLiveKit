@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import CoreMedia
 
 //< only video (External input video)
 struct LiveCaptureType: OptionSet {
@@ -221,17 +222,17 @@ private extension LiveSession {
 }
 
 extension LiveSession: CaptureManagerDelegate {
-    public func captureOutput(captureManager: CaptureManager, audio: Data) {
-        guard uploading else { return }
-
-        encoder.encodeAudio(data: audio)
-    }
-
-    public func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer) {
-        guard uploading else { return }
-
-        encoder.encodeVideo(pixelBuffer: video)
-    }
+  public func captureOutput(captureManager: CaptureManager, audio: Data) {
+    guard uploading else { return }
+    
+    encoder.encodeAudio(data: audio)
+  }
+  
+  public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
+    guard uploading else { return }
+    
+    encoder.encodeVideo(sampleBuffer: video)
+  }
 }
 
 extension LiveSession: EncoderManagerDelegate {

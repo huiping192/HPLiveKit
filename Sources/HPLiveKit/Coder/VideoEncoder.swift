@@ -10,24 +10,24 @@ import AVFoundation
 
 // 编码器编码后回调
 protocol VideoEncoderDelegate: class {
-    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
+  func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
 }
 
 protocol VideoEncoder: class {
-
-    func encodeVideoData(pixelBuffer: CVPixelBuffer, timeStamp: Timestamp)
-
-    var videoBitRate: UInt {
-        get
-        set
-    }
-
-    init(configuration: LiveVideoConfiguration)
-
-    var delegate: VideoEncoderDelegate? {
-        get
-        set
-    }
-
-    func stopEncoder()
+  
+  func encodeVideoData(sampleBuffer: CMSampleBuffer)
+  
+  var videoBitRate: UInt {
+    get
+    set
+  }
+  
+  init(configuration: LiveVideoConfiguration)
+  
+  var delegate: VideoEncoderDelegate? {
+    get
+    set
+  }
+  
+  func stopEncoder()
 }

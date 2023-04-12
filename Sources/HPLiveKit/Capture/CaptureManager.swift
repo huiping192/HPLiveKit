@@ -7,9 +7,10 @@
 
 import Foundation
 import UIKit
+import CoreMedia
 
 public protocol CaptureManagerDelegate: AnyObject {
-    func captureOutput(captureManager: CaptureManager, video: CVPixelBuffer)
+    func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer)
     func captureOutput(captureManager: CaptureManager, audio: Data)
 }
 
@@ -68,7 +69,7 @@ extension CaptureManager: AudioCaptureDelegate, VideoCaptureDelegate {
         delegate?.captureOutput(captureManager: self, audio: audioData)
     }
 
-    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer) {
-        delegate?.captureOutput(captureManager: self, video: pixelBuffer)
+    func captureOutput(capture: LiveVideoCapture, video sampleBuffer: CMSampleBuffer) {
+        delegate?.captureOutput(captureManager: self, video: sampleBuffer)
     }
 }

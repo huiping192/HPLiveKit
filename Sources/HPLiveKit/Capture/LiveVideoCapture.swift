@@ -22,13 +22,12 @@ private class PreviewView: UIView {
 }
 
 protocol VideoCaptureDelegate: class {
-    func captureOutput(capture: LiveVideoCapture, pixelBuffer: CVPixelBuffer)
+  func captureOutput(capture: LiveVideoCapture, video sampleBuffer: CMSampleBuffer)
 }
 
 extension LiveVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        delegate?.captureOutput(capture: self, pixelBuffer: pixelBuffer)
+        delegate?.captureOutput(capture: self, video: sampleBuffer)
     }
 }
 

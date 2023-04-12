@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreVideo
+import CoreMedia
 
 public protocol EncoderManagerDelegate: class {
     func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame)
@@ -44,8 +45,8 @@ public class EncoderManager: NSObject {
         audioEncoder.encodeAudioData(data: data, timeStamp: .now)
     }
 
-    public func encodeVideo(pixelBuffer: CVPixelBuffer) {
-        videoEncoder.encodeVideoData(pixelBuffer: pixelBuffer, timeStamp: .now)
+    public func encodeVideo(sampleBuffer: CMSampleBuffer) {
+        videoEncoder.encodeVideoData(sampleBuffer: sampleBuffer)
     }
 }
 
