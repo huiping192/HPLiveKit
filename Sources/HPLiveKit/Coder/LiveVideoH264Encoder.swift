@@ -193,8 +193,13 @@ class LiveVideoH264Encoder: VideoEncoder {
       }
       var videoFrame = VideoFrame()
       
-      videoFrame.timestamp = UInt64(sampleBuffer.decodeTimeStamp.seconds * 1000)
-      videoFrame.compositionTime = Int32((sampleBuffer.presentationTimeStamp.seconds - sampleBuffer.decodeTimeStamp.seconds) * 1000)
+      let presentationTimeStamp = sampleBuffer.presentationTimeStamp
+      var decodeTimeStamp = sampleBuffer.decodeTimeStamp
+      if decodeTimeStamp == .invalid {
+        decodeTimeStamp = presentationTimeStamp
+      }
+      videoFrame.timestamp = UInt64(decodeTimeStamp.seconds * 1000)
+      videoFrame.compositionTime = Int32((decodeTimeStamp.seconds - presentationTimeStamp.seconds) * 1000)
       videoFrame.data = bufferData
       videoFrame.isKeyFrame = isKeyFrame
       videoFrame.sps = videoEncoder.sps
@@ -242,22 +247,21 @@ class LiveVideoH264Encoder: VideoEncoder {
 }
 
 extension CMBlockBuffer {
+  var data: Data? {
     
-    var data: Data? {
-        
-        var length: Int = 0
-        var pointer: UnsafeMutablePointer<Int8>?
-        
-        guard CMBlockBufferGetDataPointer(self, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &length, dataPointerOut: &pointer) == noErr,
-              let p = pointer else {
-            return nil
-        }
-        return Data(bytes: p, count: length)
-    }
+    var length: Int = 0
+    var pointer: UnsafeMutablePointer<Int8>?
     
-    var length: Int {
-        
-        return CMBlockBufferGetDataLength(self)
+    guard CMBlockBufferGetDataPointer(self, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &length, dataPointerOut: &pointer) == noErr,
+          let p = pointer else {
+      return nil
     }
-
+    return Data(bytes: p, count: length)
+  }
+  
+  var length: Int {
+    
+    return CMBlockBufferGetDataLength(self)
+  }
+  
 }
