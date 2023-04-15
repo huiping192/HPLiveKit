@@ -255,7 +255,6 @@ private extension RtmpPublisher {
           return
         }
         await self.sendAudioHeader(frame: frame)
-        try await self.sendAudioFrame(frame: frame)
       } else {
         try await self.sendAudioFrame(frame: frame)
       }
