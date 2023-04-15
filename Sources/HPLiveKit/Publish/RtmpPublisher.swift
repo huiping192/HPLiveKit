@@ -378,7 +378,6 @@ private extension RtmpPublisher {
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
     audioPacketData.append(data)
     let delta = UInt32(frame.timestamp - lastAudioTimestamp)
-    print("[test] \(delta)")
     try await rtmp.publishAudio(data: audioPacketData, delta: delta)
     lastAudioTimestamp = frame.timestamp
   }

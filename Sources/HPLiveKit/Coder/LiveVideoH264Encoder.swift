@@ -163,9 +163,7 @@ class LiveVideoH264Encoder: VideoEncoder {
       self.getFrame(sampleBuffer: sampleBuffer, isKeyFrame: isKeyframe)
     }
     
-    let presentationTimeStampTest = CMTime(value: Int64(frameCount), timescale: Int32(configuration.videoFrameRate))
-    let durationTest = CMTime(value: 1, timescale: Int32(configuration.videoFrameRate))
-    let status =  VTCompressionSessionEncodeFrame(compressionSession, imageBuffer: imageBuffer, presentationTimeStamp: presentationTimeStampTest, duration: durationTest, frameProperties: properties as NSDictionary?, infoFlagsOut: &flags, outputHandler: outputHandler)
+    let status =  VTCompressionSessionEncodeFrame(compressionSession, imageBuffer: imageBuffer, presentationTimeStamp: presentationTimeStamp, duration: duration, frameProperties: properties as NSDictionary?, infoFlagsOut: &flags, outputHandler: outputHandler)
     
     if status != noErr {
       print("Encode video frame error!!")
@@ -202,9 +200,8 @@ class LiveVideoH264Encoder: VideoEncoder {
     if decodeTimeStamp == .invalid {
       decodeTimeStamp = presentationTimeStamp
     }
-    videoFrame.timestamp = UInt64(decodeTimeStamp.seconds * 1000)
-    videoFrame.compositionTime = 0
-//    videoFrame.compositionTime = Int32((decodeTimeStamp.seconds - presentationTimeStamp.seconds) * 1000)
+    videoFrame.timestamp = UInt64(presentationTimeStamp.seconds * 1000)
+    videoFrame.compositionTime = Int32((presentationTimeStamp.seconds - decodeTimeStamp.seconds) * 1000)
     videoFrame.data = bufferData
     videoFrame.isKeyFrame = isKeyFrame
     videoFrame.sps = sps
