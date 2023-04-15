@@ -9,7 +9,7 @@ import Foundation
 
 public struct LiveVideoConfigurationFactory {
     public static var defaultVideoConfiguration: LiveVideoConfiguration {
-        return createHigh1()
+        return createHigh3()
     }
 
     public static func createLow1() -> LiveVideoConfiguration {
