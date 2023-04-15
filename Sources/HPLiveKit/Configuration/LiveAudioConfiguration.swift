@@ -86,6 +86,6 @@ public struct LiveAudioConfiguration {
     let audioBitRate: LiveAudioBitRate
     /// 缓存区长度
     var bufferLength: Int {
-        1024 * 2 * Int(self.numberOfChannels)
+        1024 * 1 * Int(self.numberOfChannels)
     }
 }

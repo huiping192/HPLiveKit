@@ -157,7 +157,7 @@ class LiveAudioAACEncoder: AudioEncoder {
       data.append(frame!, count: Int(audioBuffer.mDataByteSize))
     }
     let audioData = data as NSData
-    if !createAudioConvert() {
+    if !createAudioConvert(sb: sampleBuffer) {
       return
     }
     
@@ -258,16 +258,33 @@ class LiveAudioAACEncoder: AudioEncoder {
     return noErr
   }
   
-  private func createAudioConvert() -> Bool {
+  private func createAudioConvert(sb: CMSampleBuffer) -> Bool {
     if converter != nil {
       return true
     }
     
+    // 获取音频格式描述
+    guard let formatDescription = CMSampleBufferGetFormatDescription(sb) else {
+      print("无法获取音频格式描述")
+      return false
+    }
+    
+    // 获取音频流基本描述（ASBD）
+    let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)!.pointee
+    
+    // 获取采样率（Sample Rate）
+    let sampleRate = audioStreamBasicDescription.mSampleRate
+    print("Sample Rate: \(sampleRate)")
+    
+    // 获取通道数（Channels）
+    let channels = audioStreamBasicDescription.mChannelsPerFrame
+    print("Channels: \(channels)")
+    
     var inputFormat = AudioStreamBasicDescription()
-    inputFormat.mSampleRate = Float64(configuration.audioSampleRate.rawValue)
+    inputFormat.mSampleRate = sampleRate
     inputFormat.mFormatID = kAudioFormatLinearPCM
     inputFormat.mFormatFlags =  kAudioFormatFlagIsSignedInteger | kAudioFormatFlagsNativeEndian | kAudioFormatFlagIsPacked
-    inputFormat.mChannelsPerFrame = configuration.numberOfChannels
+    inputFormat.mChannelsPerFrame = channels
     inputFormat.mFramesPerPacket = 1
     inputFormat.mBitsPerChannel = 16
     inputFormat.mBytesPerFrame = inputFormat.mBitsPerChannel / 8 * inputFormat.mChannelsPerFrame
@@ -279,7 +296,7 @@ class LiveAudioAACEncoder: AudioEncoder {
     outputFormat.mSampleRate = inputFormat.mSampleRate // 采样率保持一致
     outputFormat.mFormatFlags = UInt32(MPEG4ObjectID.AAC_LC.rawValue)
     outputFormat.mFormatID = kAudioFormatMPEG4AAC // AAC编码 kAudioFormatMPEG4AAC kAudioFormatMPEG4AAC_HE_V2
-    outputFormat.mChannelsPerFrame = configuration.numberOfChannels
+    outputFormat.mChannelsPerFrame = channels
     outputFormat.mFramesPerPacket = 1024 // AAC一帧是1024个字节
     
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &outputFormat, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
