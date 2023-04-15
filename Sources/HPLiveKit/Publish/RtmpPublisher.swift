@@ -69,14 +69,14 @@ class RtmpPublisher: NSObject, Publisher {
     
     let videoSize = stream.videoConfiguration?.videoSize ?? CGSize.zero
     let conf = PublishConfigure(
-        width: Int(videoSize.width),
-        height: Int(videoSize.height),
-        displayWidth: Int(videoSize.width),
-        displayHeight: Int(videoSize.height),
-        videocodecid: VideoData.CodecId.avc.rawValue,
-        audiocodecid: AudioData.SoundFormat.aac.rawValue,
-        framerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30),
-        videoframerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30)
+      width: Int(videoSize.width),
+      height: Int(videoSize.height),
+      displayWidth: Int(videoSize.width),
+      displayHeight: Int(videoSize.height),
+      videocodecid: VideoData.CodecId.avc.rawValue,
+      audiocodecid: AudioData.SoundFormat.aac.rawValue,
+      framerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30),
+      videoframerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30)
     )
     
     configure = conf
@@ -231,16 +231,18 @@ private extension RtmpPublisher {
   }
   
   func pushVideo(frame: VideoFrame) {
-    if !self.sendVideoHead {
-      self.sendVideoHead = true
-      if frame.sps == nil || frame.pps == nil {
-        self.isSending = false
-        return
+    Task {
+      if !self.sendVideoHead {
+        self.sendVideoHead = true
+        if frame.sps == nil || frame.pps == nil {
+          self.isSending = false
+          return
+        }
+        
+        try await sendVideoHeader(frame: frame)
+      } else {
+        try await sendVideoFrame(frame: frame)
       }
-      
-      self.sendVideoHeader(frame: frame)
-    } else {
-      self.sendVideoFrame(frame: frame)
     }
   }
   
@@ -294,70 +296,66 @@ private extension RtmpPublisher {
 }
 
 private extension RtmpPublisher {
-  func sendVideoHeader(frame: VideoFrame) {
+  func sendVideoHeader(frame: VideoFrame) async throws {
     guard rtmp.publishStatus == .publishStart else { return }
-    Task {
-      guard let sps = frame.sps, let pps = frame.pps else { return }
-      var body = Data()
-      body.append(Data([0x17]))
-      body.append(Data([0x00]))
-
-      body.append(Data([0x00, 0x00, 0x00]))
-
-      body.append(Data([0x01]))
-
-      let spsSize = sps.count
-
-      body.append(Data([sps[1], sps[2], sps[3], 0xff]))
-
-      /*sps*/
-      body.append(Data([0xe1]))
-      body.append(Data([(UInt8(spsSize) >> 8) & 0xff, UInt8(spsSize) & 0xff]))
-      body.append(Data(sps))
-
-      let ppsSize = pps.count
-
-      /*pps*/
-      body.append(Data([0x01]))
-      body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
-      body.append(Data(pps))
-      
-      self.lastVideoTimestamp = frame.timestamp
-      try await rtmp.publishVideoHeader(data: body, time: 0)
-    }
+    guard let sps = frame.sps, let pps = frame.pps else { return }
+    var body = Data()
+    body.append(Data([0x17]))
+    body.append(Data([0x00]))
+    
+    body.append(Data([0x00, 0x00, 0x00]))
+    
+    body.append(Data([0x01]))
+    
+    let spsSize = sps.count
+    
+    body.append(Data([sps[1], sps[2], sps[3], 0xff]))
+    
+    /*sps*/
+    body.append(Data([0xe1]))
+    body.append(Data([(UInt8(spsSize) >> 8) & 0xff, UInt8(spsSize) & 0xff]))
+    body.append(Data(sps))
+    
+    let ppsSize = pps.count
+    
+    /*pps*/
+    body.append(Data([0x01]))
+    body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
+    body.append(Data(pps))
+    
+    self.lastVideoTimestamp = frame.timestamp
+    try await rtmp.publishVideoHeader(data: body, time: 0)
   }
   
-  func sendVideoFrame(frame: VideoFrame) {
+  func sendVideoFrame(frame: VideoFrame) async throws {
     guard rtmp.publishStatus == .publishStart else { return }
-    Task {
-      guard let data = frame.data else { return }
-      
-      guard frame.timestamp >= lastVideoTimestamp else { return }
-
-      /*
-       Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
-
-       Codec ID: a 4-bit field that indicates the codec used to encode the video data, such as H.264 or VP6.
-
-       AVC Packet Type: an 8-bit field that indicates the type of AVC packet, such as a sequence header or a NALU.
-
-       Composition Time: a 24-bit field that indicates the composition time of the video frame.
-
-       Video Data Payload: the actual video data payload, which includes the NAL units of the frame.
-       */
-      var descData = Data()
-      let frameType = frame.isKeyFrame ? VideoData.FrameType.keyframe : VideoData.FrameType.inter
-      let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
-      descData.append(Data([frameAndCode]))
-      descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
-
-      let delta = frame.timestamp - lastVideoTimestamp
-      // 24bit
-      descData.write24(Int32(frame.compositionTime), bigEndian: true)
-      descData.append(data)
-      try await rtmp.publishVideo(data: descData, delta: UInt32(delta))
-      lastVideoTimestamp = frame.timestamp
-    }
+    guard let data = frame.data else { return }
+    
+    guard frame.timestamp >= lastVideoTimestamp else { return }
+    
+    /*
+     Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
+     
+     Codec ID: a 4-bit field that indicates the codec used to encode the video data, such as H.264 or VP6.
+     
+     AVC Packet Type: an 8-bit field that indicates the type of AVC packet, such as a sequence header or a NALU.
+     
+     Composition Time: a 24-bit field that indicates the composition time of the video frame.
+     
+     Video Data Payload: the actual video data payload, which includes the NAL units of the frame.
+     */
+    var descData = Data()
+    let frameType = frame.isKeyFrame ? VideoData.FrameType.keyframe : VideoData.FrameType.inter
+    let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
+    descData.append(Data([frameAndCode]))
+    descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
+    
+    let delta = frame.timestamp - lastVideoTimestamp
+    // 24bit
+    descData.write24(Int32(frame.compositionTime), bigEndian: true)
+    descData.append(data)
+    try await rtmp.publishVideo(data: descData, delta: UInt32(delta))
+    lastVideoTimestamp = frame.timestamp
   }
   
   func sendAudioHeader(frame: AudioFrame) async {
@@ -409,7 +407,7 @@ extension RtmpPublisher: RTMPPublishSessionDelegate {
 
 extension ExpressibleByIntegerLiteral {
   var data: Data {
-         var value: Self = self
-         return Data(bytes: &value, count: MemoryLayout<Self>.size)
-     }
+    var value: Self = self
+    return Data(bytes: &value, count: MemoryLayout<Self>.size)
+  }
 }
