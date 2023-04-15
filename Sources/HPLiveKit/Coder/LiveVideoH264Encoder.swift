@@ -203,7 +203,8 @@ class LiveVideoH264Encoder: VideoEncoder {
       decodeTimeStamp = presentationTimeStamp
     }
     videoFrame.timestamp = UInt64(decodeTimeStamp.seconds * 1000)
-    videoFrame.compositionTime = Int32((decodeTimeStamp.seconds - presentationTimeStamp.seconds) * 1000)
+    videoFrame.compositionTime = 0
+//    videoFrame.compositionTime = Int32((decodeTimeStamp.seconds - presentationTimeStamp.seconds) * 1000)
     videoFrame.data = bufferData
     videoFrame.isKeyFrame = isKeyFrame
     videoFrame.sps = sps
