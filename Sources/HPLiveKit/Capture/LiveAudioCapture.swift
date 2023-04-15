@@ -19,8 +19,26 @@ protocol AudioCaptureDelegate: class {
 
 extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+      if muted {
+        muteSampleBuffer(sampleBuffer: sampleBuffer)
+      }
       delegate?.captureOutput(capture: self, sampleBuffer: sampleBuffer)
     }
+  
+  private func muteSampleBuffer(sampleBuffer: CMSampleBuffer) {
+      var audioBufferList = AudioBufferList()
+      var blockBuffer: CMBlockBuffer?
+      
+      // 获取音频缓冲区列表
+      CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, bufferListSizeNeededOut: nil, bufferListOut: &audioBufferList, bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &blockBuffer)
+      
+      let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
+      
+      // 遍历音频缓冲区，将数据设置为0
+      for audioBuffer in buffers {
+          memset(audioBuffer.mData, 0, Int(audioBuffer.mDataByteSize))
+      }
+  }
 }
 
 class LiveAudioCapture: NSObject {
