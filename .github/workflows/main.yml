@@ -17,8 +17,8 @@ jobs:
     - name: Cache CocoaPods
       uses: actions/cache@v2
       with:
-        path: Pods
-        key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+        path: Example/Pods
+        key: ${{ runner.os }}-pods-${{ hashFiles('Example/Podfile.lock') }}
         restore-keys: |
           ${{ runner.os }}-pods-
     - name: Install cocoapods
