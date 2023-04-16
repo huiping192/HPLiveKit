@@ -165,7 +165,7 @@ public class LiveSession: NSObject {
         publisher?.start()
     }
 
-    func stopLive() {
+    public func stopLive() {
         uploading = false
 
         publisher?.stop()
