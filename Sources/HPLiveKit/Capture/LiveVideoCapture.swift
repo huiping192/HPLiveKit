@@ -247,11 +247,13 @@ extension LiveVideoCapture {
         captureSession.stopRunning()
     }
 
-    @objc func handleWillEnterForeground() {
-        captureSession.startRunning()
-
-        UIApplication.shared.isIdleTimerDisabled = true
+  @objc func handleWillEnterForeground() {
+    DispatchQueue.global(qos: .default).async {
+      self.captureSession.startRunning()
     }
+    
+    UIApplication.shared.isIdleTimerDisabled = true
+  }
 
     @objc func handleStatusBarChanged() {
         guard videoConfiguration.autorotate else { return }
