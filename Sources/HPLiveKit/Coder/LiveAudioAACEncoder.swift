@@ -149,10 +149,6 @@ class LiveAudioAACEncoder: AudioEncoder {
     let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
     
     for audioBuffer in buffers {
-//      if muted {
-//        memset(audioBuffer.mData, 0, Int(audioBuffer.mDataByteSize))
-//      }
-      
       let frame = audioBuffer.mData?.assumingMemoryBound(to: UInt8.self)
       data.append(frame!, count: Int(audioBuffer.mDataByteSize))
     }
@@ -194,7 +190,12 @@ class LiveAudioAACEncoder: AudioEncoder {
   }
   
   func stopEncoder() {
+    converter = nil
+    leftBuf = malloc(configuration.bufferLength)
+    aacBuf = malloc(configuration.bufferLength)
+    leftLength = 0
     
+    audioHeader = nil
   }
     
   private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: CMTime) {
