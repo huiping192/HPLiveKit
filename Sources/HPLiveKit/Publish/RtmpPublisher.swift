@@ -87,12 +87,12 @@ class RtmpPublisher: NSObject, Publisher {
   }
   
   func start() {
-    rtmpSendQueue.async {
-      self._start()
+    Task {
+      try await self._start()
     }
   }
   
-  private func _start() {
+  private func _start() async throws {
     guard !isConnected else { return }
     
     debugInfo.streamId = stream.streamId
@@ -103,7 +103,7 @@ class RtmpPublisher: NSObject, Publisher {
     isConnected = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
     
-    rtmp.invalidate()
+    try await rtmp.invalidate()
     
     connect()
   }
@@ -126,15 +126,14 @@ class RtmpPublisher: NSObject, Publisher {
   }
   
   private func reconnect() {
-    rtmpSendQueue.async {
+    Task {
       self.retryTimes4netWorkBreaken += 1
       if self.retryTimes4netWorkBreaken < self.reconnectCount && !self.isReconnecting {
         self.isConnected = false
         self.isConnecting = false
         self.isReconnecting = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(self.reconnectInterval)) {
-          self._reconnect()
-        }
+        try await Task.sleep(nanoseconds: UInt64(reconnectInterval) * 1000000)
+        try await self._reconnect()
       } else if self.retryTimes4netWorkBreaken >= self.reconnectCount {
         self.delegate?.publisher(publisher: self, publishStatus: .error)
         self.delegate?.publisher(publisher: self, errorCode: .reconnectTimeOut)
@@ -142,7 +141,7 @@ class RtmpPublisher: NSObject, Publisher {
     }
   }
   
-  private func _reconnect() {
+  private func _reconnect() async throws {
     self.isReconnecting = false
     if isConnected { return }
     if isConnected { return }
@@ -152,22 +151,22 @@ class RtmpPublisher: NSObject, Publisher {
     
     delegate?.publisher(publisher: self, publishStatus: .refresh)
     
-    rtmp.invalidate()
+    try await rtmp.invalidate()
     
     connect()
   }
   
   func stop() {
-    rtmpSendQueue.async {
-      self._stop()
+    Task {
+      try await self._stop()
       NSObject.cancelPreviousPerformRequests(withTarget: self)
     }
   }
   
-  private func _stop() {
+  private func _stop() async throws {
     delegate?.publisher(publisher: self, publishStatus: .stop)
     
-    rtmp.invalidate()
+    try await rtmp.invalidate()
     
     clean()
   }
@@ -389,14 +388,11 @@ extension RtmpPublisher: StreamingBufferDelegate {
   }
 }
 
-//extension RtmpPublisher: HPRTMPDelegate {
-//  func rtmp(_ rtmp: HPRTMP!, error: Error!) {
-//    self.reconnect()
-//  }
-//
-//}
-
 extension RtmpPublisher: RTMPPublishSessionDelegate {
+  func sessionError(_ session: HPRTMP.RTMPPublishSession, error: HPRTMP.RTMPError) {
+    reconnect()
+  }
+  
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
     
   }

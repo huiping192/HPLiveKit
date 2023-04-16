@@ -8,6 +8,7 @@ inhibit_all_warnings!
 target 'HPLiveKit_Example' do
   pod 'HPLiveKit', :path => '../'
   pod 'HPRTMP', :git => 'https://github.com/huiping192/HPRTMP.git'
+  # pod 'HPRTMP', :path => '/Users/huipingguo/git/HPRTMP'
 
   target 'HPLiveKit_Tests' do
     inherit! :search_paths
