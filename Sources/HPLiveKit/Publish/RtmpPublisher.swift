@@ -218,45 +218,44 @@ private extension RtmpPublisher {
   }
   
   func pushFrame(frame: Frame) {
-    if let frame = frame as? VideoFrame {
-      pushVideo(frame: frame)
-      return
-    }
-    
-    if let frame = frame as? AudioFrame {
-      pushAudio(frame: frame)
-      return
-    }
-  }
-  
-  func pushVideo(frame: VideoFrame) {
     Task {
-      if !self.sendVideoHead {
-        self.sendVideoHead = true
-        if frame.sps == nil || frame.pps == nil {
-          self.isSending = false
-          return
-        }
-        
-        try await sendVideoHeader(frame: frame)
-      } else {
-        try await sendVideoFrame(frame: frame)
+      guard rtmp.publishStatus == .publishStart else { return }
+      if let frame = frame as? VideoFrame {
+        try await pushVideo(frame: frame)
+        return
+      }
+      
+      if let frame = frame as? AudioFrame {
+        try await pushAudio(frame: frame)
+        return
       }
     }
   }
   
-  func pushAudio(frame: AudioFrame) {
-    Task {
-      if !self.sendAudioHead {
-        self.sendAudioHead = true
-        if frame.header == nil {
-          self.isSending = false
-          return
-        }
-        await self.sendAudioHeader(frame: frame)
-      } else {
-        try await self.sendAudioFrame(frame: frame)
+  func pushVideo(frame: VideoFrame) async throws {
+    if !self.sendVideoHead {
+      self.sendVideoHead = true
+      if frame.sps == nil || frame.pps == nil {
+        self.isSending = false
+        return
       }
+      
+      try await sendVideoHeader(frame: frame)
+    } else {
+      try await sendVideoFrame(frame: frame)
+    }
+  }
+  
+  func pushAudio(frame: AudioFrame)  async throws {
+    if !self.sendAudioHead {
+      self.sendAudioHead = true
+      if frame.header == nil {
+        self.isSending = false
+        return
+      }
+      await self.sendAudioHeader(frame: frame)
+    } else {
+      try await self.sendAudioFrame(frame: frame)
     }
   }
   
@@ -295,7 +294,6 @@ private extension RtmpPublisher {
 
 private extension RtmpPublisher {
   func sendVideoHeader(frame: VideoFrame) async throws {
-    guard rtmp.publishStatus == .publishStart else { return }
     guard let sps = frame.sps, let pps = frame.pps else { return }
     var body = Data()
     body.append(Data([0x17]))
@@ -326,11 +324,7 @@ private extension RtmpPublisher {
   }
   
   func sendVideoFrame(frame: VideoFrame) async throws {
-    guard rtmp.publishStatus == .publishStart else { return }
     guard let data = frame.data else { return }
-    
-    guard frame.timestamp >= lastVideoTimestamp else { return }
-    
     /*
      Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
      
@@ -357,7 +351,6 @@ private extension RtmpPublisher {
   }
   
   func sendAudioHeader(frame: AudioFrame) async {
-    guard rtmp.publishStatus == .publishStart else { return }
     guard let header = frame.header else {
       return
     }
@@ -367,11 +360,9 @@ private extension RtmpPublisher {
   }
   
   func sendAudioFrame(frame: AudioFrame) async throws  {
-    guard rtmp.publishStatus == .publishStart else { return }
     guard let data = frame.data, let aacHeader = frame.aacHeader  else {
       return
     }
-    guard frame.timestamp >= lastAudioTimestamp else { return }
     var audioPacketData = Data()
     audioPacketData.append(aacHeader)
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
