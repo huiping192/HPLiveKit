@@ -71,12 +71,12 @@ class RtmpPublisher: NSObject, Publisher {
     let conf = PublishConfigure(
       width: Int(videoSize.width),
       height: Int(videoSize.height),
-      displayWidth: Int(videoSize.width),
-      displayHeight: Int(videoSize.height),
       videocodecid: VideoData.CodecId.avc.rawValue,
       audiocodecid: AudioData.SoundFormat.aac.rawValue,
       framerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30),
-      videoframerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30)
+      videoDatarate: Int((stream.videoConfiguration?.videoBitRate ?? 0)) / 1000,
+      audioDatarate: Int((stream.audioConfiguration?.audioBitRate.rawValue ?? 0)) / 1000,
+      audioSamplerate: stream.audioConfiguration?.audioSampleRate.rawValue
     )
     
     configure = conf
