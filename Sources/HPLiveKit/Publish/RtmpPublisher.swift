@@ -196,39 +196,39 @@ class RtmpPublisher: NSObject, Publisher {
 
 private extension RtmpPublisher {
   func sendFrame() {
-    guard !self.isSending && !self.buffer.list.isEmpty else { return }
-    
-    self.isSending = true
-    
-    if !self.isConnected || self.isReconnecting || self.isConnecting {
-      self.isSending = false
-      return
-    }
-    
-    guard let frame = self.buffer.popFirstFrame() else { return }
-    
-    pushFrame(frame: frame)
-    
-    updateDebugInfo(frame: frame)
-    
-    //修改发送状态
-    DispatchQueue.global(qos: .userInitiated).async {
-      self.isSending = false
-    }
-  }
-  
-  func pushFrame(frame: Frame) {
     Task {
-      guard rtmp.publishStatus == .publishStart else { return }
-      if let frame = frame as? VideoFrame {
-        try await pushVideo(frame: frame)
+      guard !self.isSending && !self.buffer.list.isEmpty else { return }
+      
+      self.isSending = true
+      
+      if !self.isConnected || self.isReconnecting || self.isConnecting {
+        self.isSending = false
         return
       }
       
-      if let frame = frame as? AudioFrame {
-        try await pushAudio(frame: frame)
-        return
+      guard let frame = self.buffer.popFirstFrame() else { return }
+      
+      try await pushFrame(frame: frame)
+      
+      updateDebugInfo(frame: frame)
+      
+      //修改发送状态
+      Task.detached() {
+        self.isSending = false
       }
+    }
+  }
+  
+  func pushFrame(frame: Frame) async throws {
+    guard rtmp.publishStatus == .publishStart else { return }
+    if let frame = frame as? VideoFrame {
+      try await pushVideo(frame: frame)
+      return
+    }
+    
+    if let frame = frame as? AudioFrame {
+      try await pushAudio(frame: frame)
+      return
     }
   }
   
@@ -325,6 +325,7 @@ private extension RtmpPublisher {
   
   func sendVideoFrame(frame: VideoFrame) async throws {
     guard let data = frame.data else { return }
+    guard frame.timestamp >= lastVideoTimestamp else { return }
     /*
      Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
      
@@ -363,6 +364,8 @@ private extension RtmpPublisher {
     guard let data = frame.data, let aacHeader = frame.aacHeader  else {
       return
     }
+    guard frame.timestamp >= lastAudioTimestamp else { return }
+
     var audioPacketData = Data()
     audioPacketData.append(aacHeader)
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
