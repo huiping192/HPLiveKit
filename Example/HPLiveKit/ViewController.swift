@@ -28,7 +28,7 @@ class ViewController: UIViewController {
   @objc private func buttonTapped() {
     switch liveState {
     case .ready, .stop, .error:
-      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.48/live/haha")
+      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23/live/haha")
       liveSession?.startLive(streamInfo: info)
       liveState = .start
       button.setTitle("Stop", for: .normal)
@@ -73,6 +73,8 @@ extension ViewController: LiveSessionDelegate {
 
   func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode) {
     liveState = .error
-    button.setTitle("Publish", for: .normal)
+    DispatchQueue.main.async {
+      self.button.setTitle("Publish", for: .normal)
+    }
   }
 }
