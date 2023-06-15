@@ -207,6 +207,7 @@ class LiveVideoH264Encoder: VideoEncoder {
     videoFrame.sps = sps
     videoFrame.pps = pps
     
+    print("[encoder] video frame")
     self.delegate?.videoEncoder(encoder: self, frame: videoFrame)
   }
   

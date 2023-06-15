@@ -102,9 +102,7 @@ class RtmpPublisher: NSObject, Publisher {
     
     isConnected = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
-    
-    try await rtmp.invalidate()
-    
+        
     connect()
   }
   

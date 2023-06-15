@@ -94,20 +94,6 @@ public class LiveSession: NSObject {
     private var state: LiveState?
     // 当前直播type current live type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
-    /// 时间戳锁  timestamp lock
-    private var lock = DispatchSemaphore(value: 1)
-    // 相对时间戳
-    private var relativeTimestamp: UInt64 = 0
-
-    /// 音视频是否对齐
-    private var isAvAlignment: Bool {
-        if ( captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskAudio)) && (captureType.contains(LiveCaptureTypeMask.captureMaskVideo) || captureType.contains(LiveCaptureTypeMask.inputMaskVideo)) {
-
-            return hasCapturedAudio && hasCapturedKeyFrame
-        }
-
-        return false
-    }
     /// 当前是否采集到了音频
     private var hasCapturedAudio: Bool = false
     /// 当前是否采集到了关键帧
@@ -196,29 +182,13 @@ private extension LiveSession {
     func pushFrame(frame: Frame) {
         guard let publisher = publisher else { return }
 
-        var realFrame = frame
-        adjustFrameTimestampIfNeeded(frame: &realFrame)
-
-        publisher.send(frame: realFrame)
+        publisher.send(frame: frame)
 
         // save to file
         if saveLocalVideo {
-            filePublisher.save(frame: realFrame)
+            filePublisher.save(frame: frame)
         }
     }
-
-    func adjustFrameTimestampIfNeeded(frame: inout Frame) {
-        let timestamp = frame.timestamp
-        if relativeTimestamp == 0 {
-            relativeTimestamp = frame.timestamp
-        }
-        lock.wait()
-        let currentTimestamp = timestamp - relativeTimestamp
-        lock.signal()
-
-        frame.timestamp = currentTimestamp
-    }
-
 }
 
 extension LiveSession: CaptureManagerDelegate {
@@ -236,25 +206,21 @@ extension LiveSession: CaptureManagerDelegate {
 }
 
 extension LiveSession: EncoderManagerDelegate {
-    public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
-        guard uploading else { return }
-        hasCapturedAudio = true
-
-        if isAvAlignment {
-            pushFrame(frame: audioFrame)
-        }
+  public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
+    guard uploading else { return }
+    hasCapturedAudio = true
+    
+    pushFrame(frame: audioFrame)
+  }
+  
+  public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
+    guard uploading else { return }
+    
+    if videoFrame.isKeyFrame && self.hasCapturedAudio {
+      hasCapturedKeyFrame = true
     }
-
-    public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
-        guard uploading else { return }
-
-        if videoFrame.isKeyFrame && self.hasCapturedAudio {
-            hasCapturedKeyFrame = true
-        }
-        if isAvAlignment {
-            pushFrame(frame: videoFrame)
-        }
-    }
+    pushFrame(frame: videoFrame)
+  }
 }
 
 extension LiveSession: PublisherDelegate {
@@ -263,7 +229,6 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
-            relativeTimestamp = 0
             uploading = true
         }
 

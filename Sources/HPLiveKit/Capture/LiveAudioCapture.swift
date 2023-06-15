@@ -19,6 +19,8 @@ protocol AudioCaptureDelegate: class {
 
 extension LiveAudioCapture: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+      print("[LiveVideoCapture] audio buffer")
+
       if muted {
         muteSampleBuffer(sampleBuffer: sampleBuffer)
       }
