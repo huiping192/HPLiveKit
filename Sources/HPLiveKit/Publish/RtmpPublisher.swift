@@ -29,9 +29,7 @@ class RtmpPublisher: NSObject, Publisher {
     return buffer
   }()
   private var debugInfo: LiveDebug = .init()
-  
-  private let rtmpSendQueue = DispatchQueue.global(qos: .userInitiated)
-  
+    
   //错误信息
   private var retryTimes4netWorkBreaken: Int = 0
   private let reconnectInterval: Int
@@ -40,15 +38,7 @@ class RtmpPublisher: NSObject, Publisher {
   private var lastVideoTimestamp: UInt64 = 0
   private var lastAudioTimestamp: UInt64 = 0
   // 状态
-  private var isSending = false {
-    //这里改成observer主要考虑一直到发送出错情况下，可以继续发送
-    didSet {
-      guard !isSending else { return }
-      rtmpSendQueue.async {
-        self.sendFrame()
-      }
-    }
-  }
+  private var isSending = false
   private var isConnected = false
   private var isConnecting = false
   private var isReconnecting = false
@@ -184,9 +174,7 @@ class RtmpPublisher: NSObject, Publisher {
   func send(frame: Frame) {
     buffer.append(frame: frame)
     if !isSending {
-      rtmpSendQueue.async {
-        self.sendFrame()
-      }
+      self.sendFrame()
     }
   }
   
@@ -210,10 +198,7 @@ private extension RtmpPublisher {
       
       updateDebugInfo(frame: frame)
       
-      //修改发送状态
-      Task.detached() {
-        self.isSending = false
-      }
+      self.isSending = false
     }
   }
   
