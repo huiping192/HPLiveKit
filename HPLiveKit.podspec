@@ -25,7 +25,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/huiping192/HPLiveKit.git', :tag => s.version.to_s }
   s.social_media_url = 'https://twitter.com/huiping192'
 
-  s.ios.deployment_target = '13.0'
+  s.ios.deployment_target = '14.0'
   s.swift_version = '5.5'
   s.source_files = 'Sources/HPLiveKit/**/*.{swift,h,m}'
   
