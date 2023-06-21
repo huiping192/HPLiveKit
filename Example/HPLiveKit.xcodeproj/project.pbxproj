@@ -168,7 +168,6 @@
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
 				615655FB34DF6ABE00622919 /* [CP] Embed Pods Frameworks */,
-				7D1F364B23FFE6A800E96C78 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -216,7 +215,7 @@
 					};
 					607FACE41AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
-						DevelopmentTeam = GTQ588K3AS;
+						DevelopmentTeam = Q2N4A2LNJ8;
 						LastSwiftMigration = 0900;
 						TestTargetID = 607FACCF1AFB9204008FA782;
 					};
@@ -314,37 +313,18 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-HPLiveKit_Example/Pods-HPLiveKit_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/HPLibRTMP/HPLibRTMP.framework",
 				"${BUILT_PRODUCTS_DIR}/HPLiveKit/HPLiveKit.framework",
-				"${BUILT_PRODUCTS_DIR}/pili-librtmp/pili_librtmp.framework",
+				"${BUILT_PRODUCTS_DIR}/HPRTMP/HPRTMP.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLibRTMP.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPLiveKit.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/pili_librtmp.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/HPRTMP.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HPLiveKit_Example/Pods-HPLiveKit_Example-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
-		};
-		7D1F364B23FFE6A800E96C78 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if which ${PODS_ROOT}/SwiftLint/swiftlint >/dev/null; then\n    if [ \"${CONFIGURATION}\" = \"Debug\" ]; then\n    ${PODS_ROOT}/SwiftLint/swiftlint autocorrect --format\n    ${PODS_ROOT}/SwiftLint/swiftlint\n    fi\nelse\necho \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -440,7 +420,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -486,7 +466,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -503,9 +483,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MODULE_NAME = ExampleApp;
-				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit.example;
 				PRODUCT_NAME = HPLiveKit_Exsample;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
@@ -522,6 +503,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				INFOPLIST_FILE = HPLiveKit/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit;
@@ -536,7 +518,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 853699EC8560574066E199F2 /* Pods-HPLiveKit_Tests.debug.xcconfig */;
 			buildSettings = {
-				DEVELOPMENT_TEAM = GTQ588K3AS;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",
@@ -546,6 +528,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -559,12 +542,13 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = DC0FAC953F4A565EE1DE7D3F /* Pods-HPLiveKit_Tests.release.xcconfig */;
 			buildSettings = {
-				DEVELOPMENT_TEAM = GTQ588K3AS;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";

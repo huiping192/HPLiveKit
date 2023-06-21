@@ -1,31 +1,34 @@
 PODS:
-  - HPLibRTMP (0.0.3):
-    - pili-librtmp
   - HPLiveKit (0.1.0):
-    - HPLibRTMP (~> 0.0.3)
-  - pili-librtmp (1.0.7)
-  - SwiftLint (0.39.1)
+    - HPRTMP
+  - HPRTMP (0.0.3)
+  - SwiftLint (0.51.0)
 
 DEPENDENCIES:
   - HPLiveKit (from `../`)
+  - HPRTMP (from `https://github.com/huiping192/HPRTMP.git`)
   - SwiftLint
 
 SPEC REPOS:
   https://github.com/CocoaPods/Specs.git:
-    - HPLibRTMP
-    - pili-librtmp
     - SwiftLint
 
 EXTERNAL SOURCES:
   HPLiveKit:
     :path: "../"
+  HPRTMP:
+    :git: https://github.com/huiping192/HPRTMP.git
+
+CHECKOUT OPTIONS:
+  HPRTMP:
+    :commit: c8e2d92f1974b04ee867e784339fb27aea408524
+    :git: https://github.com/huiping192/HPRTMP.git
 
 SPEC CHECKSUMS:
-  HPLibRTMP: d98a46cad6eeb3156ed241c81243301ee6d74a01
-  HPLiveKit: f42207a86fd248c12b7419db17d2e4452a9ebae6
-  pili-librtmp: e8a06a45b0a1a166c48ae6dc718171c0963f32ea
-  SwiftLint: 55e96a4a4d537d4a3156859fc1c54bd24851a046
+  HPLiveKit: 5df36677813986bc5acbac014206f202cc340b13
+  HPRTMP: 41fc3527191e50d7f891a659a5824a58cf2b096f
+  SwiftLint: 1b7561918a19e23bfed960e40759086e70f4dba5
 
-PODFILE CHECKSUM: e4ac513a07b4bff8a84cbd2ca59ffa4981a754ca
+PODFILE CHECKSUM: 32ffafb82616243d0c232a6789baef08a642729d
 
-COCOAPODS: 1.10.0
+COCOAPODS: 1.12.0
