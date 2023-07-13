@@ -486,7 +486,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MODULE_NAME = ExampleApp;
-				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit.example;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit;
 				PRODUCT_NAME = HPLiveKit_Exsample;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;

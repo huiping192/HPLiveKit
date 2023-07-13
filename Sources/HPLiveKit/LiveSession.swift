@@ -136,27 +136,31 @@ public class LiveSession: NSObject {
         stopCapturing()
     }
 
-    public func startLive(streamInfo: LiveStreamInfo) {
-        var mutableStreamInfo = streamInfo
-
-        mutableStreamInfo.audioConfiguration = audioConfiguration
-        mutableStreamInfo.videoConfiguration = videoConfiguration
-
-        self.streamInfo = mutableStreamInfo
-
-        if publisher == nil {
-            publisher = createRTMPPublisher()
-            publisher?.delegate = self
-        }
-        publisher?.start()
+  public func startLive(streamInfo: LiveStreamInfo) {
+    Task {
+      var mutableStreamInfo = streamInfo
+      
+      mutableStreamInfo.audioConfiguration = audioConfiguration
+      mutableStreamInfo.videoConfiguration = videoConfiguration
+      
+      self.streamInfo = mutableStreamInfo
+      
+      if publisher == nil {
+        publisher = createRTMPPublisher()
+        await publisher?.setDelegate(delegate: self)
+      }
+      await publisher?.start()
     }
-
-    public func stopLive() {
-        uploading = false
-
-        publisher?.stop()
-        publisher = nil
+  }
+  
+  public func stopLive() {
+    Task {
+      uploading = false
+      
+      await publisher?.stop()
+      publisher = nil
     }
+  }
 
     public func startCapturing() {
         capture.startCapturing()
@@ -180,14 +184,16 @@ private extension LiveSession {
 private extension LiveSession {
 
     func pushFrame(frame: Frame) {
+      Task {
         guard let publisher = publisher else { return }
 
-        publisher.send(frame: frame)
+        await publisher.send(frame: frame)
 
         // save to file
         if saveLocalVideo {
             filePublisher.save(frame: frame)
         }
+      }
     }
 }
 

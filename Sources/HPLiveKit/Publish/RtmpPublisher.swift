@@ -9,8 +9,8 @@
 import Foundation
 import HPRTMP
 
-class RtmpPublisher: NSObject, Publisher {
-  
+actor RtmpPublisher: Publisher {
+    
   ///<  重连1分钟  3秒一次 一共20次
   private let retryTimesBreaken = 5
   private let retryTimesMargin = 3
@@ -19,7 +19,11 @@ class RtmpPublisher: NSObject, Publisher {
   private let dataItemsMaxCount = 100
   private let rtmpDataReserveSize = 400
   
-  weak var delegate: PublisherDelegate?
+  private weak var delegate: PublisherDelegate?
+  
+  func setDelegate(delegate: PublisherDelegate?) async {
+    self.delegate = delegate
+  }
   
   private let stream: LiveStreamInfo
   
@@ -71,12 +75,12 @@ class RtmpPublisher: NSObject, Publisher {
     
     configure = conf
     
-    super.init()
-    
-    self.rtmp.delegate = self
+    Task {
+      await self.rtmp.setDelegate(self)
+    }
   }
   
-  func start() {
+  nonisolated func start() {
     Task {
       await self._start()
     }
@@ -98,7 +102,7 @@ class RtmpPublisher: NSObject, Publisher {
   
   // CallBack
   private func connect() async {
-    guard rtmp.publishStatus != .publishStart else {
+    guard await rtmp.publishStatus != .publishStart else {
       reconnect()
       return
     }
@@ -144,11 +148,8 @@ class RtmpPublisher: NSObject, Publisher {
     await connect()
   }
   
-  func stop() {
-    Task {
-      await self._stop()
-      NSObject.cancelPreviousPerformRequests(withTarget: self)
-    }
+  func stop() async {
+    await self._stop()
   }
   
   private func _stop() async {
@@ -171,7 +172,7 @@ class RtmpPublisher: NSObject, Publisher {
     retryTimes4netWorkBreaken = 0
   }
   
-  func send(frame: Frame) {
+  func send(frame: Frame) async {
     buffer.append(frame: frame)
     if !isSending {
       self.sendFrame()
@@ -203,7 +204,7 @@ private extension RtmpPublisher {
   }
   
   func pushFrame(frame: Frame) async {
-    guard rtmp.publishStatus == .publishStart else { return }
+    guard await rtmp.publishStatus == .publishStart else { return }
     if let frame = frame as? VideoFrame {
       await pushVideo(frame: frame)
       return
@@ -360,8 +361,10 @@ private extension RtmpPublisher {
 }
 
 extension RtmpPublisher: StreamingBufferDelegate {
-  func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-    delegate?.publisher(publisher: self, bufferStatus: bufferState)
+  nonisolated func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
+    Task {
+      await delegate?.publisher(publisher: self, bufferStatus: bufferState)
+    }
   }
 }
 

@@ -200,7 +200,7 @@ class LiveVideoH264Encoder: VideoEncoder {
     if decodeTimeStamp == .invalid {
       decodeTimeStamp = presentationTimeStamp
     }
-    videoFrame.timestamp = UInt64(presentationTimeStamp.seconds * 1000)
+    videoFrame.timestamp = UInt64(decodeTimeStamp.seconds * 1000)
     videoFrame.compositionTime = Int32((presentationTimeStamp.seconds - decodeTimeStamp.seconds) * 1000)
     videoFrame.data = bufferData
     videoFrame.isKeyFrame = isKeyFrame
