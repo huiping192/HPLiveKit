@@ -304,7 +304,7 @@ private extension RtmpPublisher {
     body.append(Data(pps))
     
     self.lastVideoTimestamp = frame.timestamp
-    await rtmp.publishVideoHeader(data: body, time: 0)
+    await rtmp.publishVideoHeader(data: body)
   }
   
   func sendVideoFrame(frame: VideoFrame) async {
