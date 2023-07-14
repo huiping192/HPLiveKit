@@ -28,7 +28,7 @@ class ViewController: UIViewController {
   @objc private func buttonTapped() {
     switch liveState {
     case .ready, .stop, .error:
-      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23/live/haha")
+      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23:1936/live/haha")
       liveSession?.startLive(streamInfo: info)
       liveState = .start
       button.setTitle("Stop", for: .normal)
