@@ -92,9 +92,9 @@ actor RtmpPublisher: Publisher {
     debugInfo.streamId = stream.streamId
     debugInfo.uploadUrl = stream.url
     
-    guard !isConnected else { return }
+    guard !isConnecting else { return }
     
-    isConnected = true
+    isConnecting = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
         
     await connect()
@@ -110,11 +110,6 @@ actor RtmpPublisher: Publisher {
     await rtmp.publish(url: stream.url, configure: configure)
     
     delegate?.publisher(publisher: self, publishStatus: .start)
-    
-    isConnected = true
-    isConnecting = false
-    isReconnecting = false
-    isSending = false
   }
   
   private func reconnect() {
@@ -172,39 +167,38 @@ actor RtmpPublisher: Publisher {
     retryTimes4netWorkBreaken = 0
   }
   
-  func send(frame: Frame) async {
+  func send(frame: Frame) {
     buffer.append(frame: frame)
-    if !isSending {
-      self.sendFrame()
+    Task {
+      if !isSending {
+        await self.sendFrame()
+      }
     }
   }
   
 }
 
 private extension RtmpPublisher {
-  func sendFrame() {
-    Task {
-      guard !self.isSending && !self.buffer.list.isEmpty else { return }
-      
-      self.isSending = true
-      
-      if !self.isConnected || self.isReconnecting || self.isConnecting {
-        self.isSending = false
-        return
-      }
-      
-      guard let frame = self.buffer.popFirstFrame() else { return }
-      
-      await pushFrame(frame: frame)
-      
-      updateDebugInfo(frame: frame)
-      
+  func sendFrame() async {
+    guard !self.isSending && !self.buffer.list.isEmpty else { return }
+    
+    self.isSending = true
+    
+    if !self.isConnected || self.isReconnecting || self.isConnecting {
       self.isSending = false
+      return
     }
+    
+    guard let frame = self.buffer.popFirstFrame() else { return }
+    
+    await pushFrame(frame: frame)
+    
+    updateDebugInfo(frame: frame)
+    
+    self.isSending = false
   }
   
   func pushFrame(frame: Frame) async {
-    guard await rtmp.publishStatus == .publishStart else { return }
     if let frame = frame as? VideoFrame {
       await pushVideo(frame: frame)
       return
@@ -225,6 +219,7 @@ private extension RtmpPublisher {
       }
       
       await sendVideoHeader(frame: frame)
+      await sendVideoFrame(frame: frame)
     } else {
       await sendVideoFrame(frame: frame)
     }
@@ -238,6 +233,7 @@ private extension RtmpPublisher {
         return
       }
       await self.sendAudioHeader(frame: frame)
+      await self.sendAudioFrame(frame: frame)
     } else {
       await self.sendAudioFrame(frame: frame)
     }
@@ -303,7 +299,6 @@ private extension RtmpPublisher {
     body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
     body.append(Data(pps))
     
-    self.lastVideoTimestamp = frame.timestamp
     await rtmp.publishVideoHeader(data: body)
   }
   
@@ -326,7 +321,7 @@ private extension RtmpPublisher {
     descData.append(Data([frameAndCode]))
     descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
     
-    let delta = frame.timestamp - lastVideoTimestamp
+    let delta = lastVideoTimestamp != 0 ? frame.timestamp - lastVideoTimestamp : 0
     // 24bit
     descData.write24(frame.compositionTime, bigEndian: true)
     descData.append(data)
@@ -339,7 +334,6 @@ private extension RtmpPublisher {
       return
     }
     // Publish the audio header to the RTMP server
-    lastAudioTimestamp = frame.timestamp
     await rtmp.publishAudioHeader(data: header)
   }
   
@@ -351,7 +345,7 @@ private extension RtmpPublisher {
     audioPacketData.append(aacHeader)
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
     audioPacketData.append(data)
-    let delta = UInt32(frame.timestamp - lastAudioTimestamp)
+    let delta = lastAudioTimestamp != 0 ? UInt32(frame.timestamp - lastAudioTimestamp) : 0
     await rtmp.publishAudio(data: audioPacketData, delta: delta)
     lastAudioTimestamp = frame.timestamp
   }
@@ -371,7 +365,12 @@ extension RtmpPublisher: RTMPPublishSessionDelegate {
   }
   
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
-    
+    if status == .publishStart {
+      isConnected = true
+      isConnecting = false
+      isReconnecting = false
+      isSending = false
+    }
   }
 }
 
