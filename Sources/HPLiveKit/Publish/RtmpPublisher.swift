@@ -309,7 +309,6 @@ private extension RtmpPublisher {
   
   func sendVideoFrame(frame: VideoFrame) async {
     guard let data = frame.data else { return }
-    guard frame.timestamp >= lastVideoTimestamp else { return }
     /*
      Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
      
@@ -329,7 +328,7 @@ private extension RtmpPublisher {
     
     let delta = frame.timestamp - lastVideoTimestamp
     // 24bit
-    descData.write24(Int32(frame.compositionTime), bigEndian: true)
+    descData.write24(frame.compositionTime, bigEndian: true)
     descData.append(data)
     await rtmp.publishVideo(data: descData, delta: UInt32(delta))
     lastVideoTimestamp = frame.timestamp
@@ -348,8 +347,6 @@ private extension RtmpPublisher {
     guard let data = frame.data, let aacHeader = frame.aacHeader  else {
       return
     }
-    guard frame.timestamp >= lastAudioTimestamp else { return }
-
     var audioPacketData = Data()
     audioPacketData.append(aacHeader)
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)

@@ -27,7 +27,6 @@ protocol VideoCaptureDelegate: class {
 
 extension LiveVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-      print("[LiveVideoCapture] video buffer")
       self.delegate?.captureOutput(capture: self, video: sampleBuffer)
     }
 }
