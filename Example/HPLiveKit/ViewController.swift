@@ -42,7 +42,7 @@ class ViewController: UIViewController {
   }
   
   func configureLiveSession() {
-    let defaultVideoConfiguration = LiveVideoConfigurationFactory.createMedium1()
+    let defaultVideoConfiguration = LiveVideoConfigurationFactory.createHigh3()
     let defaultAudioConfiguration = LiveAudioConfigurationFactory.defaultAudioConfiguration
     
     let liveSession = LiveSession(audioConfiguration: defaultAudioConfiguration, videoConfiguration: defaultVideoConfiguration)
