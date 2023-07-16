@@ -70,7 +70,7 @@ class StreamingBuffer {
             ///< 排序
             sortList.append(frame)
             sortList.sort { i, j in
-                return i.timestamp > j.timestamp
+                return i.timestamp < j.timestamp
             }
             /// 丢帧
             removeExpireFrame()
