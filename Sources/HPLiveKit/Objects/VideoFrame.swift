@@ -11,7 +11,7 @@ public class VideoFrame: Frame {
   public var isKeyFrame: Bool = false
   
   // compositionTime = (presentationTimeStamp - decodeTimeStamp) * 1000
-  // Int24
+  // signed Int24
   public var compositionTime: Int32 = 0
   public var sps: Data?
   public var pps: Data?

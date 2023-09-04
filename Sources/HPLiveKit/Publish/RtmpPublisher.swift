@@ -8,9 +8,10 @@
 
 import Foundation
 import HPRTMP
+import QuartzCore
 
-class RtmpPublisher: NSObject, Publisher {
-  
+actor RtmpPublisher: Publisher {
+    
   ///<  重连1分钟  3秒一次 一共20次
   private let retryTimesBreaken = 5
   private let retryTimesMargin = 3
@@ -19,7 +20,11 @@ class RtmpPublisher: NSObject, Publisher {
   private let dataItemsMaxCount = 100
   private let rtmpDataReserveSize = 400
   
-  weak var delegate: PublisherDelegate?
+  private weak var delegate: PublisherDelegate?
+  
+  func setDelegate(delegate: PublisherDelegate?) async {
+    self.delegate = delegate
+  }
   
   private let stream: LiveStreamInfo
   
@@ -63,20 +68,17 @@ class RtmpPublisher: NSObject, Publisher {
       height: Int(videoSize.height),
       videocodecid: VideoData.CodecId.avc.rawValue,
       audiocodecid: AudioData.SoundFormat.aac.rawValue,
-      framerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30),
-      videoDatarate: Int((stream.videoConfiguration?.videoBitRate ?? 0)) / 1000,
-      audioDatarate: Int((stream.audioConfiguration?.audioBitRate.rawValue ?? 0)) / 1000,
-      audioSamplerate: stream.audioConfiguration?.audioSampleRate.rawValue
+      framerate: Int(stream.videoConfiguration?.videoFrameRate ?? 30)
     )
     
     configure = conf
     
-    super.init()
-    
-    self.rtmp.delegate = self
+    Task {
+      await self.rtmp.setDelegate(self)
+    }
   }
   
-  func start() {
+  nonisolated func start() {
     Task {
       await self._start()
     }
@@ -88,9 +90,9 @@ class RtmpPublisher: NSObject, Publisher {
     debugInfo.streamId = stream.streamId
     debugInfo.uploadUrl = stream.url
     
-    guard !isConnected else { return }
+    guard !isConnecting else { return }
     
-    isConnected = true
+    isConnecting = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
         
     await connect()
@@ -98,7 +100,7 @@ class RtmpPublisher: NSObject, Publisher {
   
   // CallBack
   private func connect() async {
-    guard rtmp.publishStatus != .publishStart else {
+    guard await rtmp.publishStatus != .publishStart else {
       reconnect()
       return
     }
@@ -106,11 +108,6 @@ class RtmpPublisher: NSObject, Publisher {
     await rtmp.publish(url: stream.url, configure: configure)
     
     delegate?.publisher(publisher: self, publishStatus: .start)
-    
-    isConnected = true
-    isConnecting = false
-    isReconnecting = false
-    isSending = false
   }
   
   private func reconnect() {
@@ -144,11 +141,8 @@ class RtmpPublisher: NSObject, Publisher {
     await connect()
   }
   
-  func stop() {
-    Task {
-      await self._stop()
-      NSObject.cancelPreviousPerformRequests(withTarget: self)
-    }
+  func stop() async {
+    await self._stop()
   }
   
   private func _stop() async {
@@ -173,37 +167,36 @@ class RtmpPublisher: NSObject, Publisher {
   
   func send(frame: Frame) {
     buffer.append(frame: frame)
-    if !isSending {
-      self.sendFrame()
+    Task {
+      if !isSending {
+        await self.sendFrame()
+      }
     }
   }
   
 }
 
 private extension RtmpPublisher {
-  func sendFrame() {
-    Task {
-      guard !self.isSending && !self.buffer.list.isEmpty else { return }
-      
-      self.isSending = true
-      
-      if !self.isConnected || self.isReconnecting || self.isConnecting {
-        self.isSending = false
-        return
-      }
-      
-      guard let frame = self.buffer.popFirstFrame() else { return }
-      
-      await pushFrame(frame: frame)
-      
-      updateDebugInfo(frame: frame)
-      
+  func sendFrame() async {
+    guard !self.isSending && !self.buffer.list.isEmpty else { return }
+    
+    self.isSending = true
+    
+    if !self.isConnected || self.isReconnecting || self.isConnecting {
       self.isSending = false
+      return
     }
+    
+    guard let frame = self.buffer.popFirstFrame() else { return }
+    
+    await pushFrame(frame: frame)
+    
+    updateDebugInfo(frame: frame)
+    
+    self.isSending = false
   }
   
   func pushFrame(frame: Frame) async {
-    guard rtmp.publishStatus == .publishStart else { return }
     if let frame = frame as? VideoFrame {
       await pushVideo(frame: frame)
       return
@@ -224,6 +217,7 @@ private extension RtmpPublisher {
       }
       
       await sendVideoHeader(frame: frame)
+      await sendVideoFrame(frame: frame)
     } else {
       await sendVideoFrame(frame: frame)
     }
@@ -237,6 +231,7 @@ private extension RtmpPublisher {
         return
       }
       await self.sendAudioHeader(frame: frame)
+      await self.sendAudioFrame(frame: frame)
     } else {
       await self.sendAudioFrame(frame: frame)
     }
@@ -302,13 +297,11 @@ private extension RtmpPublisher {
     body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
     body.append(Data(pps))
     
-    self.lastVideoTimestamp = frame.timestamp
-    await rtmp.publishVideoHeader(data: body, time: 0)
+    await rtmp.publishVideoHeader(data: body)
   }
   
   func sendVideoFrame(frame: VideoFrame) async {
     guard let data = frame.data else { return }
-    guard frame.timestamp >= lastVideoTimestamp else { return }
     /*
      Frame Type: a 4-bit field that indicates the type of frame, such as a keyframe or an interframe.
      
@@ -326,9 +319,9 @@ private extension RtmpPublisher {
     descData.append(Data([frameAndCode]))
     descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
     
-    let delta = frame.timestamp - lastVideoTimestamp
+    let delta = lastVideoTimestamp != 0 ? frame.timestamp - lastVideoTimestamp : 0
     // 24bit
-    descData.write24(Int32(frame.compositionTime), bigEndian: true)
+    descData.write24(frame.compositionTime, bigEndian: true)
     descData.append(data)
     await rtmp.publishVideo(data: descData, delta: UInt32(delta))
     lastVideoTimestamp = frame.timestamp
@@ -339,7 +332,6 @@ private extension RtmpPublisher {
       return
     }
     // Publish the audio header to the RTMP server
-    lastAudioTimestamp = frame.timestamp
     await rtmp.publishAudioHeader(data: header)
   }
   
@@ -347,21 +339,21 @@ private extension RtmpPublisher {
     guard let data = frame.data, let aacHeader = frame.aacHeader  else {
       return
     }
-    guard frame.timestamp >= lastAudioTimestamp else { return }
-
     var audioPacketData = Data()
     audioPacketData.append(aacHeader)
     audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
     audioPacketData.append(data)
-    let delta = UInt32(frame.timestamp - lastAudioTimestamp)
+    let delta = lastAudioTimestamp != 0 ? UInt32(frame.timestamp - lastAudioTimestamp) : 0
     await rtmp.publishAudio(data: audioPacketData, delta: delta)
     lastAudioTimestamp = frame.timestamp
   }
 }
 
 extension RtmpPublisher: StreamingBufferDelegate {
-  func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-    delegate?.publisher(publisher: self, bufferStatus: bufferState)
+  nonisolated func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
+    Task {
+      await delegate?.publisher(publisher: self, bufferStatus: bufferState)
+    }
   }
 }
 
@@ -371,7 +363,12 @@ extension RtmpPublisher: RTMPPublishSessionDelegate {
   }
   
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
-    
+    if status == .publishStart {
+      isConnected = true
+      isConnecting = false
+      isReconnecting = false
+      isSending = false
+    }
   }
 }
 

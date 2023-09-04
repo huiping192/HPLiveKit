@@ -19,17 +19,15 @@ protocol PublisherDelegate: class {
 }
 
 protocol Publisher {
-    var delegate: PublisherDelegate? {
-        get
-        set
-    }
-
-    // start publishing
-    func start()
-
-    // stop publishing
-    func stop()
-
-    // send video or video frame data
-    func send(frame: Frame)
+  
+  func setDelegate(delegate: PublisherDelegate?) async
+  
+  // start publishing
+  func start() async
+  
+  // stop publishing
+  func stop() async
+  
+  // send video or video frame data
+  func send(frame: Frame) async
 }

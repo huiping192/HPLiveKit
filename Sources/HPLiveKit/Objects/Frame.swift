@@ -14,7 +14,6 @@ public class Frame: Equatable {
   // frame data
   public var data: Data?
   
-  // rtmp包头
   // rtmp header data
   public var header: Data?
   

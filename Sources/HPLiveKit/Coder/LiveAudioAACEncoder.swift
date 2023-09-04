@@ -172,7 +172,6 @@ class LiveAudioAACEncoder: AudioEncoder {
     audioFrame.timestamp = UInt64(timestamp.seconds * 1000)
     audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
     
-    print("[encoder] audio frame")
     delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
   }
   
