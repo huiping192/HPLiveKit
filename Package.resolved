@@ -5,8 +5,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/huiping192/HPRTMP",
       "state" : {
-        "branch" : "main",
-        "revision" : "41757e96f84fff1a374b4edc06f2ea84aeec7a6e"
+        "revision" : "ff8bdac4598413a17a02fa3105f7c9c335b9e34b"
       }
     }
   ],
