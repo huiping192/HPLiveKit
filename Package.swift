@@ -11,7 +11,7 @@ let package = Package(
         name: "HPLiveKit",
         targets: ["HPLiveKit"]),
     ], dependencies: [
-      .package(url: "https://github.com/huiping192/HPRTMP", .revision("ff8bdac4598413a17a02fa3105f7c9c335b9e34b")),
+      .package(url: "https://github.com/huiping192/HPRTMP", from: "0.0.2")
     ],
     targets: [
       .target(
