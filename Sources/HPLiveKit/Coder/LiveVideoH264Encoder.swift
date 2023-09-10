@@ -201,7 +201,7 @@ class LiveVideoH264Encoder: VideoEncoder {
     guard let compressionSession = compressionSession else { return }
     VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.indefinite)
   }
-    
+  
   private func convertVideoFrame(sampleBuffer: CMSampleBuffer, isKeyFrame: Bool) -> VideoFrame? {
     guard let bufferData = CMSampleBufferGetDataBuffer(sampleBuffer)?.data else {
       return nil
@@ -221,37 +221,22 @@ class LiveVideoH264Encoder: VideoEncoder {
   private func receiveSpsAndPps(sampleBuffer: CMSampleBuffer) {
     guard let format = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
     
-    // sps
-    var sparameterSetSize: size_t = 0
-    var sparameterSetCount: size_t = 0
+    self.sps = receiveParameterSet(formatDescription: format, index: 0)
+    self.pps = receiveParameterSet(formatDescription: format, index: 1)
+  }
+  
+  private func receiveParameterSet(formatDescription: CMFormatDescription, index: Int) -> Data {
+    var size = 0
+    var parameterSetPointerOut: UnsafePointer<UInt8>?
     
-    var sps: UnsafePointer<UInt8>?
+    let statusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(formatDescription, parameterSetIndex: index, parameterSetPointerOut: &parameterSetPointerOut, parameterSetSizeOut: &size, parameterSetCountOut: nil, nalUnitHeaderLengthOut: nil)
     
-    let spsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: 0, parameterSetPointerOut: &sps, parameterSetSizeOut: &sparameterSetSize, parameterSetCountOut: &sparameterSetCount, nalUnitHeaderLengthOut: nil)
-    
-    if spsStatusCode != noErr {
-      print("Receive h264 sps error")
-      return
+    guard let parameterSetPointerOut = parameterSetPointerOut, statusCode == noErr else {
+      print("Receive h264 ParameterSet error, \(statusCode)")
+      return Data()
     }
     
-    // pps
-    var pparameterSetSize: size_t = 0
-    var pparameterSetCount: size_t = 0
-    var pps: UnsafePointer<UInt8>?
-    let ppsStatusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(format, parameterSetIndex: 1, parameterSetPointerOut: &pps, parameterSetSizeOut: &pparameterSetSize, parameterSetCountOut: &pparameterSetCount, nalUnitHeaderLengthOut: nil)
-    
-    if ppsStatusCode != noErr {
-      print("Receive h264 pps error")
-      return
-    }
-    
-    guard let spsBytes = sps, let ppsBytes = pps else {
-      print("Receive h264 sps,pps error")
-      return
-    }
-    
-    self.sps = Data(bytes: spsBytes, count: sparameterSetSize)
-    self.pps = Data(bytes: ppsBytes, count: pparameterSetSize)
+    return Data(bytes: parameterSetPointerOut, count: size)
   }
   
 }
