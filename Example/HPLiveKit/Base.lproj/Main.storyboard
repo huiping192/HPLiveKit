@@ -3,7 +3,7 @@
     <device id="retina4_7" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21678"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21679"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -24,15 +24,37 @@
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="plain" title="Publish"/>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="nfg-N4-wIh">
+                                <rect key="frame" x="40" y="512" width="63" height="35"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Mute"/>
+                                <connections>
+                                    <action selector="muteButtonTapped" destination="vXZ-lx-hvc" eventType="touchUpInside" id="j6K-bd-gYV"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="EMc-fb-Fvy">
+                                <rect key="frame" x="271" y="512" width="64" height="35"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Front"/>
+                                <connections>
+                                    <action selector="swapButtonTapped" destination="vXZ-lx-hvc" eventType="touchUpInside" id="ovo-9T-lDF"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
+                            <constraint firstItem="nfg-N4-wIh" firstAttribute="leading" secondItem="kh9-bI-dsS" secondAttribute="leadingMargin" constant="24" id="4cb-u9-DuG"/>
+                            <constraint firstItem="nfg-N4-wIh" firstAttribute="centerY" secondItem="gmk-fz-ljG" secondAttribute="centerY" id="5oX-lO-zc2"/>
+                            <constraint firstAttribute="trailingMargin" secondItem="EMc-fb-Fvy" secondAttribute="trailing" constant="24" id="DMT-ai-SvK"/>
                             <constraint firstItem="2fi-mo-0CV" firstAttribute="top" secondItem="gmk-fz-ljG" secondAttribute="bottom" constant="120" id="ZvJ-pj-2ln"/>
                             <constraint firstItem="gmk-fz-ljG" firstAttribute="centerX" secondItem="kh9-bI-dsS" secondAttribute="centerX" id="bI8-Sv-oLv"/>
+                            <constraint firstItem="EMc-fb-Fvy" firstAttribute="centerY" secondItem="gmk-fz-ljG" secondAttribute="centerY" id="vPy-lc-6gj"/>
                         </constraints>
                     </view>
                     <connections>
                         <outlet property="button" destination="gmk-fz-ljG" id="hC2-v3-Dw8"/>
+                        <outlet property="muteButton" destination="nfg-N4-wIh" id="zWJ-66-JRM"/>
+                        <outlet property="swapButton" destination="EMc-fb-Fvy" id="b2a-7m-kKp"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="x5A-6p-PRh" sceneMemberID="firstResponder"/>

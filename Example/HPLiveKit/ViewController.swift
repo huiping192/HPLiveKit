@@ -16,6 +16,9 @@ class ViewController: UIViewController {
   
   @IBOutlet private var button: UIButton!
   
+  @IBOutlet private var muteButton: UIButton!
+  @IBOutlet private var swapButton: UIButton!
+
   override func viewDidLoad() {
     super.viewDidLoad()
     
@@ -28,7 +31,7 @@ class ViewController: UIViewController {
   @objc private func buttonTapped() {
     switch liveState {
     case .ready, .stop, .error:
-      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.23/live/haha")
+      let info = LiveStreamInfo(streamId: "sample1", url: "rtmp://192.168.11.3/live/haha")
       liveSession?.startLive(streamInfo: info)
       liveState = .start
       button.setTitle("Stop", for: .normal)
@@ -39,6 +42,18 @@ class ViewController: UIViewController {
     default:
       break
     }
+  }
+  
+  @IBAction func muteButtonTapped() {
+    liveSession?.mute.toggle()
+    
+    muteButton.setTitle(liveSession?.mute == true ? "Unmute" : "Mute", for: .normal)
+  }
+  
+  @IBAction func swapButtonTapped() {
+    liveSession?.captureDevicePositionFront.toggle()
+    
+    swapButton.setTitle(liveSession?.captureDevicePositionFront == true ? "Front" : "Back", for: .normal)
   }
   
   func configureLiveSession() {
