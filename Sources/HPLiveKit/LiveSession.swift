@@ -189,7 +189,7 @@ private extension LiveSession {
 
 private extension LiveSession {
 
-    func pushFrame(frame: Frame) {
+    func pushFrame(frame: any Frame) {
       Task {
         guard let publisher = publisher else { return }
 

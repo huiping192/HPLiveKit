@@ -7,12 +7,23 @@
 
 import Foundation
 
-public class VideoFrame: Frame {
-  public var isKeyFrame: Bool = false
+public struct VideoFrame: Frame {
+  public let timestamp: UInt64
+  
+  public let data: Data?
+  
+  public let header: Data?
+  
+  public let isKeyFrame: Bool
   
   // compositionTime = (presentationTimeStamp - decodeTimeStamp) * 1000
   // signed Int24
-  public var compositionTime: Int32 = 0
-  public var sps: Data?
-  public var pps: Data?
+  public let compositionTime: Int32
+  public let sps: Data?
+  public let pps: Data?
+  
+  
+  public static func == (lhs: VideoFrame, rhs: VideoFrame) -> Bool {
+    return lhs.timestamp == rhs.timestamp && lhs.data == rhs.data
+  }
 }

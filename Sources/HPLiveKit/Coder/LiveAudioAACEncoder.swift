@@ -166,12 +166,9 @@ class LiveAudioAACEncoder: AudioEncoder {
       return
     }
     
-    var audioFrame = AudioFrame()
-    audioFrame.header = audioHeader
-    audioFrame.aacHeader = aacHeader
-    audioFrame.timestamp = UInt64(timestamp.seconds * 1000)
-    audioFrame.data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
-    
+    let data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
+    let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: data, header: audioHeader, aacHeader: aacHeader)
+
     delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
   }
   

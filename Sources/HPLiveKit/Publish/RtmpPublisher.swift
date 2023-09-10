@@ -165,7 +165,7 @@ actor RtmpPublisher: Publisher {
     retryTimes4netWorkBreaken = 0
   }
   
-  func send(frame: Frame) {
+  func send(frame: any Frame) {
     buffer.append(frame: frame)
     Task {
       if !isSending {
@@ -196,7 +196,7 @@ private extension RtmpPublisher {
     self.isSending = false
   }
   
-  func pushFrame(frame: Frame) async {
+  func pushFrame(frame: any Frame) async {
     if let frame = frame as? VideoFrame {
       await pushVideo(frame: frame)
       return
@@ -237,7 +237,7 @@ private extension RtmpPublisher {
     }
   }
   
-  func updateDebugInfo(frame: Frame) {
+  func updateDebugInfo(frame: any Frame) {
     //debug更新
     self.debugInfo.totalFrameCount += 1
     self.debugInfo.dropFrameCount += self.buffer.lastDropFrames

@@ -37,7 +37,7 @@ class StreamingBuffer {
     weak var delegate: StreamingBufferDelegate?
 
     /** current frame buffer */
-    private(set) var list: [Frame] = .init()
+    private(set) var list: [any Frame] = .init()
 
     /** buffer count max size default 1000 */
     var maxCount: UInt = defaultSendBufferMaxCount
@@ -47,7 +47,7 @@ class StreamingBuffer {
 
     private var lock = DispatchSemaphore(value: 1)
 
-    private var sortList: [Frame] = .init()
+    private var sortList: [any Frame] = .init()
     private var thresholdList: [Int] = .init()
 
     /** 处理buffer缓冲区情况 */
@@ -57,7 +57,7 @@ class StreamingBuffer {
     private var startTimer: Bool = false
 
     /** add frame to buffer */
-    func append(frame: Frame) {
+    func append(frame: any Frame) {
         if !startTimer {
             startTimer = true
             self.tick()
@@ -86,7 +86,7 @@ class StreamingBuffer {
     }
 
     /** pop the first frome buffer */
-    func popFirstFrame() -> Frame? {
+    func popFirstFrame() -> (any Frame)? {
         lock.wait()
       guard let firstFrame = list.first else { return nil }
         list.removeFirst()
@@ -115,7 +115,7 @@ class StreamingBuffer {
         lastDropFrames += pFrames.count
         if !pFrames.isEmpty {
             list = list.filter { value in
-                return !pFrames.contains(value)
+                !pFrames.contains(where: { value.timestamp == $0.timestamp })
             }
             return
         }
@@ -124,7 +124,7 @@ class StreamingBuffer {
         let iFrames = expirePFrames()
         if !iFrames.isEmpty {
             list = list.filter { value in
-                !iFrames.contains(value)
+              !iFrames.contains(where: { value.timestamp == $0.timestamp })
             }
             return
         }
@@ -132,8 +132,8 @@ class StreamingBuffer {
         list.removeAll()
     }
 
-    private func expirePFrames() -> [Frame] {
-        var iframes = [Frame]()
+    private func expirePFrames() -> [any Frame] {
+        var iframes = [any Frame]()
         var timestamp = UInt64(0)
 
         for frame in list {

@@ -38,7 +38,7 @@ class FilePublisher: NSObject {
         fileHandle = FileHandle(forWritingAtPath: patch)
     }
 
-    func save(frame: Frame) {
+    func save(frame: any Frame) {
         guard let frame = frame as? VideoFrame else { return }
 
         handleQueue.async {

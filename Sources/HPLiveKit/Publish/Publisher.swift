@@ -29,5 +29,5 @@ protocol Publisher {
   func stop() async
   
   // send video or video frame data
-  func send(frame: Frame) async
+  func send(frame: any Frame) async
 }

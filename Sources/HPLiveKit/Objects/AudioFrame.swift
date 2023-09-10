@@ -7,9 +7,16 @@
 
 import Foundation
 
-public class AudioFrame: Frame {
-    /// flv打包中aac的header
-    public var audioInfo: Data?
+public struct AudioFrame: Frame {
+  public static func == (lhs: AudioFrame, rhs: AudioFrame) -> Bool {
+    return lhs.timestamp == rhs.timestamp && lhs.data == rhs.data
+  }
   
-  public var aacHeader: Data?
+  public let timestamp: UInt64
+  
+  public let data: Data?
+  
+  public let header: Data?
+  
+  public let aacHeader: Data?
 }
