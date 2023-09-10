@@ -113,6 +113,12 @@ public class LiveSession: NSObject {
             capture.mute = mute
         }
     }
+  
+  public var captureDevicePositionFront: Bool = true {
+    didSet {
+      capture.captureDevicePositionFront = captureDevicePositionFront
+    }
+  }
 
     // 是否保存在本地文件
     // should save to local file, default is no
