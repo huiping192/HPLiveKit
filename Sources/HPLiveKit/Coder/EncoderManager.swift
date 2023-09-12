@@ -42,7 +42,7 @@ public class EncoderManager: NSObject {
   }
   
   public func encodeAudio(sampleBuffer: CMSampleBuffer) {
-    audioEncoder.encodeAudioData(sampleBuffer: sampleBuffer)
+    audioEncoder.encode(sampleBuffer: sampleBuffer)
   }
   
   public func encodeVideo(sampleBuffer: CMSampleBuffer) {

@@ -18,131 +18,67 @@ class LiveAudioAACEncoder: AudioEncoder {
   weak var delegate: AudioEncoderDelegate?
   
   private var converter: AudioConverterRef?
+  private var outFormatDescription: CMFormatDescription?
   
-  private var leftBuf: UnsafeMutableRawPointer
-  private var aacBuf: UnsafeMutableRawPointer
-  private var leftLength: Int = 0
+  private var inputDataBuffer = Data()
   
   private var audioHeader: Data?
-  fileprivate var outFormatDescription: CMFormatDescription? {
-    didSet {
-      guard let streamBasicDesc = self.outFormatDescription?.streamBasicDesc,
-            let mp4Id = MPEG4ObjectID(rawValue: Int(streamBasicDesc.mFormatFlags)) else {
-        return
-      }
-      var descData = Data()
-      let config = AudioSpecificConfig(objectType: mp4Id,
-                                       channelConfig: ChannelConfigType(rawValue: UInt8(streamBasicDesc.mChannelsPerFrame)),
-                                       frequencyType: SampleFrequencyType(value: streamBasicDesc.mSampleRate))
-      
-      descData.append(aacHeader)
-      descData.write(AudioData.AACPacketType.header.rawValue)
-      descData.append(config.encodeData)
-      self.audioHeader = descData
-    }
-  }
-  
-  /*
-   Sound format: a 4-bit field that indicates the audio format, such as AAC or MP3.
-   Sound rate: a 2-bit field that indicates the audio sample rate, such as 44.1 kHz or 48 kHz.
-   Sound size: a 1-bit field that indicates the audio sample size, such as 16-bit or 8-bit.
-   Sound type: a 1-bit field that indicates the audio channel configuration, such as stereo or mono.
-   */
-  var aacHeader: Data {
-    get {
-      guard let desc = self.outFormatDescription,
-            let streamBasicDesc = desc.streamBasicDesc else {
-        return Data()
-      }
-      let value = (AudioData.SoundFormat.aac.rawValue << 4 |
-                   AudioData.SoundRate(value: streamBasicDesc.mSampleRate).rawValue << 2 |
-                   AudioData.SoundSize.snd16Bit.rawValue << 1 |
-                   AudioData.SoundType.sndStereo.rawValue)
-      return Data([UInt8(value)])
-    }
-  }
+  private var aacHeader: Data?
   
   required init(configuration: LiveAudioConfiguration) {
     self.configuration = configuration
     
     print("LiveAudioAACEncoder init")
-    
-    leftBuf = malloc(configuration.bufferLength)
-    aacBuf = malloc(configuration.bufferLength)
   }
   
-  deinit {
-    free(leftBuf)
-    
-    free(aacBuf)
-  }
-  
-  func encodeAudioData(sampleBuffer: CMSampleBuffer) {
-    var audioBufferList = AudioBufferList()
-    var data = Data()
-    var blockBuffer: CMBlockBuffer?
-    
-    CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer, bufferListSizeNeededOut: nil, bufferListOut: &audioBufferList, bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &blockBuffer)
-    
-    let buffers = UnsafeBufferPointer<AudioBuffer>(start: &audioBufferList.mBuffers, count: Int(audioBufferList.mNumberBuffers))
-    
-    for audioBuffer in buffers {
-      let frame = audioBuffer.mData?.assumingMemoryBound(to: UInt8.self)
-      data.append(frame!, count: Int(audioBuffer.mDataByteSize))
-    }
-    let audioData = data as NSData
-    if !createAudioConvert(sb: sampleBuffer) {
+  func encode(sampleBuffer: CMSampleBuffer) {
+    if !setupEncoder(sb: sampleBuffer) {
       return
     }
+    let audioData = sampleBuffer.audioRawData
     
-    if leftLength + audioData.length >= self.configuration.bufferLength {
-      ///<  发送
-      let totalSize = leftLength + audioData.length
+    // buffer full, start encoding data
+    if inputDataBuffer.count + audioData.count >= self.configuration.bufferLength {
+      let totalSize = inputDataBuffer.count + audioData.count
       let encodeCount = totalSize / configuration.bufferLength
-      var totalBuf: UnsafeMutableRawPointer = malloc(totalSize)
-      var p = totalBuf
+      var totalBuffer = Data()
       
-      memset(totalBuf, Int32(totalSize), 0)
-      memcpy(totalBuf, leftBuf, leftLength)
-      memcpy(totalBuf + leftLength, audioData.bytes, audioData.length)
+      totalBuffer.append(inputDataBuffer)
+      totalBuffer.append(audioData)
       
       let presentationTimeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-      for _ in 0 ..< encodeCount {
-        encodeBuffer(buf: p, timestamp: presentationTimeStamp)
-        p += configuration.bufferLength
+      for i in 0 ..< encodeCount {
+        let startIndex = i * configuration.bufferLength
+        let endIndex = startIndex + configuration.bufferLength
+        encodeBuffer(audioData: totalBuffer[startIndex..<endIndex], timestamp: presentationTimeStamp)
       }
-      
-      leftLength = totalSize % self.configuration.bufferLength
-      memset(leftBuf, 0, self.configuration.bufferLength)
-      memcpy(leftBuf, totalBuf + (totalSize - leftLength), leftLength)
-      
-      free(totalBuf)
-      
+            
+      inputDataBuffer = totalBuffer.suffix(from: encodeCount * configuration.bufferLength)
       return
     }
     
-    ///< 积累
-    memcpy(leftBuf + leftLength, audioData.bytes, audioData.count)
-    leftLength += audioData.count
+    /// buffering audio data
+    inputDataBuffer.append(audioData)
     return
   }
   
-  func stopEncoder() {
+  func stop() {
     converter = nil
-    leftBuf = malloc(configuration.bufferLength)
-    aacBuf = malloc(configuration.bufferLength)
-    leftLength = 0
+    inputDataBuffer = Data()
     
     audioHeader = nil
+    aacHeader = nil
   }
     
-  private func encodeBuffer(buf: UnsafeMutableRawPointer, timestamp: CMTime) {
+  private func encodeBuffer(audioData: Data, timestamp: CMTime) {
     guard let converter = converter else {
       return
     }
     var inBuffer = AudioBuffer()
     inBuffer.mNumberChannels = 1
-    inBuffer.mData = buf
+    audioData.withUnsafeBytes { bytes in
+      inBuffer.mData = UnsafeMutableRawPointer(mutating: bytes.baseAddress!)
+    }
     inBuffer.mDataByteSize = UInt32(configuration.bufferLength)
     
     var inBufferList = AudioBufferList()
@@ -152,13 +88,16 @@ class LiveAudioAACEncoder: AudioEncoder {
     buffers[0] = inBuffer
     
     // 初始化一个输出缓冲列表
+    var outputData = Data(count: Int(inBuffer.mDataByteSize))
     var outBufferList = AudioBufferList()
     outBufferList.mNumberBuffers = 1
     let outBuffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &outBufferList.mBuffers,
                                                              count: Int(outBufferList.mNumberBuffers))
     outBuffers[0].mNumberChannels = inBuffer.mNumberChannels
     outBuffers[0].mDataByteSize = inBuffer.mDataByteSize   // 设置缓冲区大小
-    outBuffers[0].mData = aacBuf
+    outputData.withUnsafeMutableBytes { bytes in
+      outBuffers[0].mData = bytes.baseAddress
+    }
     
     var outputDataPacketSize = UInt32(1)
     let status = AudioConverterFillComplexBuffer(converter, inputDataProc, &inBufferList, &outputDataPacketSize, &outBufferList, nil)
@@ -166,8 +105,7 @@ class LiveAudioAACEncoder: AudioEncoder {
       return
     }
     
-    let data = NSData(bytes: aacBuf, length: Int(outBuffers[0].mDataByteSize)) as Data
-    let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: data, header: audioHeader, aacHeader: aacHeader)
+    let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: outputData, header: audioHeader, aacHeader: aacHeader)
 
     delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
   }
@@ -194,7 +132,28 @@ class LiveAudioAACEncoder: AudioEncoder {
     return noErr
   }
   
-  private func createAudioConvert(sb: CMSampleBuffer) -> Bool {
+  private func setupEncoder(sb: CMSampleBuffer) -> Bool {
+    if converter != nil {
+      return true
+    }
+    if !createAudioConvertIfNeeded(sb: sb) {
+      return false
+    }
+    
+    setupHeaderData()
+    
+    setupBitrate()
+    
+    return true
+  }
+  
+  private func setupHeaderData() {
+    guard let outFormatDescription else { return }
+    self.aacHeader = getAacHeader(outFormatDescription: outFormatDescription)
+    self.audioHeader = getAudioHeader(outFormatDescription: outFormatDescription)
+  }
+  
+  private func createAudioConvertIfNeeded(sb: CMSampleBuffer) -> Bool {
     if converter != nil {
       return true
     }
@@ -228,15 +187,18 @@ class LiveAudioAACEncoder: AudioEncoder {
     
     // 输出音频格式
     var outputFormat = AudioStreamBasicDescription()
-    memset(&outputFormat, 0, MemoryLayout.size(ofValue: outputFormat))
     outputFormat.mSampleRate = inputFormat.mSampleRate // 采样率保持一致
     outputFormat.mFormatFlags = UInt32(MPEG4ObjectID.AAC_LC.rawValue)
     outputFormat.mFormatID = kAudioFormatMPEG4AAC // AAC编码 kAudioFormatMPEG4AAC kAudioFormatMPEG4AAC_HE_V2
     outputFormat.mChannelsPerFrame = channels
     outputFormat.mFramesPerPacket = 1024 // AAC一帧是1024个字节
-    
+    var outFormatDescription: CMFormatDescription?
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &outputFormat, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
+    self.outFormatDescription = outFormatDescription
     
+    
+    // hard encoder and soft encoder
+    // audio default is soft encoder
     let subtype = kAudioFormatMPEG4AAC
     let requestedCodecs: [AudioClassDescription] = [
       .init(
@@ -250,25 +212,56 @@ class LiveAudioAACEncoder: AudioEncoder {
     ]
     
     let result = AudioConverterNewSpecific(&inputFormat, &outputFormat, 2, requestedCodecs, &converter)
-    
     if result != noErr {
       return false
     }
     
-    guard let converter = converter else {
-      return false
-    }
-    
-    var outputBitrate = configuration.audioBitRate.rawValue
-    let propSize = MemoryLayout.size(ofValue: outputBitrate)
+    return converter != nil
+  }
+  
+  private func setupBitrate() {
+    guard let converter else { return }
+    var outputBitrate = UInt32(configuration.audioBitRate.rawValue)
+    let propSize = MemoryLayout<UInt32>.size
     
     let setPropertyresult = AudioConverterSetProperty(converter, kAudioConverterEncodeBitRate, UInt32(propSize), &outputBitrate)
     
     if setPropertyresult != noErr {
-      return false
+      return
     }
+  }
+  
+  private func getAudioHeader(outFormatDescription: CMFormatDescription) -> Data? {
+    guard let streamBasicDesc = outFormatDescription.streamBasicDesc,
+          let mp4Id = MPEG4ObjectID(rawValue: Int(streamBasicDesc.mFormatFlags)) else {
+      return nil
+    }
+    var descData = Data()
+    let config = AudioSpecificConfig(objectType: mp4Id,
+                                     channelConfig: ChannelConfigType(rawValue: UInt8(streamBasicDesc.mChannelsPerFrame)),
+                                     frequencyType: SampleFrequencyType(value: streamBasicDesc.mSampleRate))
     
-    return true
+    descData.append(aacHeader!)
+    descData.write(AudioData.AACPacketType.header.rawValue)
+    descData.append(config.encodeData)
+    return descData
+  }
+  
+  /*
+   Sound format: a 4-bit field that indicates the audio format, such as AAC or MP3.
+   Sound rate: a 2-bit field that indicates the audio sample rate, such as 44.1 kHz or 48 kHz.
+   Sound size: a 1-bit field that indicates the audio sample size, such as 16-bit or 8-bit.
+   Sound type: a 1-bit field that indicates the audio channel configuration, such as stereo or mono.
+   */
+  private func getAacHeader(outFormatDescription: CMFormatDescription) -> Data? {
+    guard let streamBasicDesc = outFormatDescription.streamBasicDesc else {
+      return nil
+    }
+    let value = (AudioData.SoundFormat.aac.rawValue << 4 |
+                 AudioData.SoundRate(value: streamBasicDesc.mSampleRate).rawValue << 2 |
+                 AudioData.SoundSize.snd16Bit.rawValue << 1 |
+                 AudioData.SoundType.sndStereo.rawValue)
+    return Data([UInt8(value)])
   }
   
 }
