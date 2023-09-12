@@ -8,26 +8,34 @@
 import Foundation
 import AVFoundation
 
-// 编码器编码后回调
-protocol VideoEncoderDelegate: class {
+// Protocol for handling video encoding events
+protocol VideoEncoderDelegate: AnyObject {
+  
+  // This method is called whenever the encoder successfully encodes a video frame.
+  // The encoded frame is passed as an argument.
   func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
 }
 
-protocol VideoEncoder: class {
+// Protocol for encoding video data
+protocol VideoEncoder: AnyObject {
   
-  func encodeVideoData(sampleBuffer: CMSampleBuffer)
+  // Method to encode a video frame.
+  // The sample buffer contains the raw video data that needs to be encoded.
+  func encode(sampleBuffer: CMSampleBuffer)
   
-  var videoBitRate: UInt {
-    get
-    set
-  }
+  // Property representing the bit rate of the video encoder.
+  // Higher bit rate generally means better video quality but increased bandwidth consumption.
+  var videoBitRate: UInt { get set }
   
+  // Initializer for the VideoEncoder.
+  // The configuration specifies various encoding settings like resolution, frame rate, etc.
   init(configuration: LiveVideoConfiguration)
   
-  var delegate: VideoEncoderDelegate? {
-    get
-    set
-  }
+  // Delegate property for receiving encoding events.
+  // The delegate must conform to `VideoEncoderDelegate`.
+  var delegate: VideoEncoderDelegate? { get set }
   
-  func stopEncoder()
+  // Method to stop the encoder.
+  // This can be useful to release resources when encoding is not needed.
+  func stop()
 }

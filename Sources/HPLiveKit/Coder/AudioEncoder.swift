@@ -18,7 +18,7 @@ protocol AudioEncoder: AnyObject {
     set
   }
   
-  func encodeAudioData(sampleBuffer: CMSampleBuffer)
+  func encode(sampleBuffer: CMSampleBuffer)
   
-  func stopEncoder()
+  func stop()
 }

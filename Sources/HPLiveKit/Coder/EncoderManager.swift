@@ -9,53 +9,53 @@ import Foundation
 import CoreVideo
 import CoreMedia
 
-public protocol EncoderManagerDelegate: class {
-    func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame)
-    func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame)
+public protocol EncoderManagerDelegate: AnyObject {
+  func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame)
+  func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame)
 }
 
 public class EncoderManager: NSObject {
-
-    // video,audio encoder
-    private let videoEncoder: VideoEncoder
-    private let audioEncoder: AudioEncoder
-
-    public weak var delegate: EncoderManagerDelegate?
-
-    public var videoBitRate: UInt {
-        get {
-            videoEncoder.videoBitRate
-        }
-        set {
-            videoEncoder.videoBitRate = newValue
-        }
+  
+  // video,audio encoder
+  private let videoEncoder: VideoEncoder
+  private let audioEncoder: AudioEncoder
+  
+  public weak var delegate: EncoderManagerDelegate?
+  
+  public var videoBitRate: UInt {
+    get {
+      videoEncoder.videoBitRate
     }
-
-    public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
-        videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
-        audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
-
-        super.init()
-
-        videoEncoder.delegate = self
-        audioEncoder.delegate = self
+    set {
+      videoEncoder.videoBitRate = newValue
     }
-
+  }
+  
+  public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
+    videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
+    audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
+    
+    super.init()
+    
+    videoEncoder.delegate = self
+    audioEncoder.delegate = self
+  }
+  
   public func encodeAudio(sampleBuffer: CMSampleBuffer) {
-    audioEncoder.encodeAudioData(sampleBuffer: sampleBuffer)
-    }
-
-    public func encodeVideo(sampleBuffer: CMSampleBuffer) {
-        videoEncoder.encodeVideoData(sampleBuffer: sampleBuffer)
-    }
+    audioEncoder.encode(sampleBuffer: sampleBuffer)
+  }
+  
+  public func encodeVideo(sampleBuffer: CMSampleBuffer) {
+    videoEncoder.encode(sampleBuffer: sampleBuffer)
+  }
 }
 
 extension EncoderManager: AudioEncoderDelegate, VideoEncoderDelegate {
-    func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
-        delegate?.encodeOutput(encoderManager: self, audioFrame: audioFrame)
-    }
-
-    func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
-        delegate?.encodeOutput(encoderManager: self, videoFrame: frame)
-    }
+  func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
+    delegate?.encodeOutput(encoderManager: self, audioFrame: audioFrame)
+  }
+  
+  func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
+    delegate?.encodeOutput(encoderManager: self, videoFrame: frame)
+  }
 }
