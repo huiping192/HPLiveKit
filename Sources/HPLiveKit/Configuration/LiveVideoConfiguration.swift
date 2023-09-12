@@ -9,139 +9,137 @@
 import Foundation
 import AVFoundation
 import UIKit
-
 public enum LiveVideoSessionPreset {
-    /// 低分辨率
-    case preset360x640
-    /// 中分辨率
-    case preset540x960
-    /// 高分辨率
-    case preset720x1280
-
-    var avSessionPreset: AVCaptureSession.Preset {
-        switch self {
-        case .preset360x640:
-            return .vga640x480
-        case .preset540x960:
-            return .iFrame960x540
-        case .preset720x1280:
-            return .hd1280x720
-        }
+  /// Low resolution
+  case preset360x640
+  /// Medium resolution
+  case preset540x960
+  /// High resolution
+  case preset720x1280
+  
+  var avSessionPreset: AVCaptureSession.Preset {
+    switch self {
+    case .preset360x640:
+      return .vga640x480
+    case .preset540x960:
+      return .iFrame960x540
+    case .preset720x1280:
+      return .hd1280x720
     }
-
-    var cameraImageSize: CGSize {
-        var size: CGSize
-        switch self {
-        case .preset360x640:
-            size = CGSize(width: 360, height: 640)
-        case .preset540x960:
-            size = CGSize(width: 540, height: 960)
-        case .preset720x1280:
-            size = CGSize(width: 720, height: 1280)
-        default:
-            size = CGSize.zero
-        }
-
-        return size
+  }
+  
+  var cameraImageSize: CGSize {
+    var size: CGSize
+    switch self {
+    case .preset360x640:
+      size = CGSize(width: 360, height: 640)
+    case .preset540x960:
+      size = CGSize(width: 540, height: 960)
+    case .preset720x1280:
+      size = CGSize(width: 720, height: 1280)
     }
+    
+    return size
+  }
 }
 
-/// 视频质量
+/// Video Quality
 public enum LiveVideoQuality {
-    /// 分辨率： 360 *640 帧数：15 码率：500Kps
-    case low1
-    /// 分辨率： 360 *640 帧数：24 码率：800Kps
-    case low2
-    /// 分辨率： 360 *640 帧数：30 码率：800Kps
-    case low3
-    /// 分辨率： 540 *960 帧数：15 码率：800Kps
-    case medium1
-    /// 分辨率： 540 *960 帧数：24 码率：800Kps
-    case medium2
-    /// 分辨率： 540 *960 帧数：30 码率：800Kps
-    case medium3
-    /// 分辨率： 720 *1280 帧数：15 码率：1000Kps
-    case high1
-    /// 分辨率： 720 *1280 帧数：24 码率：1200Kps
-    case high2
-    /// 分辨率： 720 *1280 帧数：30 码率：1200Kps
-    case high3
+  /// Resolution: 360 * 640, Frame Rate: 15, Bitrate: 500Kbps
+  case low1
+  /// Resolution: 360 * 640, Frame Rate: 24, Bitrate: 800Kbps
+  case low2
+  /// Resolution: 360 * 640, Frame Rate: 30, Bitrate: 800Kbps
+  case low3
+  /// Resolution: 540 * 960, Frame Rate: 15, Bitrate: 800Kbps
+  case medium1
+  /// Resolution: 540 * 960, Frame Rate: 24, Bitrate: 800Kbps
+  case medium2
+  /// Resolution: 540 * 960, Frame Rate: 30, Bitrate: 800Kbps
+  case medium3
+  /// Resolution: 720 * 1280, Frame Rate: 15, Bitrate: 1000Kbps
+  case high1
+  /// Resolution: 720 * 1280, Frame Rate: 24, Bitrate: 1200Kbps
+  case high2
+  /// Resolution: 720 * 1280, Frame Rate: 30, Bitrate: 1200Kbps
+  case high3
 }
 
 public struct LiveVideoConfiguration {
-    // 视频的分辨率，宽高务必设定为 2 的倍数，否则解码播放时可能出现绿边(这个videoSizeRespectingAspectRatio设置为YES则可能会改变)
-    let videoSize: CGSize
-
-    // 输出图像是否等比例,默认为false
-    var videoSizeRespectingAspectRatio: Bool = false
-
-    // 视频输出方向
-    var outputImageOrientation: UIInterfaceOrientation = .portrait
-
-    // 自动旋转(这里只支持 left 变 right  portrait 变 portraitUpsideDown)
-    var autorotate: Bool = true
-
-    // 视频的帧率，即 fps
-    let videoFrameRate: UInt
-
-    // 视频的最大帧率，即 fps
-    let videoMinFrameRate: UInt
-    // 视频的最小帧率，即 fps
-    let videoMaxFrameRate: UInt
-
-    // 最大关键帧间隔，可设定为 fps 的2倍，影响一个 gop 的大小
-    var videoMaxKeyframeInterval: UInt {
-        videoFrameRate * 2
-    }
-
-    // 视频的码率，单位是 bps
-    let videoBitRate: UInt
-    // 视频的最大码率，单位是 bps
-    let videoMaxBitRate: UInt
-
-    // 视频的最小码率，单位是 bps
-    let videoMinBitRate: UInt
-
-    // 分辨率
-    let sessionPreset: LiveVideoSessionPreset
-
-    // 系统用分辨率
-    var avSessionPreset: AVCaptureSession.Preset {
-        sessionPreset.avSessionPreset
-    }
+  // Video resolution, width and height should be set as multiples of 2 to avoid green borders during decoding and playback.
+  let videoSize: CGSize
+  
+  // Whether the output image is aspect-ratio-respectful. Default is false.
+  var videoSizeRespectingAspectRatio: Bool = false
+  
+  // Video output orientation
+  var outputImageOrientation: UIInterfaceOrientation = .portrait
+  
+  // Auto rotation (here, only supports left-to-right and portrait-to-portraitUpsideDown)
+  var autorotate: Bool = true
+  
+  // Video frame rate, i.e., fps
+  let videoFrameRate: UInt
+  
+  // Video minimum frame rate, i.e., fps
+  let videoMinFrameRate: UInt
+  // Video maximum frame rate, i.e., fps
+  let videoMaxFrameRate: UInt
+  
+  // Maximum keyframe interval, can be set to 2 times the fps, affects the size of a gop
+  var videoMaxKeyframeInterval: UInt {
+    videoFrameRate * 2
+  }
+  
+  // Video bitrate, unit is bps
+  let videoBitRate: UInt
+  // Video maximum bitrate, unit is bps
+  let videoMaxBitRate: UInt
+  
+  // Video minimum bitrate, unit is bps
+  let videoMinBitRate: UInt
+  
+  // Session preset for resolution
+  let sessionPreset: LiveVideoSessionPreset
+  
+  // System session preset for resolution
+  var avSessionPreset: AVCaptureSession.Preset {
+    sessionPreset.avSessionPreset
+  }
 }
 
+
 extension LiveVideoConfiguration {
-    var isLandscape: Bool {
-        outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
+  var isLandscape: Bool {
+    outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
+  }
+  
+  // for internal use
+  var internalVideoSize: CGSize {
+    if videoSizeRespectingAspectRatio {
+      return aspectRatioVideoSize
     }
-
-    // for internal use
-    var internalVideoSize: CGSize {
-        if videoSizeRespectingAspectRatio {
-            return aspectRatioVideoSize
-        }
-
-        return orientationFormatVideoSize
+    
+    return orientationFormatVideoSize
+  }
+  
+  var orientationFormatVideoSize: CGSize {
+    if !isLandscape {
+      return videoSize
     }
-
-    var orientationFormatVideoSize: CGSize {
-        if !isLandscape {
-            return videoSize
-        }
-        return CGSize(width: videoSize.height, height: videoSize.width)
-    }
-
-    var aspectRatioVideoSize: CGSize {
-        let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormatVideoSize.width, height: orientationFormatVideoSize.height) )
-
-        var width: Int = Int(ceil(size.width))
-        var height: Int = Int(ceil(size.height))
-
-        width = width % 2 == 0 ? width :  width - 1
-        height = height % 2 == 0 ? height :  height - 1
-
-        return CGSize(width: width, height: height)
-    }
-
+    return CGSize(width: videoSize.height, height: videoSize.width)
+  }
+  
+  var aspectRatioVideoSize: CGSize {
+    let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormatVideoSize.width, height: orientationFormatVideoSize.height) )
+    
+    var width: Int = Int(ceil(size.width))
+    var height: Int = Int(ceil(size.height))
+    
+    width = width % 2 == 0 ? width :  width - 1
+    height = height % 2 == 0 ? height :  height - 1
+    
+    return CGSize(width: width, height: height)
+  }
+  
 }
