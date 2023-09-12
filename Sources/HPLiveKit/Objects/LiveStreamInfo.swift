@@ -8,49 +8,51 @@
 
 import Foundation
 
-// 流状态
+// Stream status
 public enum LiveState: Int {
-    /// 准备
-    case ready = 0
-    /// 连接中
-    case pending = 1
-    /// 已连接
-    case start = 2
-    /// 已断开
-    case stop = 3
-    /// 连接出错
-    case error = 4
-    ///  正在刷新
-    case refresh = 5
+  /// Ready
+  case ready = 0
+  /// Connecting
+  case pending = 1
+  /// Connected
+  case start = 2
+  /// Disconnected
+  case stop = 3
+  /// Connection error
+  case error = 4
+  /// Refreshing
+  case refresh = 5
 }
 
+// Socket Error Codes
 public enum LiveSocketErrorCode: Int {
-    ///< 预览失败
-    case previewFail = 201
-    ///< 获取流媒体信息失败
-    case getStreamInfo = 202
-    ///< 连接socket失败
-    case connectSocket = 203
-    ///< 验证服务器失败
-    case verification = 204
-    ///< 重新连接服务器超时
-    case reconnectTimeOut = 205
+  /// Preview failure
+  case previewFail = 201
+  /// Failed to get stream info
+  case getStreamInfo = 202
+  /// Failed to connect socket
+  case connectSocket = 203
+  /// Failed to verify the server
+  case verification = 204
+  /// Reconnection timeout
+  case reconnectTimeOut = 205
 }
 
+// Stream Information
 public struct LiveStreamInfo {
-    public let streamId: String
-
-    // --- rtmp ---
-
-    public let url: String
-
-    ///音频配置
-    var audioConfiguration: LiveAudioConfiguration?
-    ///视频配置
-    var videoConfiguration: LiveVideoConfiguration?
-
-    public init(streamId: String, url: String) {
-        self.streamId = streamId
-        self.url = url
-    }
+  public let streamId: String
+  
+  // --- RTMP ---
+  
+  public let url: String
+  
+  /// Audio Configuration
+  var audioConfiguration: LiveAudioConfiguration?
+  /// Video Configuration
+  var videoConfiguration: LiveVideoConfiguration?
+  
+  public init(streamId: String, url: String) {
+    self.streamId = streamId
+    self.url = url
+  }
 }
