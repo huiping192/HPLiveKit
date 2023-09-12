@@ -21,7 +21,7 @@ protocol VideoEncoder: AnyObject {
   
   // Method to encode a video frame.
   // The sample buffer contains the raw video data that needs to be encoded.
-  func encodeVideoData(sampleBuffer: CMSampleBuffer)
+  func encode(sampleBuffer: CMSampleBuffer)
   
   // Property representing the bit rate of the video encoder.
   // Higher bit rate generally means better video quality but increased bandwidth consumption.
@@ -37,5 +37,5 @@ protocol VideoEncoder: AnyObject {
   
   // Method to stop the encoder.
   // This can be useful to release resources when encoding is not needed.
-  func stopEncoder()
+  func stop()
 }

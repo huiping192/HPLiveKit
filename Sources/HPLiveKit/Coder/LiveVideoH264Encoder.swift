@@ -142,7 +142,7 @@ class LiveVideoH264Encoder: VideoEncoder {
     isBackground = false
   }
   
-  func encodeVideoData(sampleBuffer: CMSampleBuffer) {
+  func encode(sampleBuffer: CMSampleBuffer) {
     guard !isBackground else { return }
     guard let compressionSession = compressionSession else { return }
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
@@ -197,7 +197,7 @@ class LiveVideoH264Encoder: VideoEncoder {
     }
   }
   
-  func stopEncoder() {
+  func stop() {
     guard let compressionSession = compressionSession else { return }
     VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.indefinite)
   }
