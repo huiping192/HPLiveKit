@@ -46,7 +46,7 @@ public class EncoderManager: NSObject {
   }
   
   public func encodeVideo(sampleBuffer: CMSampleBuffer) {
-    videoEncoder.encodeVideoData(sampleBuffer: sampleBuffer)
+    videoEncoder.encode(sampleBuffer: sampleBuffer)
   }
 }
 
