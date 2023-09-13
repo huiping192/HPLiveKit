@@ -40,8 +40,6 @@ public enum LiveSocketErrorCode: Int {
 
 // Stream Information
 public struct LiveStreamInfo {
-  public let streamId: String
-  
   // --- RTMP ---
   
   public let url: String
@@ -51,8 +49,7 @@ public struct LiveStreamInfo {
   /// Video Configuration
   var videoConfiguration: LiveVideoConfiguration?
   
-  public init(streamId: String, url: String) {
-    self.streamId = streamId
+  public init(url: String) {
     self.url = url
   }
 }
