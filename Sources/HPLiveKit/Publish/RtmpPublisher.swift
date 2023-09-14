@@ -28,11 +28,7 @@ actor RtmpPublisher: Publisher {
   
   private let stream: LiveStreamInfo
   
-  private lazy var buffer: StreamingBuffer = {
-    let buffer = StreamingBuffer()
-    buffer.delegate = self
-    return buffer
-  }()
+  private let buffer: StreamingBuffer = StreamingBuffer()
   private var debugInfo: LiveDebug = .init()
   
   //错误信息
@@ -74,6 +70,7 @@ actor RtmpPublisher: Publisher {
     configure = conf
     
     Task {
+      await buffer.setDelegate(delegate: self)
       await self.rtmp.setDelegate(self)
     }
   }
@@ -138,23 +135,23 @@ actor RtmpPublisher: Publisher {
     
     await rtmp.invalidate()
     
-    clean()
+    await clean()
   }
   
-  private func clean() {
+  private func clean() async {
     isConnected = false
     isReconnecting = false
     isSending = false
     sendAudioHead = false
     sendVideoHead = false
     debugInfo = LiveDebug()
-    buffer.removeAll()
+    await buffer.removeAll()
     retryTimes4netWorkBreaken = 0
   }
   
   func send(frame: any Frame) {
-    buffer.append(frame: frame)
     Task {
+      await buffer.append(frame: frame)
       if !isSending {
         await self.sendFrame()
       }
@@ -165,8 +162,9 @@ actor RtmpPublisher: Publisher {
 
 private extension RtmpPublisher {
   func sendFrame() async {
-    guard !self.isSending && !self.buffer.list.isEmpty else { return }
-    
+    guard !self.isSending else { return }
+    guard await !buffer.isEmpty else { return }
+
     self.isSending = true
     
     if !self.isConnected || self.isReconnecting || self.isConnecting {
@@ -174,11 +172,11 @@ private extension RtmpPublisher {
       return
     }
     
-    guard let frame = self.buffer.popFirstFrame() else { return }
+    guard let frame = await self.buffer.popFirstFrame() else { return }
     
     await pushFrame(frame: frame)
     
-    updateDebugInfo(frame: frame)
+    await updateDebugInfo(frame: frame)
     
     self.isSending = false
   }
@@ -220,11 +218,11 @@ private extension RtmpPublisher {
     }
   }
   
-  func updateDebugInfo(frame: any Frame) {
+  func updateDebugInfo(frame: any Frame) async {
     //debug更新
     self.debugInfo.totalFrameCount += 1
-    self.debugInfo.dropFrameCount += self.buffer.lastDropFrames
-    self.buffer.lastDropFrames = 0
+    self.debugInfo.dropFrameCount += await self.buffer.lastDropFrames
+    await self.buffer.clearDropFramesCount()
     
     self.debugInfo.allDataSize += CGFloat(frame.data?.count ?? 0)
     self.debugInfo.elapsedMilli = CGFloat(UInt64(CACurrentMediaTime() * 1000)) - self.debugInfo.currentTimeStamp
@@ -236,7 +234,7 @@ private extension RtmpPublisher {
       } else {
         debugInfo.capturedVideoCountPerSec += 1
       }
-      debugInfo.unsendCount = buffer.list.count
+      debugInfo.unsendCount = await buffer.list.count
     } else {
       debugInfo.currentBandwidth = debugInfo.bandwidthPerSec
       debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
