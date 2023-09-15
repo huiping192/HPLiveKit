@@ -8,8 +8,6 @@
 import Foundation
 
 public struct LiveDebug {
-  /// Stream ID
-  var streamId: String?
   /// Stream URLs
   var uploadUrl: String?
   /// Uploaded resolution

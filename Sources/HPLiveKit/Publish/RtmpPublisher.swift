@@ -87,7 +87,6 @@ actor RtmpPublisher: Publisher {
   private func _start() async {
     guard !isConnected else { return }
     
-    debugInfo.streamId = stream.streamId
     debugInfo.uploadUrl = stream.url
     
     guard !isConnecting else { return }
