@@ -80,7 +80,6 @@ actor RtmpPublisher: Publisher {
 
     isConnecting = true
 
-    debugInfo.streamId = stream.streamId
     debugInfo.uploadUrl = stream.url
     
     delegate?.publisher(publisher: self, publishStatus: .pending)
