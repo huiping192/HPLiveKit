@@ -11,7 +11,7 @@ import HPRTMP
 import QuartzCore
 
 actor RtmpPublisher: Publisher {
-    
+  
   ///<  重连1分钟  3秒一次 一共20次
   private let retryTimesBreaken = 5
   private let retryTimesMargin = 3
@@ -28,13 +28,9 @@ actor RtmpPublisher: Publisher {
   
   private let stream: LiveStreamInfo
   
-  private lazy var buffer: StreamingBuffer = {
-    let buffer = StreamingBuffer()
-    buffer.delegate = self
-    return buffer
-  }()
+  private let buffer: StreamingBuffer = StreamingBuffer()
   private var debugInfo: LiveDebug = .init()
-    
+  
   //错误信息
   private var retryTimes4netWorkBreaken: Int = 0
   private let reconnectInterval: Int
@@ -74,26 +70,20 @@ actor RtmpPublisher: Publisher {
     configure = conf
     
     Task {
+      await buffer.setDelegate(delegate: self)
       await self.rtmp.setDelegate(self)
     }
   }
   
-  nonisolated func start() {
-    Task {
-      await self._start()
-    }
-  }
-  
-  private func _start() async {
-    guard !isConnected else { return }
-    
+  func start() async {
+    guard !isConnecting else { return }
+
+    isConnecting = true
+
     debugInfo.uploadUrl = stream.url
     
-    guard !isConnecting else { return }
-    
-    isConnecting = true
     delegate?.publisher(publisher: self, publishStatus: .pending)
-        
+    
     await connect()
   }
   
@@ -128,7 +118,6 @@ actor RtmpPublisher: Publisher {
   private func _reconnect() async {
     self.isReconnecting = false
     if isConnected { return }
-    if isConnected { return }
     
     sendAudioHead = false
     sendVideoHead = false
@@ -141,32 +130,27 @@ actor RtmpPublisher: Publisher {
   }
   
   func stop() async {
-    await self._stop()
-  }
-  
-  private func _stop() async {
     delegate?.publisher(publisher: self, publishStatus: .stop)
     
     await rtmp.invalidate()
     
-    clean()
+    await clean()
   }
   
-  private func clean() {
+  private func clean() async {
     isConnected = false
     isReconnecting = false
     isSending = false
-    isConnected = false
     sendAudioHead = false
     sendVideoHead = false
     debugInfo = LiveDebug()
-    buffer.removeAll()
+    await buffer.removeAll()
     retryTimes4netWorkBreaken = 0
   }
   
   func send(frame: any Frame) {
-    buffer.append(frame: frame)
     Task {
+      await buffer.append(frame: frame)
       if !isSending {
         await self.sendFrame()
       }
@@ -177,8 +161,9 @@ actor RtmpPublisher: Publisher {
 
 private extension RtmpPublisher {
   func sendFrame() async {
-    guard !self.isSending && !self.buffer.list.isEmpty else { return }
-    
+    guard !self.isSending else { return }
+    guard await !buffer.isEmpty else { return }
+
     self.isSending = true
     
     if !self.isConnected || self.isReconnecting || self.isConnecting {
@@ -186,11 +171,11 @@ private extension RtmpPublisher {
       return
     }
     
-    guard let frame = self.buffer.popFirstFrame() else { return }
+    guard let frame = await self.buffer.popFirstFrame() else { return }
     
     await pushFrame(frame: frame)
     
-    updateDebugInfo(frame: frame)
+    await updateDebugInfo(frame: frame)
     
     self.isSending = false
   }
@@ -225,10 +210,6 @@ private extension RtmpPublisher {
   func pushAudio(frame: AudioFrame) async {
     if !self.sendAudioHead {
       self.sendAudioHead = true
-      if frame.header == nil {
-        self.isSending = false
-        return
-      }
       await self.sendAudioHeader(frame: frame)
       await self.sendAudioFrame(frame: frame)
     } else {
@@ -236,11 +217,11 @@ private extension RtmpPublisher {
     }
   }
   
-  func updateDebugInfo(frame: any Frame) {
+  func updateDebugInfo(frame: any Frame) async {
     //debug更新
     self.debugInfo.totalFrameCount += 1
-    self.debugInfo.dropFrameCount += self.buffer.lastDropFrames
-    self.buffer.lastDropFrames = 0
+    self.debugInfo.dropFrameCount += await self.buffer.lastDropFrames
+    await self.buffer.clearDropFramesCount()
     
     self.debugInfo.allDataSize += CGFloat(frame.data?.count ?? 0)
     self.debugInfo.elapsedMilli = CGFloat(UInt64(CACurrentMediaTime() * 1000)) - self.debugInfo.currentTimeStamp
@@ -252,7 +233,7 @@ private extension RtmpPublisher {
       } else {
         debugInfo.capturedVideoCountPerSec += 1
       }
-      debugInfo.unsendCount = buffer.list.count
+      debugInfo.unsendCount = await buffer.list.count
     } else {
       debugInfo.currentBandwidth = debugInfo.bandwidthPerSec
       debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
@@ -273,27 +254,41 @@ private extension RtmpPublisher {
   func sendVideoHeader(frame: VideoFrame) async {
     guard let sps = frame.sps, let pps = frame.pps else { return }
     var body = Data()
-    body.append(Data([0x17]))
-    body.append(Data([0x00]))
+    // Video Tag Header, key frame and avc encode
+    let frameAndCode:UInt8 = UInt8(VideoData.FrameType.keyframe.rawValue << 4 | VideoData.CodecId.avc.rawValue)
+    body.append(Data([frameAndCode]))
     
+    // AVC sequence header
+    body.append(Data([VideoData.AVCPacketType.header.rawValue]))
+    
+    // CompositionTime 0
     body.append(Data([0x00, 0x00, 0x00]))
     
+    
+    // AVCDecoderConfigurationRecord
+    
+    // configurationVersion
     body.append(Data([0x01]))
     
-    let spsSize = sps.count
-    
+    // AVCProfileIndication,profile_compatibility,AVCLevelIndication, lengthSizeMinusOne
     body.append(Data([sps[1], sps[2], sps[3], 0xff]))
     
     /*sps*/
+    
+    // numOfSequenceParameterSets
     body.append(Data([0xe1]))
-    body.append(Data([(UInt8(spsSize) >> 8) & 0xff, UInt8(spsSize) & 0xff]))
+    // sequenceParameterSetLength
+    body.append(UInt16(sps.count).bigEndian.data)
+    // sequenceParameterSetNALUnit
     body.append(Data(sps))
-    
-    let ppsSize = pps.count
-    
+        
     /*pps*/
+    
+    // numOfPictureParameterSets
     body.append(Data([0x01]))
-    body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
+    // pictureParameterSetLength
+    body.append(UInt16(pps.count).bigEndian.data)
+    // pictureParameterSetNALUnit
     body.append(Data(pps))
     
     await rtmp.publishVideoHeader(data: body)
