@@ -15,12 +15,6 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Checkout HPRTMP
-      uses: actions/checkout@v4
-      with:
-        repository: huiping192/HPRTMP
-        path: ../HPRTMP
-
     - name: Show Xcode version
       run: xcodebuild -version
 
