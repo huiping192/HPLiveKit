@@ -9,7 +9,7 @@
 import Foundation
 
 // Stream status
-public enum LiveState: Int {
+public enum LiveState: Int, Sendable {
   /// Ready
   case ready = 0
   /// Connecting
@@ -25,7 +25,7 @@ public enum LiveState: Int {
 }
 
 // Socket Error Codes
-public enum LiveSocketErrorCode: Int {
+public enum LiveSocketErrorCode: Int, Sendable {
   /// Preview failure
   case previewFail = 201
   /// Failed to get stream info
@@ -39,7 +39,7 @@ public enum LiveSocketErrorCode: Int {
 }
 
 // Stream Information
-public struct LiveStreamInfo {
+public struct LiveStreamInfo: Sendable {
   // --- RTMP ---
   
   public let url: String

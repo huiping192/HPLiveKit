@@ -9,6 +9,8 @@
 import UIKit
 import HPLiveKit
 import HPRTMP
+
+@MainActor
 class ViewController: UIViewController {
   
   private var liveSession: LiveSession?
@@ -31,7 +33,7 @@ class ViewController: UIViewController {
   @objc private func buttonTapped() {
     switch liveState {
     case .ready, .stop, .error:
-      let info = LiveStreamInfo(url: "rtmp://192.168.11.3/live/haha")
+      let info = LiveStreamInfo(url: "rtmp://192.168.11.23:1936/live/haha")
       liveSession?.startLive(streamInfo: info)
       liveState = .start
       button.setTitle("Stop", for: .normal)
@@ -68,11 +70,12 @@ class ViewController: UIViewController {
   }
 }
 
-extension ViewController: LiveSessionDelegate {
-  func liveSession(session: LiveSession, liveStateDidChange state: LiveState) {
-    liveState = state
-    DispatchQueue.main.async {
-      switch state {
+extension ViewController: @preconcurrency LiveSessionDelegate {
+  nonisolated func liveSession(session: LiveSession, liveStateDidChange state: LiveState) {
+    let capturedState = state
+    Task { @MainActor in
+      liveState = capturedState
+      switch capturedState {
       case .ready, .stop, .error:
         self.button.setTitle("Publish", for: .normal)
       case .start:
@@ -83,12 +86,12 @@ extension ViewController: LiveSessionDelegate {
     }
   }
 
-  func liveSession(session: LiveSession, debugInfo: LiveDebug) {
+  nonisolated func liveSession(session: LiveSession, debugInfo: LiveDebug) {
   }
 
-  func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode) {
-    liveState = .error
-    DispatchQueue.main.async {
+  nonisolated func liveSession(session: LiveSession, errorCode: LiveSocketErrorCode) {
+    Task { @MainActor in
+      liveState = .error
       self.button.setTitle("Publish", for: .normal)
     }
   }
