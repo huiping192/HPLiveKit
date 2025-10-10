@@ -32,4 +32,4 @@ jobs:
       run: xcodebuild -resolvePackageDependencies -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example
 
     - name: Build
-      run: xcodebuild -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' -configuration Debug build
+      run: xcodebuild -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug build
