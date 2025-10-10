@@ -1,9 +1,8 @@
 # HPLiveKit
 
 ![CI](https://github.com/huiping192/HPLiveKit/workflows/CI/badge.svg)
-[![Version](https://img.shields.io/cocoapods/v/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
-[![License](https://img.shields.io/cocoapods/l/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
-[![Platform](https://img.shields.io/cocoapods/p/HPLiveKit.svg?style=flat)](https://cocoapods.org/pods/HPLiveKit)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/huiping192/HPLiveKit/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/platform-iOS%2014.0%2B-lightgrey.svg)](https://github.com/huiping192/HPLiveKit)
 
 
 **Swift rtmp base live streaming lib. Inspired by LFLiveKit https://github.com/LaiFengiOS/LFLiveKit**
@@ -39,22 +38,34 @@
 
 ## Example
 
-To run the example project, clone the repo, and run `pod install` from the Example directory first.
+To run the example project, clone the repo and open `Example/HPLiveKit.xcodeproj` in Xcode.
 
 ## Requirements
-    - iOS 8.0+
-    - Xcode 13
-    
+- iOS 14.0+
+- Xcode 13+
+- Swift 5.5+
+
 ## Installation
 
-HPLiveKit is available through [CocoaPods](https://cocoapods.org). To install
-it, simply add the following line to your Podfile:
+### Swift Package Manager
 
-```ruby
-platform :ios, '8.0'
+HPLiveKit is available through [Swift Package Manager](https://swift.org/package-manager/).
 
-pod 'HPLiveKit'
+To add HPLiveKit to your Xcode project:
+1. File > Add Package Dependencies
+2. Enter package URL: `https://github.com/huiping192/HPLiveKit`
+3. Select version or branch
+4. Add to your target
+
+Or add it to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/huiping192/HPLiveKit", from: "0.1.0")
+]
 ```
+
+> **Note:** CocoaPods support has been discontinued. Please use Swift Package Manager instead.
 
 ## Usage example 
 

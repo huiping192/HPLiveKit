@@ -5,13 +5,13 @@ import PackageDescription
 
 let package = Package(
     name: "HPLiveKit",
-    platforms: [.iOS(.v14)],
+    platforms: [.iOS(.v14), .macOS(.v11)],
     products: [
       .library(
         name: "HPLiveKit",
         targets: ["HPLiveKit"]),
     ], dependencies: [
-      .package(url: "https://github.com/huiping192/HPRTMP", from: "0.0.2")
+      .package(url: "https://github.com/huiping192/HPRTMP", from: "0.0.3")
     ],
     targets: [
       .target(
