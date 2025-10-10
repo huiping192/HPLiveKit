@@ -17,7 +17,7 @@ public protocol EncoderManagerDelegate: AnyObject {
 public class EncoderManager: NSObject {
   
   // video,audio encoder
-  private let videoEncoder: VideoEncoder
+  private var videoEncoder: VideoEncoder
   private let audioEncoder: AudioEncoder
   
   public weak var delegate: EncoderManagerDelegate?

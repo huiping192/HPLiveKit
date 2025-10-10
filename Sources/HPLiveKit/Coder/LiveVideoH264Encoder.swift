@@ -11,7 +11,7 @@ import VideoToolbox
 import HPRTMP
 import UIKit
 
-class LiveVideoH264Encoder: VideoEncoder {
+class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
   private var compressionSession: VTCompressionSession?
   private var frameCount: UInt = 0
   private var sps: Data?

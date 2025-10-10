@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol PublisherDelegate: AnyObject {
+protocol PublisherDelegate: AnyObject, Sendable {
   /** callback buffer current status */
   func publisher(publisher: Publisher, bufferStatus: BufferState)
   /** callback publish current status */
@@ -18,16 +18,16 @@ protocol PublisherDelegate: AnyObject {
   func publisher(publisher: Publisher, debugInfo: LiveDebug)
 }
 
-protocol Publisher {
-  
+protocol Publisher: Sendable {
+
   func setDelegate(delegate: PublisherDelegate?) async
-  
+
   // start publishing
   func start() async
-  
+
   // stop publishing
   func stop() async
-  
+
   // send video or video frame data
   func send(frame: any Frame) async
 }

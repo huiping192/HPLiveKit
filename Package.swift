@@ -1,4 +1,4 @@
-// swift-tools-version: 5.6
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -11,7 +11,7 @@ let package = Package(
         name: "HPLiveKit",
         targets: ["HPLiveKit"]),
     ], dependencies: [
-      .package(url: "https://github.com/huiping192/HPRTMP", from: "0.0.2")
+      .package(url: "https://github.com/huiping192/HPRTMP.git", revision: "85e51c444d850f074b64a63dbfa75d69ebd21c21")
     ],
     targets: [
       .target(

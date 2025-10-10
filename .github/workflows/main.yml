@@ -3,25 +3,33 @@ name: CI
 on: [push]
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_14.2.app
-  
+  DEVELOPER_DIR: /Applications/Xcode_26.0.1.app
+
 jobs:
   build:
 
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
     - name: Show Xcode version
       run: xcodebuild -version
-    - name: Cache CocoaPods
-      uses: actions/cache@v2
+
+    - name: Cache SPM dependencies
+      uses: actions/cache@v4
       with:
-        path: Example/Pods
-        key: ${{ runner.os }}-pods-${{ hashFiles('Example/Podfile.lock') }}
+        path: |
+          .build
+          ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
         restore-keys: |
-          ${{ runner.os }}-pods-
-    - name: Install cocoapods
-      run: cd Example;pod install --repo-update
-    - name: Build 
-      run: cd Example;xcodebuild  -workspace HPLiveKit.xcworkspace -scheme HPLiveKit-Example -sdk iphonesimulator -configuration Debug build
+          ${{ runner.os }}-spm-
+
+    - name: Resolve SPM dependencies
+      run: xcodebuild -resolvePackageDependencies -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example
+
+    - name: Build
+      run: xcodebuild -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug build
