@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -227,7 +227,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-
 /* Begin PBXSourcesBuildPhase section */
 		607FACCC1AFB9204008FA782 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -325,6 +324,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -371,6 +371,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -393,7 +394,7 @@
 				PRODUCT_NAME = HPLiveKit_Exsample;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -415,7 +416,7 @@
 				PRODUCT_NAME = HPLiveKit_Exsample;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -441,7 +442,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 6.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HPLiveKit_Example.app/HPLiveKit_Example";
 			};
 			name = Debug;
@@ -464,7 +465,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 6.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HPLiveKit_Example.app/HPLiveKit_Example";
 			};
 			name = Release;

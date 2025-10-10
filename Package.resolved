@@ -1,14 +1,6 @@
 {
+  "originHash" : "f767f22494efda4b3069f371f54cb00c1dc3e59af5c1b0aad899077e86ff8eeb",
   "pins" : [
-    {
-      "identity" : "hprtmp",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/huiping192/HPRTMP",
-      "state" : {
-        "revision" : "9c24841c6b2f6fdaf3290d5086f9a85fd404e8ac",
-        "version" : "0.0.3"
-      }
-    },
     {
       "identity" : "swift-atomics",
       "kind" : "remoteSourceControl",
@@ -55,5 +47,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
