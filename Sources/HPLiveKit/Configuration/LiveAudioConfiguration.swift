@@ -9,7 +9,7 @@
 import Foundation
 
 // Audio Bitrate
-public enum LiveAudioBitRate: Int {
+public enum LiveAudioBitRate: Int, Sendable {
   /// 32Kbps audio bitrate
   case a32Kbps = 32000
   /// 64Kbps audio bitrate
@@ -21,7 +21,7 @@ public enum LiveAudioBitRate: Int {
 }
 
 // Audio Sample Rate
-public enum LiveAudioSampleRate: Int {
+public enum LiveAudioSampleRate: Int, Sendable {
   /// 16KHz sample rate
   case s16000Hz = 16000
   /// 44.1KHz sample rate
@@ -77,7 +77,7 @@ public enum LiveAudioQuality {
   case veryHigh
 }
 
-public struct LiveAudioConfiguration {
+public struct LiveAudioConfiguration: Sendable {
   /// Number of channels
   let numberOfChannels: UInt32
   /// Sample rate

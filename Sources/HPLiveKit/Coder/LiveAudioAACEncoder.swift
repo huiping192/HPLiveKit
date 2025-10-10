@@ -11,7 +11,7 @@ import AudioToolbox
 import AVFoundation
 import HPRTMP
 
-class LiveAudioAACEncoder: AudioEncoder {
+class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
   
   private let configuration: LiveAudioConfiguration
   

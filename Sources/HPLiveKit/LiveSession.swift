@@ -45,7 +45,7 @@ struct LiveCaptureTypeMask {
     static let captureDefaultMask: LiveCaptureType  = captureMaskAll
 }
 
-public protocol LiveSessionDelegate: class {
+public protocol LiveSessionDelegate: AnyObject, Sendable {
     ///** live status changed will callback */
     func liveSession(session: LiveSession, liveStateDidChange state: LiveState)
 
@@ -60,7 +60,7 @@ extension LiveSessionDelegate {
     func liveSession(session: LiveSession, debugInfo: LiveDebug) {}
 }
 
-public class LiveSession: NSObject {
+public class LiveSession: NSObject, @unchecked Sendable {
 
     // live stream call back delegate
     public weak var delegate: LiveSessionDelegate?

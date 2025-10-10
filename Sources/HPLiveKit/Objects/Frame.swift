@@ -7,13 +7,13 @@
 
 import Foundation
 
-public protocol Frame: Equatable {
+public protocol Frame: Equatable, Sendable {
   // decodeTimeStamp
   var timestamp: UInt64  { get }
-    
+
   // frame data
   var data: Data?  { get }
-  
+
   // rtmp header data
   var header: Data?  { get }
 }

@@ -65,7 +65,7 @@ public enum LiveVideoQuality {
   case high3
 }
 
-public struct LiveVideoConfiguration {
+public struct LiveVideoConfiguration: @unchecked Sendable {
   // Video resolution, width and height should be set as multiples of 2 to avoid green borders during decoding and playback.
   let videoSize: CGSize
   
