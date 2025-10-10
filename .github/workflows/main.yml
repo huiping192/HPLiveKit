@@ -2,9 +2,6 @@ name: CI
 
 on: [push]
 
-env:
-  DEVELOPER_DIR: /Applications/Xcode.app
-
 jobs:
   build:
 
