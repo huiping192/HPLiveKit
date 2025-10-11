@@ -10,6 +10,12 @@ import Foundation
 import UIKit
 import CoreMedia
 
+/// Live session mode
+public enum LiveSessionMode {
+    case camera        // Camera capture mode
+    case screenShare   // Screen share mode (for RPBroadcastSampleHandler)
+}
+
 //< only video (External input video)
 struct LiveCaptureType: OptionSet {
     public let rawValue: Int
@@ -91,6 +97,8 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private var state: LiveState?
     // 当前直播type current live type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
+    // 当前模式 (camera or screenShare)
+    private let mode: LiveSessionMode
     /// 当前是否采集到了音频
     private var hasCapturedAudio: Bool = false
     /// 当前是否采集到了关键帧
@@ -118,9 +126,10 @@ public class LiveSession: NSObject, @unchecked Sendable {
   }
 
 
-    public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
+    public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration, mode: LiveSessionMode = .camera) {
         self.audioConfiguration = audioConfiguration
         self.videoConfiguration = videoConfiguration
+        self.mode = mode
 
         capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
         encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
@@ -130,6 +139,54 @@ public class LiveSession: NSObject, @unchecked Sendable {
         capture.delegate = self
 
         encoder.delegate = self
+    }
+
+    /// Screen share dedicated initializer
+    /// - Parameters:
+    ///   - videoEncodingQuality: Video encoding quality (default: .medium2)
+    ///   - audioEncodingQuality: Audio encoding quality (default: .high)
+    public convenience init(
+        forScreenShare: Void = (),
+        videoEncodingQuality: LiveVideoQuality = .medium2,
+        audioEncodingQuality: LiveAudioQuality = .high
+    ) {
+        let videoConfig: LiveVideoConfiguration
+        switch videoEncodingQuality {
+        case .low1:
+            videoConfig = LiveVideoConfigurationFactory.createLow1()
+        case .low2:
+            videoConfig = LiveVideoConfigurationFactory.createLow2()
+        case .low3:
+            videoConfig = LiveVideoConfigurationFactory.createLow3()
+        case .medium1:
+            videoConfig = LiveVideoConfigurationFactory.createMedium1()
+        case .medium2:
+            videoConfig = LiveVideoConfigurationFactory.createMedium2()
+        case .medium3:
+            videoConfig = LiveVideoConfigurationFactory.createMedium3()
+        case .high1:
+            videoConfig = LiveVideoConfigurationFactory.createHigh1()
+        case .high2:
+            videoConfig = LiveVideoConfigurationFactory.createHigh2()
+        case .high3:
+            videoConfig = LiveVideoConfigurationFactory.createHigh3()
+        }
+
+        let audioConfig: LiveAudioConfiguration
+        switch audioEncodingQuality {
+        case .low:
+            audioConfig = LiveAudioConfigurationFactory.createLow()
+        case .medium:
+            audioConfig = LiveAudioConfigurationFactory.createMedium()
+        case .high:
+            audioConfig = LiveAudioConfigurationFactory.createHigh()
+        case .veryHigh:
+            audioConfig = LiveAudioConfigurationFactory.createVeryHigh()
+        }
+
+        self.init(audioConfiguration: audioConfig,
+                  videoConfiguration: videoConfig,
+                  mode: .screenShare)
     }
 
     deinit {
@@ -163,11 +220,59 @@ public class LiveSession: NSObject, @unchecked Sendable {
   }
 
     public func startCapturing() {
+        // Screen share mode does not use internal capture
+        guard mode == .camera else { return }
         capture.startCapturing()
     }
 
     public func stopCapturing() {
+        // Screen share mode does not use internal capture
+        guard mode == .camera else { return }
         capture.stopCapturing()
+    }
+
+    // MARK: - Screen Share Methods
+
+    /// Push video sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: Video sample buffer from RPBroadcastSampleHandler
+    public func pushVideo(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushVideo is only available in screenShare mode")
+            #endif
+            return
+        }
+        guard uploading else { return }
+        encoder.encodeVideo(sampleBuffer: sampleBuffer)
+    }
+
+    /// Push app audio sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: App audio sample buffer from RPBroadcastSampleHandler
+    public func pushAppAudio(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushAppAudio is only available in screenShare mode")
+            #endif
+            return
+        }
+        guard uploading else { return }
+        encoder.encodeAudio(sampleBuffer: sampleBuffer)
+    }
+
+    /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: Mic audio sample buffer from RPBroadcastSampleHandler
+    /// - Note: This method is reserved for future implementation. Currently not supported.
+    public func pushMicAudio(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushMicAudio is only available in screenShare mode")
+            #endif
+            return
+        }
+        // TODO: Implement mic audio mixing with app audio
+        #if DEBUG
+        print("[HPLiveKit] pushMicAudio is not implemented yet")
+        #endif
     }
 }
 
