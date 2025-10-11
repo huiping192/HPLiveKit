@@ -78,8 +78,8 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private let audioConfiguration: LiveAudioConfiguration
     private let videoConfiguration: LiveVideoConfiguration
 
-    // video,audio data source
-    private let capture: CaptureManager
+    // video,audio data source (only for camera mode)
+    private let capture: CaptureManager?
 
     // video,audio encoder
     private let encoder: EncoderManager
@@ -106,22 +106,22 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
     public var preview: UIView? {
         get {
-            capture.preview
+            capture?.preview
         }
         set {
-            capture.preview = newValue
+            capture?.preview = newValue
         }
     }
 
     public var mute: Bool = false {
         didSet {
-            capture.mute = mute
+            capture?.mute = mute
         }
     }
-  
+
   public var captureDevicePositionFront: Bool = true {
     didSet {
-      capture.captureDevicePositionFront = captureDevicePositionFront
+      capture?.captureDevicePositionFront = captureDevicePositionFront
     }
   }
 
@@ -131,12 +131,18 @@ public class LiveSession: NSObject, @unchecked Sendable {
         self.videoConfiguration = videoConfiguration
         self.mode = mode
 
-        capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        // Only create CaptureManager in camera mode to avoid requesting camera/mic permissions
+        if mode == .camera {
+            capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        } else {
+            capture = nil
+        }
+
         encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
 
         super.init()
 
-        capture.delegate = self
+        capture?.delegate = self
 
         encoder.delegate = self
     }
@@ -222,13 +228,13 @@ public class LiveSession: NSObject, @unchecked Sendable {
     public func startCapturing() {
         // Screen share mode does not use internal capture
         guard mode == .camera else { return }
-        capture.startCapturing()
+        capture?.startCapturing()
     }
 
     public func stopCapturing() {
         // Screen share mode does not use internal capture
         guard mode == .camera else { return }
-        capture.stopCapturing()
+        capture?.stopCapturing()
     }
 
     // MARK: - Screen Share Methods
