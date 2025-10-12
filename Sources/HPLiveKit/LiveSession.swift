@@ -87,9 +87,6 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // 推流 publisher
     private var publisher: Publisher?
 
-    // timestamp normalizer
-    private let timestampNormalizer = TimestampNormalizer()
-
     // 调试信息 debug info
     private var debugInfo: LiveDebug?
     // 流信息 stream info
@@ -253,8 +250,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
-        let normalized = timestampNormalizer.normalize(sampleBuffer)
-        encoder.encodeVideo(sampleBuffer: normalized)
+        encoder.encodeVideo(sampleBuffer: sampleBuffer)
     }
 
     /// Push app audio sample buffer (for RPBroadcastSampleHandler)
@@ -268,8 +264,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
-        let normalized = timestampNormalizer.normalize(sampleBuffer)
-        encoder.encodeAudio(sampleBuffer: normalized)
+        encoder.encodeAudio(sampleBuffer: sampleBuffer)
     }
 
     /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
@@ -314,15 +309,13 @@ extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
 
-    let normalized = timestampNormalizer.normalize(audio)
-    encoder.encodeAudio(sampleBuffer: normalized)
+    encoder.encodeAudio(sampleBuffer: audio)
   }
 
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
 
-    let normalized = timestampNormalizer.normalize(video)
-    encoder.encodeVideo(sampleBuffer: normalized)
+    encoder.encodeVideo(sampleBuffer: video)
   }
 }
 
@@ -350,7 +343,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
-            timestampNormalizer.reset()  // Reset timestamp to start from 0
+            encoder.resetTimestamp()  // Reset timestamp to start from 0
             uploading = true
         }
 
