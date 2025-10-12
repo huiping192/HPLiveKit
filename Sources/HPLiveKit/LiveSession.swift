@@ -138,7 +138,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
             capture = nil
         }
 
-        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration, mode: mode)
 
         super.init()
 
@@ -341,6 +341,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
+            encoder.resetTimestamp()  // Reset timestamp to start from 0
             uploading = true
         }
 

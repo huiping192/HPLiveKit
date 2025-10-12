@@ -84,8 +84,9 @@ public struct LiveAudioConfiguration: Sendable {
   let audioSampleRate: LiveAudioSampleRate
   /// Bitrate
   let audioBitRate: LiveAudioBitRate
-  /// Buffer length
+  /// Buffer length (in bytes)
+  /// AAC frame size is 1024 samples, for 16-bit PCM: 1024 samples * 2 bytes/sample * channels
   var bufferLength: Int {
-    return 1024 * 1 * Int(self.numberOfChannels)
+    return 1024 * 2 * Int(self.numberOfChannels)
   }
 }

@@ -29,7 +29,8 @@ protocol VideoEncoder: AnyObject {
   
   // Initializer for the VideoEncoder.
   // The configuration specifies various encoding settings like resolution, frame rate, etc.
-  init(configuration: LiveVideoConfiguration)
+  // The mode parameter determines whether to enable background handling (camera mode only)
+  init(configuration: LiveVideoConfiguration, mode: LiveSessionMode)
   
   // Delegate property for receiving encoding events.
   // The delegate must conform to `VideoEncoderDelegate`.
