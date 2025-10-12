@@ -31,8 +31,8 @@ public class EncoderManager: NSObject {
     }
   }
   
-  public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration, mode: LiveSessionMode) {
-    videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration, mode: mode)
+  public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
+    videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
     audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
 
     super.init()

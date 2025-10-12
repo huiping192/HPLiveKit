@@ -19,7 +19,6 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
 
   private var isBackground: Bool = false
   private let configuration: LiveVideoConfiguration
-  private let mode: LiveSessionMode
 
   private let kLimitToAverageBitRateFactor = 1.5
   
@@ -44,27 +43,13 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
   }
   
   weak var delegate: VideoEncoderDelegate?
-  
-  required init(configuration: LiveVideoConfiguration, mode: LiveSessionMode) {
+
+  required init(configuration: LiveVideoConfiguration) {
     self.configuration = configuration
-    self.mode = mode
     self.currentVideoBitRate = configuration.videoBitRate
 
-    #if DEBUG
-    print("[LiveVideoH264Encoder] Initializing encoder in \(mode == .camera ? "camera" : "screenShare") mode")
-    #endif
-
     resetCompressionSession()
-
-    // Only configure background notifications for camera mode
-    // Screen share should continue encoding in background
-    if mode == .camera {
-      configureNotifications()
-    } else {
-      #if DEBUG
-      print("[LiveVideoH264Encoder] Screen share mode: background notifications disabled")
-      #endif
-    }
+    configureNotifications()
   }
   
   deinit {
@@ -162,15 +147,14 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
   }
   
   func encode(sampleBuffer: CMSampleBuffer) {
+    // Skip encoding in background
     guard !isBackground else {
-      #if DEBUG
-      // Only log occasionally to avoid spam
       if frameCount % 30 == 0 {
         print("[LiveVideoH264Encoder] Skipping video encoding - app is in background (frame \(frameCount))")
       }
-      #endif
       return
     }
+
     guard let compressionSession = compressionSession else { return }
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
     

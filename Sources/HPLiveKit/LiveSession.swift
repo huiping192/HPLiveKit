@@ -141,7 +141,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
             capture = nil
         }
 
-        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration, mode: mode)
+        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
 
         super.init()
 
