@@ -87,6 +87,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // 推流 publisher
     private var publisher: Publisher?
 
+    // timestamp normalizer
+    private let timestampNormalizer = TimestampNormalizer()
+
     // 调试信息 debug info
     private var debugInfo: LiveDebug?
     // 流信息 stream info
@@ -249,7 +252,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
             return
         }
         guard uploading else { return }
-        encoder.encodeVideo(sampleBuffer: sampleBuffer)
+
+        let normalized = timestampNormalizer.normalize(sampleBuffer)
+        encoder.encodeVideo(sampleBuffer: normalized)
     }
 
     /// Push app audio sample buffer (for RPBroadcastSampleHandler)
@@ -262,7 +267,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
             return
         }
         guard uploading else { return }
-        encoder.encodeAudio(sampleBuffer: sampleBuffer)
+
+        let normalized = timestampNormalizer.normalize(sampleBuffer)
+        encoder.encodeAudio(sampleBuffer: normalized)
     }
 
     /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
@@ -306,14 +313,16 @@ private extension LiveSession {
 extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
-    
-    encoder.encodeAudio(sampleBuffer: audio)
+
+    let normalized = timestampNormalizer.normalize(audio)
+    encoder.encodeAudio(sampleBuffer: normalized)
   }
-  
+
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
-    
-    encoder.encodeVideo(sampleBuffer: video)
+
+    let normalized = timestampNormalizer.normalize(video)
+    encoder.encodeVideo(sampleBuffer: normalized)
   }
 }
 
@@ -341,7 +350,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
-            encoder.resetTimestamp()  // Reset timestamp to start from 0
+            timestampNormalizer.reset()  // Reset timestamp to start from 0
             uploading = true
         }
 
