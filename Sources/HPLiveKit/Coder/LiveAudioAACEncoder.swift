@@ -177,18 +177,6 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
 
     // Get actual encoded data size from output buffer
     let actualOutputSize = Int(outBuffers[0].mDataByteSize)
-
-    // Verify encoded data size is reasonable
-    // AAC frames should be at least 50 bytes, typically 100-500 bytes
-    // First frame might be encoder priming data and should be skipped
-    if actualOutputSize == 0 || actualOutputSize < 50 || actualOutputSize > audioData.count {
-      #if DEBUG
-      print("[LiveAudioAACEncoder] Warning: Abnormal frame size (\(actualOutputSize) bytes), skipping")
-      print("  This is likely encoder priming/delay data")
-      #endif
-      return
-    }
-
     let actualEncodedData = Data(outputData.prefix(actualOutputSize))
 
     let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: actualEncodedData, header: audioHeader, aacHeader: aacHeader)

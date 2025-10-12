@@ -104,6 +104,11 @@ public class LiveSession: NSObject, @unchecked Sendable {
     /// 当前是否采集到了关键帧
     private var hasCapturedKeyFrame: Bool = false
 
+    // Frame processing with AsyncStream to ensure sequential order
+    private let frameStream: AsyncStream<any Frame>
+    private let frameContinuation: AsyncStream<any Frame>.Continuation
+    private var frameProcessingTask: Task<Void, Never>?
+
     public var preview: UIView? {
         get {
             capture?.preview
@@ -140,11 +145,20 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
         encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
 
+        // Initialize AsyncStream for frame processing
+        var continuation: AsyncStream<any Frame>.Continuation!
+        self.frameStream = AsyncStream<any Frame> { cont in
+            continuation = cont
+        }
+        self.frameContinuation = continuation
+
         super.init()
 
         capture?.delegate = self
-
         encoder.delegate = self
+
+        // Start frame processing task
+        startFrameProcessing()
     }
 
     /// Screen share dedicated initializer
@@ -197,21 +211,29 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
     deinit {
         stopCapturing()
+        frameProcessingTask?.cancel()
+        frameContinuation.finish()
     }
 
   public func startLive(streamInfo: LiveStreamInfo) {
     Task {
       var mutableStreamInfo = streamInfo
-      
+
       mutableStreamInfo.audioConfiguration = audioConfiguration
       mutableStreamInfo.videoConfiguration = videoConfiguration
-      
+
       self.streamInfo = mutableStreamInfo
-      
+
       if publisher == nil {
         publisher = createRTMPPublisher()
         await publisher?.setDelegate(delegate: self)
       }
+
+      // Ensure frame processing task is running
+      if frameProcessingTask == nil || frameProcessingTask?.isCancelled == true {
+        startFrameProcessing()
+      }
+
       await publisher?.start()
     }
   }
@@ -296,12 +318,34 @@ private extension LiveSession {
 
 private extension LiveSession {
 
-    func pushFrame(frame: any Frame) {
-      Task {
-        guard let publisher = publisher else { return }
+    /// Start the frame processing task that sequentially processes frames from the stream
+    func startFrameProcessing() {
+        frameProcessingTask?.cancel()
+        frameProcessingTask = Task { [weak self] in
+            guard let self = self else { return }
 
-        await publisher.send(frame: frame)
-      }
+            // Process frames sequentially in the order they are yielded
+            // This ensures timestamp ordering is preserved
+            for await frame in self.frameStream {
+                guard let publisher = self.publisher else { continue }
+
+                #if DEBUG
+                // Log frame processing for debugging
+                let frameType = frame is VideoFrame ? "Video" : "Audio"
+                if let videoFrame = frame as? VideoFrame, videoFrame.isKeyFrame {
+                    print("[LiveSession] Processing keyframe: \(frameType) timestamp=\(frame.timestamp)ms")
+                }
+                #endif
+
+                await publisher.send(frame: frame)
+            }
+        }
+    }
+
+    func pushFrame(frame: any Frame) {
+        // Use yield instead of creating a new Task
+        // This ensures frames are processed in the exact order they are received
+        frameContinuation.yield(frame)
     }
 }
 

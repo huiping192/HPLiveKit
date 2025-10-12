@@ -46,10 +46,20 @@ public class EncoderManager: NSObject {
   }
 
   public func encodeAudio(sampleBuffer: CMSampleBuffer) {
+    // Set baseTimestamp from the first audio/video frame that arrives (before encoding)
+    if baseTimestamp == nil {
+      let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+      baseTimestamp = UInt64(CMTimeGetSeconds(pts) * 1000)
+    }
     audioEncoder.encode(sampleBuffer: sampleBuffer)
   }
 
   public func encodeVideo(sampleBuffer: CMSampleBuffer) {
+    // Set baseTimestamp from the first audio/video frame that arrives (before encoding)
+    if baseTimestamp == nil {
+      let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+      baseTimestamp = UInt64(CMTimeGetSeconds(pts) * 1000)
+    }
     videoEncoder.encode(sampleBuffer: sampleBuffer)
   }
 
@@ -61,14 +71,12 @@ public class EncoderManager: NSObject {
 
 extension EncoderManager: AudioEncoderDelegate, VideoEncoderDelegate {
   func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
-    // Record the first frame's timestamp as base (audio or video, whichever comes first)
-    if baseTimestamp == nil {
-      baseTimestamp = audioFrame.timestamp
-    }
+    // baseTimestamp is already set in encodeAudio/encodeVideo before encoding
+    guard let base = baseTimestamp else { return }
 
     // Create normalized frame with adjusted timestamp
     let normalizedFrame = AudioFrame(
-      timestamp: audioFrame.timestamp - baseTimestamp!,
+      timestamp: audioFrame.timestamp - base,
       data: audioFrame.data,
       header: audioFrame.header,
       aacHeader: audioFrame.aacHeader
@@ -78,14 +86,12 @@ extension EncoderManager: AudioEncoderDelegate, VideoEncoderDelegate {
   }
 
   func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
-    // Record the first frame's timestamp as base (audio or video, whichever comes first)
-    if baseTimestamp == nil {
-      baseTimestamp = frame.timestamp
-    }
+    // baseTimestamp is already set in encodeAudio/encodeVideo before encoding
+    guard let base = baseTimestamp else { return }
 
     // Create normalized frame with adjusted timestamp
     let normalizedFrame = VideoFrame(
-      timestamp: frame.timestamp - baseTimestamp!,
+      timestamp: frame.timestamp - base,
       data: frame.data,
       header: frame.header,
       isKeyFrame: frame.isKeyFrame,
