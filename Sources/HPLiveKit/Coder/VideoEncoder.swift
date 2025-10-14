@@ -18,10 +18,11 @@ protocol VideoEncoderDelegate: AnyObject {
 
 // Protocol for encoding video data
 protocol VideoEncoder: AnyObject {
-  
+
   // Method to encode a video frame.
   // The sample buffer contains the raw video data that needs to be encoded.
-  func encode(sampleBuffer: CMSampleBuffer)
+  // Throws LiveError if encoding fails.
+  func encode(sampleBuffer: CMSampleBuffer) throws
   
   // Property representing the bit rate of the video encoder.
   // Higher bit rate generally means better video quality but increased bandwidth consumption.

@@ -45,22 +45,22 @@ public class EncoderManager: NSObject {
     audioEncoder.delegate = self
   }
 
-  public func encodeAudio(sampleBuffer: CMSampleBuffer) {
+  public func encodeAudio(sampleBuffer: CMSampleBuffer) throws {
     // Set baseTimestamp from the first audio/video frame that arrives (before encoding)
     if baseTimestamp == nil {
       let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
       baseTimestamp = UInt64(CMTimeGetSeconds(pts) * 1000)
     }
-    audioEncoder.encode(sampleBuffer: sampleBuffer)
+    try audioEncoder.encode(sampleBuffer: sampleBuffer)
   }
 
-  public func encodeVideo(sampleBuffer: CMSampleBuffer) {
+  public func encodeVideo(sampleBuffer: CMSampleBuffer) throws {
     // Set baseTimestamp from the first audio/video frame that arrives (before encoding)
     if baseTimestamp == nil {
       let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
       baseTimestamp = UInt64(CMTimeGetSeconds(pts) * 1000)
     }
-    videoEncoder.encode(sampleBuffer: sampleBuffer)
+    try videoEncoder.encode(sampleBuffer: sampleBuffer)
   }
 
   /// Reset base timestamp (call when starting a new stream)

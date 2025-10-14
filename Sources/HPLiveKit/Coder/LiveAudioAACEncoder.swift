@@ -10,11 +10,13 @@ import Foundation
 import AudioToolbox
 import AVFoundation
 import HPRTMP
+import os
 
 class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
-  
+  private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioAACEncoder")
+
   private let configuration: LiveAudioConfiguration
-  
+
   weak var delegate: AudioEncoderDelegate?
   
   private var converter: AudioConverterRef?
@@ -40,14 +42,10 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
   
   required init(configuration: LiveAudioConfiguration) {
     self.configuration = configuration
-    
-    print("LiveAudioAACEncoder init")
   }
   
-  func encode(sampleBuffer: CMSampleBuffer) {
-    if !setupEncoder(sb: sampleBuffer) {
-      return
-    }
+  func encode(sampleBuffer: CMSampleBuffer) throws {
+    try setupEncoder(sb: sampleBuffer)
     let audioData = sampleBuffer.audioRawData
     let currentTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
@@ -56,13 +54,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
       let timeDiff = CMTimeGetSeconds(CMTimeSubtract(currentTimestamp, lastTS))
       // Use 200ms threshold to avoid false positives in screen share scenarios
       if timeDiff < 0 || timeDiff > 0.2 {
-        #if DEBUG
-        print("[LiveAudioAACEncoder] Warning: Timestamp jump detected!")
-        print("  Previous: \(CMTimeGetSeconds(lastTS))s")
-        print("  Current: \(CMTimeGetSeconds(currentTimestamp))s")
-        print("  Diff: \(timeDiff * 1000)ms")
-        print("  Clearing audio buffer and resetting timestamp tracking")
-        #endif
+        Self.logger.warning("Timestamp jump detected - Previous: \(CMTimeGetSeconds(lastTS))s, Current: \(CMTimeGetSeconds(currentTimestamp))s, Diff: \(timeDiff * 1000)ms. Clearing audio buffer.")
 
         // Clear buffer and reset timestamp tracking to avoid mixing old and new data
         inputDataBuffer = Data()
@@ -84,11 +76,9 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     let frameDurationInSeconds = 1024.0 / actualSampleRate
 
     // Encode as many full frames as possible
-    while inputDataBuffer.count >= self.configuration.bufferLength {
+    while inputDataBuffer.count >= self.configuration.getBufferLength() {
       guard let startTimestamp = inputBufferStartTimestamp else {
-        #if DEBUG
-        print("[LiveAudioAACEncoder] Error: inputBufferStartTimestamp is nil")
-        #endif
+        Self.logger.error("inputBufferStartTimestamp is nil")
         break
       }
 
@@ -100,14 +90,14 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
                preferredTimescale: 1000000)
       )
 
-      let frameData = inputDataBuffer.prefix(configuration.bufferLength)
+      let frameData = inputDataBuffer.prefix(configuration.getBufferLength())
       encodeBuffer(audioData: Data(frameData), timestamp: frameTimestamp)
 
       // Increment frame count for next iteration
       encodedFrameCountInBuffer += 1
 
       // Remove encoded data
-      inputDataBuffer.removeFirst(configuration.bufferLength)
+      inputDataBuffer.removeFirst(configuration.getBufferLength())
     }
 
     // Reset timestamp tracking when buffer is empty (allows new input to set new timestamp)
@@ -161,17 +151,13 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     var outputDataPacketSize = UInt32(1)
     let status = AudioConverterFillComplexBuffer(converter, inputDataProc, &inBufferList, &outputDataPacketSize, &outBufferList, nil)
     if status != noErr {
-      #if DEBUG
-      print("[LiveAudioAACEncoder] AudioConverterFillComplexBuffer failed with status: \(status)")
-      #endif
+      Self.logger.error("AudioConverterFillComplexBuffer failed with status: \(status)")
       return
     }
 
     // Check if encoder actually produced packets
     if outputDataPacketSize == 0 {
-      #if DEBUG
-      print("[LiveAudioAACEncoder] Warning: No packets encoded, skipping frame")
-      #endif
+      Self.logger.warning("No packets encoded, skipping frame")
       return
     }
 
@@ -180,29 +166,18 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     let actualEncodedData = Data(outputData.prefix(actualOutputSize))
 
     let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: actualEncodedData, header: audioHeader, aacHeader: aacHeader)
-//    let audioFrame = AudioFrame(timestamp: UInt64(timestamp.seconds * 1000), data: outputData, header: audioHeader, aacHeader: aacHeader)
 
-    #if DEBUG
     let compressionRatio = Double(audioData.count) / Double(actualOutputSize)
-    print("[LiveAudioAACEncoder] Encoded audio frame:")
-    print("  Timestamp: \(timestamp.seconds)s")
-    print("  Input: \(audioData.count) bytes")
-    print("  Output: \(actualOutputSize) bytes")
-    print("  Compression ratio: \(String(format: "%.1f", compressionRatio)):1")
-    print("  First 16 bytes: \(actualEncodedData.prefix(16).map { String(format: "%02X", $0) }.joined(separator: " "))")
+    Self.logger.debug("Encoded audio frame - Timestamp: \(timestamp.seconds)s, Input: \(audioData.count) bytes, Output: \(actualOutputSize) bytes, Ratio: \(String(format: "%.1f", compressionRatio)):1")
 
     // Check if this might be ADTS format
     if actualEncodedData.count >= 2 {
       let byte0 = actualEncodedData[0]
       let byte1 = actualEncodedData[1]
       if byte0 == 0xFF && (byte1 & 0xF0) == 0xF0 {
-        print("  ⚠️  WARNING: This looks like ADTS AAC (has sync word 0xFF Fx)!")
-        print("  RTMP expects Raw AAC, not ADTS!")
-      } else {
-        print("  ✓  Format appears to be Raw AAC (no ADTS header)")
+        Self.logger.warning("Encoded data looks like ADTS AAC (has sync word 0xFF Fx). RTMP expects Raw AAC, not ADTS!")
       }
     }
-    #endif
 
     delegate?.audioEncoder(encoder: self, audioFrame: audioFrame)
   }
@@ -215,7 +190,6 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     inUserData ) -> OSStatus in
     
     guard var bufferList = inUserData?.assumingMemoryBound(to: AudioBufferList.self).pointee else {
-      print("AudioBufferList error")
       return noErr
     }
     let buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &bufferList.mBuffers,
@@ -229,19 +203,14 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     return noErr
   }
   
-  private func setupEncoder(sb: CMSampleBuffer) -> Bool {
-    if converter != nil {
-      return true
-    }
-    if !createAudioConvertIfNeeded(sb: sb) {
-      return false
-    }
-    
+  private func setupEncoder(sb: CMSampleBuffer) throws {
+    guard converter == nil else { return }
+
+    try createAudioConvertIfNeeded(sb: sb)
+
     setupHeaderData()
-    
+
     setupBitrate()
-    
-    return true
   }
   
   private func setupHeaderData() {
@@ -250,38 +219,33 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     self.audioHeader = getAudioHeader(outFormatDescription: outFormatDescription)
   }
   
-  private func createAudioConvertIfNeeded(sb: CMSampleBuffer) -> Bool {
-    // 获取音频格式描述
+  private func createAudioConvertIfNeeded(sb: CMSampleBuffer) throws {
+    // Get audio format description
     guard let formatDescription = CMSampleBufferGetFormatDescription(sb) else {
-      print("[LiveAudioAACEncoder] Error: Cannot get audio format description")
-      return false
+      Self.logger.error("Cannot get audio format description")
+      throw LiveError.audioFormatDescriptionMissing
     }
 
-    // 获取音频流基本描述（ASBD）
+    // Get audio stream basic description (ASBD)
     let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)!.pointee
 
-    // 获取采样率（Sample Rate）
+    // Get sample rate
     let sampleRate = audioStreamBasicDescription.mSampleRate
 
-    // 获取通道数（Channels）
+    // Get number of channels
     let channels = audioStreamBasicDescription.mChannelsPerFrame
 
     // Check if format has changed
     if converter != nil {
       if actualSampleRate != sampleRate || actualChannels != channels {
-        #if DEBUG
-        print("[LiveAudioAACEncoder] Warning: Audio format changed!")
-        print("  Previous: \(actualSampleRate) Hz, \(actualChannels) channels")
-        print("  New: \(sampleRate) Hz, \(channels) channels")
-        print("  Reinitializing encoder...")
-        #endif
+        Self.logger.warning("Audio format changed - Previous: \(self.actualSampleRate) Hz, \(self.actualChannels) channels, New: \(sampleRate) Hz, \(channels) channels. Reinitializing encoder.")
         // Reset converter to reinitialize with new format
         converter = nil
         inputDataBuffer = Data()
         inputBufferStartTimestamp = nil
         encodedFrameCountInBuffer = 0
       } else {
-        return true
+        return
       }
     }
 
@@ -292,17 +256,9 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     // Copy the actual format flags from input to match byte order and other properties
     let inputFormatFlags = audioStreamBasicDescription.mFormatFlags
 
-    #if DEBUG
-    print("[LiveAudioAACEncoder] Initializing encoder with format:")
-    print("  Sample Rate: \(sampleRate) Hz")
-    print("  Channels: \(channels)")
-    print("  Format Flags: 0x\(String(format: "%X", inputFormatFlags))")
     let isBigEndian = (inputFormatFlags & kAudioFormatFlagIsBigEndian) != 0
     let isNonInterleaved = (inputFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
-    print("  Byte Order: \(isBigEndian ? "Big-Endian" : "Little-Endian")")
-    print("  Interleaved: \(!isNonInterleaved)")
-    print("  Buffer Length: \(configuration.bufferLength) bytes")
-    #endif
+    Self.logger.debug("Initializing encoder - Sample Rate: \(sampleRate) Hz, Channels: \(channels), Flags: 0x\(String(format: "%X", inputFormatFlags)), Byte Order: \(isBigEndian ? "Big-Endian" : "Little-Endian"), Interleaved: \(!isNonInterleaved), Buffer Length: \(self.configuration.getBufferLength()) bytes")
 
     var inputFormat = AudioStreamBasicDescription()
     inputFormat.mSampleRate = sampleRate
@@ -314,21 +270,21 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     inputFormat.mBitsPerChannel = 16
     inputFormat.mBytesPerFrame = inputFormat.mBitsPerChannel / 8 * inputFormat.mChannelsPerFrame
     inputFormat.mBytesPerPacket = inputFormat.mBytesPerFrame * inputFormat.mFramesPerPacket
-    
-    // 输出音频格式
+
+    // Output audio format
     var outputFormat = AudioStreamBasicDescription()
-    outputFormat.mSampleRate = inputFormat.mSampleRate // 采样率保持一致
+    outputFormat.mSampleRate = inputFormat.mSampleRate // Keep same sample rate
     outputFormat.mFormatFlags = UInt32(MPEG4ObjectID.AAC_LC.rawValue)
-    outputFormat.mFormatID = kAudioFormatMPEG4AAC // AAC编码 kAudioFormatMPEG4AAC kAudioFormatMPEG4AAC_HE_V2
+    outputFormat.mFormatID = kAudioFormatMPEG4AAC // AAC encoding
     outputFormat.mChannelsPerFrame = channels
     outputFormat.mFramesPerPacket = 1024 // AAC frame size: 1024 samples per frame
     var outFormatDescription: CMFormatDescription?
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &outputFormat, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
     self.outFormatDescription = outFormatDescription
     
-    
-    // hard encoder and soft encoder
-    // audio default is soft encoder
+
+    // Hardware encoder and software encoder
+    // Audio default is software encoder
     let subtype = kAudioFormatMPEG4AAC
     let requestedCodecs: [AudioClassDescription] = [
       .init(
@@ -340,13 +296,17 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
         mSubType: subtype,
         mManufacturer: kAppleHardwareAudioCodecManufacturer)
     ]
-    
+
     let result = AudioConverterNewSpecific(&inputFormat, &outputFormat, 2, requestedCodecs, &converter)
     if result != noErr {
-      return false
+      Self.logger.error("AudioConverterNewSpecific failed with status: \(result)")
+      throw LiveError.audioConverterCreationFailed(result)
     }
-    
-    return converter != nil
+
+    guard converter != nil else {
+      Self.logger.error("Audio converter is nil after creation")
+      throw LiveError.audioConverterCreationFailed(result)
+    }
   }
   
   private func setupBitrate() {
@@ -375,14 +335,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     descData.write(AudioData.AACPacketType.header.rawValue)
     descData.append(config.encodeData)
 
-    #if DEBUG
-    print("[LiveAudioAACEncoder] Audio Header constructed:")
-    print("  ObjectType: \(mp4Id.rawValue)")
-    print("  Channel Config: \(streamBasicDesc.mChannelsPerFrame)")
-    print("  Sample Rate: \(streamBasicDesc.mSampleRate)")
-    print("  AudioSpecificConfig: \(config.encodeData.map { String(format: "%02X", $0) }.joined(separator: " "))")
-    print("  Full header (\(descData.count) bytes): \(descData.prefix(20).map { String(format: "%02X", $0) }.joined(separator: " "))")
-    #endif
+    Self.logger.debug("Audio Header constructed - ObjectType: \(mp4Id.rawValue), Channels: \(streamBasicDesc.mChannelsPerFrame), Sample Rate: \(streamBasicDesc.mSampleRate)")
 
     return descData
   }
@@ -406,13 +359,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
                  AudioData.SoundSize.snd16Bit.rawValue << 1 |
                  soundType.rawValue)
 
-    #if DEBUG
-    print("[LiveAudioAACEncoder] AAC Header:")
-    print("  Format: AAC")
-    print("  Sample Rate: \(streamBasicDesc.mSampleRate) Hz")
-    print("  Channels: \(streamBasicDesc.mChannelsPerFrame) (\(soundType == .sndMono ? "mono" : "stereo"))")
-    print("  Header byte: 0x\(String(format: "%02X", value))")
-    #endif
+    Self.logger.debug("AAC Header - Format: AAC, Sample Rate: \(streamBasicDesc.mSampleRate) Hz, Channels: \(streamBasicDesc.mChannelsPerFrame) (\(soundType == .sndMono ? "mono" : "stereo")), Header byte: 0x\(String(format: "%02X", value))")
 
     return Data([UInt8(value)])
   }

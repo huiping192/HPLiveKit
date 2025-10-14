@@ -272,7 +272,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
-        encoder.encodeVideo(sampleBuffer: sampleBuffer)
+        try? encoder.encodeVideo(sampleBuffer: sampleBuffer)
     }
 
     /// Push app audio sample buffer (for RPBroadcastSampleHandler)
@@ -286,7 +286,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
-        encoder.encodeAudio(sampleBuffer: sampleBuffer)
+        try? encoder.encodeAudio(sampleBuffer: sampleBuffer)
     }
 
     /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
@@ -353,13 +353,13 @@ extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
 
-    encoder.encodeAudio(sampleBuffer: audio)
+    try? encoder.encodeAudio(sampleBuffer: audio)
   }
 
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
 
-    encoder.encodeVideo(sampleBuffer: video)
+    try? encoder.encodeVideo(sampleBuffer: video)
   }
 }
 
