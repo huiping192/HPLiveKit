@@ -84,6 +84,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // video,audio encoder
     private let encoder: EncoderManager
 
+    // timestamp synchronizer
+    private let timestampSynchronizer = TimestampSynchronizer()
+
     // 推流 publisher
     private var publisher: Publisher?
 
@@ -272,6 +275,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
+        timestampSynchronizer.recordIfNeeded(sampleBuffer)
         try? encoder.encodeVideo(sampleBuffer: sampleBuffer)
     }
 
@@ -286,6 +290,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
+        timestampSynchronizer.recordIfNeeded(sampleBuffer)
         try? encoder.encodeAudio(sampleBuffer: sampleBuffer)
     }
 
@@ -353,12 +358,14 @@ extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
 
+    timestampSynchronizer.recordIfNeeded(audio)
     try? encoder.encodeAudio(sampleBuffer: audio)
   }
 
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
 
+    timestampSynchronizer.recordIfNeeded(video)
     try? encoder.encodeVideo(sampleBuffer: video)
   }
 }
@@ -367,17 +374,19 @@ extension LiveSession: EncoderManagerDelegate {
   public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
     guard uploading else { return }
     hasCapturedAudio = true
-    
-    pushFrame(frame: audioFrame)
+
+    let normalizedFrame = timestampSynchronizer.normalize(audioFrame)
+    pushFrame(frame: normalizedFrame)
   }
-  
+
   public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
     guard uploading else { return }
-    
+
     if videoFrame.isKeyFrame && self.hasCapturedAudio {
       hasCapturedKeyFrame = true
     }
-    pushFrame(frame: videoFrame)
+    let normalizedFrame = timestampSynchronizer.normalize(videoFrame)
+    pushFrame(frame: normalizedFrame)
   }
 }
 
@@ -387,7 +396,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
-            encoder.resetTimestamp()  // Reset timestamp to start from 0
+            timestampSynchronizer.reset()  // Reset timestamp to start from 0
             uploading = true
         }
 
