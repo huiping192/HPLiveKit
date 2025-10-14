@@ -30,6 +30,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
   // Track actual audio format from input sample buffer
   private var actualChannels: UInt32 = 0
   private var actualSampleRate: Double = 0
+  private var actualBitsPerChannel: UInt32 = 16
 
   // Track timestamp for accumulated buffer
   private var inputBufferStartTimestamp: CMTime?
@@ -39,7 +40,13 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
 
   // Track last timestamp for detecting jumps
   private var lastInputTimestamp: CMTime?
-  
+
+  // Calculate buffer length based on actual audio format
+  // AAC frame size is 1024 samples: 1024 samples * (bits/8) bytes/sample * channels
+  private var bufferLength: Int {
+    return 1024 * Int(actualBitsPerChannel / 8) * Int(actualChannels)
+  }
+
   required init(configuration: LiveAudioConfiguration) {
     self.configuration = configuration
   }
@@ -76,7 +83,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     let frameDurationInSeconds = 1024.0 / actualSampleRate
 
     // Encode as many full frames as possible
-    while inputDataBuffer.count >= self.configuration.getBufferLength() {
+    while inputDataBuffer.count >= self.bufferLength {
       guard let startTimestamp = inputBufferStartTimestamp else {
         Self.logger.error("inputBufferStartTimestamp is nil")
         break
@@ -90,14 +97,14 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
                preferredTimescale: 1000000)
       )
 
-      let frameData = inputDataBuffer.prefix(configuration.getBufferLength())
+      let frameData = inputDataBuffer.prefix(bufferLength)
       encodeBuffer(audioData: Data(frameData), timestamp: frameTimestamp)
 
       // Increment frame count for next iteration
       encodedFrameCountInBuffer += 1
 
       // Remove encoded data
-      inputDataBuffer.removeFirst(configuration.getBufferLength())
+      inputDataBuffer.removeFirst(bufferLength)
     }
 
     // Reset timestamp tracking when buffer is empty (allows new input to set new timestamp)
@@ -113,6 +120,10 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
 
     audioHeader = nil
     aacHeader = nil
+
+    actualChannels = 0
+    actualSampleRate = 0
+    actualBitsPerChannel = 16
 
     inputBufferStartTimestamp = nil
     encodedFrameCountInBuffer = 0
@@ -235,10 +246,13 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     // Get number of channels
     let channels = audioStreamBasicDescription.mChannelsPerFrame
 
+    // Get bits per channel
+    let bitsPerChannel = audioStreamBasicDescription.mBitsPerChannel
+
     // Check if format has changed
     if converter != nil {
-      if actualSampleRate != sampleRate || actualChannels != channels {
-        Self.logger.warning("Audio format changed - Previous: \(self.actualSampleRate) Hz, \(self.actualChannels) channels, New: \(sampleRate) Hz, \(channels) channels. Reinitializing encoder.")
+      if actualSampleRate != sampleRate || actualChannels != channels || actualBitsPerChannel != bitsPerChannel {
+        Self.logger.warning("Audio format changed - Previous: \(self.actualSampleRate) Hz, \(self.actualChannels) channels, \(self.actualBitsPerChannel) bits, New: \(sampleRate) Hz, \(channels) channels, \(bitsPerChannel) bits. Reinitializing encoder.")
         // Reset converter to reinitialize with new format
         converter = nil
         inputDataBuffer = Data()
@@ -252,13 +266,19 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     // Save actual format parameters
     self.actualSampleRate = sampleRate
     self.actualChannels = channels
+    self.actualBitsPerChannel = bitsPerChannel
+
+    // Check bit depth compatibility (RTMP protocol limitation)
+    if bitsPerChannel != 16 && bitsPerChannel != 8 {
+      Self.logger.warning("⚠️ Non-standard audio bit depth: \(bitsPerChannel)-bit detected. RTMP only supports 8-bit and 16-bit. Will be mapped to 16-bit in RTMP header.")
+    }
 
     // Copy the actual format flags from input to match byte order and other properties
     let inputFormatFlags = audioStreamBasicDescription.mFormatFlags
 
     let isBigEndian = (inputFormatFlags & kAudioFormatFlagIsBigEndian) != 0
     let isNonInterleaved = (inputFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
-    Self.logger.debug("Initializing encoder - Sample Rate: \(sampleRate) Hz, Channels: \(channels), Flags: 0x\(String(format: "%X", inputFormatFlags)), Byte Order: \(isBigEndian ? "Big-Endian" : "Little-Endian"), Interleaved: \(!isNonInterleaved), Buffer Length: \(self.configuration.getBufferLength()) bytes")
+    Self.logger.debug("Initializing encoder - Sample Rate: \(sampleRate) Hz, Channels: \(channels), Bits Per Channel: \(bitsPerChannel), Flags: 0x\(String(format: "%X", inputFormatFlags)), Byte Order: \(isBigEndian ? "Big-Endian" : "Little-Endian"), Interleaved: \(!isNonInterleaved), Buffer Length: \(self.bufferLength) bytes")
 
     var inputFormat = AudioStreamBasicDescription()
     inputFormat.mSampleRate = sampleRate
@@ -267,7 +287,7 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     inputFormat.mFormatFlags = inputFormatFlags
     inputFormat.mChannelsPerFrame = channels
     inputFormat.mFramesPerPacket = 1
-    inputFormat.mBitsPerChannel = 16
+    inputFormat.mBitsPerChannel = bitsPerChannel
     inputFormat.mBytesPerFrame = inputFormat.mBitsPerChannel / 8 * inputFormat.mChannelsPerFrame
     inputFormat.mBytesPerPacket = inputFormat.mBytesPerFrame * inputFormat.mFramesPerPacket
 
@@ -354,12 +374,16 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     // Determine sound type based on actual number of channels
     let soundType: AudioData.SoundType = streamBasicDesc.mChannelsPerFrame == 1 ? .sndMono : .sndStereo
 
+    // Determine sound size based on actual bit depth
+    // RTMP only supports 8-bit and 16-bit, other bit depths are mapped to 16-bit
+    let soundSize: AudioData.SoundSize = actualBitsPerChannel <= 8 ? .snd8Bit : .snd16Bit
+
     let value = (AudioData.SoundFormat.aac.rawValue << 4 |
                  AudioData.SoundRate(value: streamBasicDesc.mSampleRate).rawValue << 2 |
-                 AudioData.SoundSize.snd16Bit.rawValue << 1 |
+                 soundSize.rawValue << 1 |
                  soundType.rawValue)
 
-    Self.logger.debug("AAC Header - Format: AAC, Sample Rate: \(streamBasicDesc.mSampleRate) Hz, Channels: \(streamBasicDesc.mChannelsPerFrame) (\(soundType == .sndMono ? "mono" : "stereo")), Header byte: 0x\(String(format: "%02X", value))")
+    Self.logger.debug("AAC Header - Format: AAC, Sample Rate: \(streamBasicDesc.mSampleRate) Hz, Channels: \(streamBasicDesc.mChannelsPerFrame) (\(soundType == .sndMono ? "mono" : "stereo")), Bits: \(self.actualBitsPerChannel) (SoundSize: \(soundSize == .snd8Bit ? "8-bit" : "16-bit")), Header byte: 0x\(String(format: "%02X", value))")
 
     return Data([UInt8(value)])
   }
