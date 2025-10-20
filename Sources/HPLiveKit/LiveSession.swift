@@ -81,11 +81,16 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // video,audio data source (only for camera mode)
     private let capture: CaptureManager?
 
-    // video,audio encoder
-    private let encoder: EncoderManager
+    // video,audio encoders (Actor-based, thread-safe)
+    private let audioEncoder: LiveAudioAACEncoder
+    private let videoEncoder: LiveVideoH264Encoder
 
     // timestamp synchronizer
     private let timestampSynchronizer = TimestampSynchronizer()
+
+    // Encoder output stream processing tasks
+    private var audioEncoderTask: Task<Void, Never>?
+    private var videoEncoderTask: Task<Void, Never>?
 
     // 推流 publisher
     private var publisher: Publisher?
@@ -146,7 +151,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
             capture = nil
         }
 
-        encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        // Create encoders directly (no EncoderManager needed)
+        audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
+        videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
 
         // Initialize AsyncStream for frame processing
         var continuation: AsyncStream<any Frame>.Continuation!
@@ -158,10 +165,12 @@ public class LiveSession: NSObject, @unchecked Sendable {
         super.init()
 
         capture?.delegate = self
-        encoder.delegate = self
 
         // Start frame processing task
         startFrameProcessing()
+
+        // Start encoder output stream subscriptions
+        startEncoderStreams()
     }
 
     /// Screen share dedicated initializer
@@ -216,6 +225,10 @@ public class LiveSession: NSObject, @unchecked Sendable {
         stopCapturing()
         frameProcessingTask?.cancel()
         frameContinuation.finish()
+
+        // Cancel encoder output stream tasks
+        audioEncoderTask?.cancel()
+        videoEncoderTask?.cancel()
     }
 
   public func startLive(streamInfo: LiveStreamInfo) {
@@ -276,7 +289,8 @@ public class LiveSession: NSObject, @unchecked Sendable {
         guard uploading else { return }
 
         timestampSynchronizer.recordIfNeeded(sampleBuffer)
-        try? encoder.encodeVideo(sampleBuffer: sampleBuffer)
+        // Directly encode video (non-blocking, encoder is Actor-based)
+        videoEncoder.encode(sampleBuffer: sampleBuffer)
     }
 
     /// Push app audio sample buffer (for RPBroadcastSampleHandler)
@@ -291,7 +305,8 @@ public class LiveSession: NSObject, @unchecked Sendable {
         guard uploading else { return }
 
         timestampSynchronizer.recordIfNeeded(sampleBuffer)
-        try? encoder.encodeAudio(sampleBuffer: sampleBuffer)
+        // Directly encode audio (non-blocking, encoder is Actor-based)
+        audioEncoder.encode(sampleBuffer: sampleBuffer)
     }
 
     /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
@@ -347,6 +362,37 @@ private extension LiveSession {
         }
     }
 
+    /// Start encoder output stream subscriptions
+    /// Subscribe to encoder output streams and process encoded frames
+    func startEncoderStreams() {
+        // Subscribe to audio encoder output
+        audioEncoderTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await audioFrame in await self.audioEncoder.outputStream {
+                guard self.uploading else { continue }
+                self.hasCapturedAudio = true
+
+                let normalizedFrame = self.timestampSynchronizer.normalize(audioFrame)
+                self.pushFrame(frame: normalizedFrame)
+            }
+        }
+
+        // Subscribe to video encoder output
+        videoEncoderTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await videoFrame in await self.videoEncoder.outputStream {
+                guard self.uploading else { continue }
+
+                if videoFrame.isKeyFrame && self.hasCapturedAudio {
+                    self.hasCapturedKeyFrame = true
+                }
+
+                let normalizedFrame = self.timestampSynchronizer.normalize(videoFrame)
+                self.pushFrame(frame: normalizedFrame)
+            }
+        }
+    }
+
     func pushFrame(frame: any Frame) {
         // Use yield instead of creating a new Task
         // This ensures frames are processed in the exact order they are received
@@ -359,34 +405,16 @@ extension LiveSession: CaptureManagerDelegate {
     guard uploading else { return }
 
     timestampSynchronizer.recordIfNeeded(audio)
-    try? encoder.encodeAudio(sampleBuffer: audio)
+    // Directly encode audio (non-blocking, encoder is Actor-based)
+    audioEncoder.encode(sampleBuffer: audio)
   }
 
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
 
     timestampSynchronizer.recordIfNeeded(video)
-    try? encoder.encodeVideo(sampleBuffer: video)
-  }
-}
-
-extension LiveSession: EncoderManagerDelegate {
-  public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
-    guard uploading else { return }
-    hasCapturedAudio = true
-
-    let normalizedFrame = timestampSynchronizer.normalize(audioFrame)
-    pushFrame(frame: normalizedFrame)
-  }
-
-  public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
-    guard uploading else { return }
-
-    if videoFrame.isKeyFrame && self.hasCapturedAudio {
-      hasCapturedKeyFrame = true
-    }
-    let normalizedFrame = timestampSynchronizer.normalize(videoFrame)
-    pushFrame(frame: normalizedFrame)
+    // Directly encode video (non-blocking, encoder is Actor-based)
+    videoEncoder.encode(sampleBuffer: video)
   }
 }
 
@@ -413,26 +441,30 @@ extension LiveSession: PublisherDelegate {
         // only adjust video bitrate, audio cannot
         guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
 
-        let videoBitRate = encoder.videoBitRate
+        // Adjust video bitrate asynchronously (encoder is Actor-based)
+        Task { [weak self] in
+            guard let self = self else { return }
 
-        if bufferStatus == .decline && videoBitRate < videoConfiguration.videoMaxBitRate {
-            let adjustedVideoBitRate = min(videoBitRate + 50 * 1000, videoConfiguration.videoMaxBitRate)
-            encoder.videoBitRate = adjustedVideoBitRate
-            #if DEBUG
-            print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
-            #endif
-            return
+            let videoBitRate = await self.videoEncoder.currentVideoBitRate
+
+            if bufferStatus == .decline && videoBitRate < self.videoConfiguration.videoMaxBitRate {
+                let adjustedVideoBitRate = min(videoBitRate + 50 * 1000, self.videoConfiguration.videoMaxBitRate)
+                await self.videoEncoder.setVideoBitRate(adjustedVideoBitRate)
+                #if DEBUG
+                print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+                #endif
+                return
+            }
+
+            if bufferStatus == .increase && videoBitRate > self.videoConfiguration.videoMinBitRate {
+                let adjustedVideoBitRate = max(videoBitRate - 100 * 1000, self.videoConfiguration.videoMinBitRate)
+                await self.videoEncoder.setVideoBitRate(adjustedVideoBitRate)
+                #if DEBUG
+                print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+                #endif
+                return
+            }
         }
-
-        if bufferStatus == .increase && videoBitRate > videoConfiguration.videoMinBitRate {
-            let adjustedVideoBitRate = max(videoBitRate - 100 * 1000, videoConfiguration.videoMinBitRate)
-            encoder.videoBitRate = adjustedVideoBitRate
-            #if DEBUG
-            print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
-            #endif
-            return
-        }
-
     }
 
     func publisher(publisher: Publisher, errorCode: LiveSocketErrorCode) {
