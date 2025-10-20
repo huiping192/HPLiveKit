@@ -8,35 +8,27 @@
 import Foundation
 import AVFoundation
 
-// Protocol for handling video encoding events
-protocol VideoEncoderDelegate: AnyObject {
-  
-  // This method is called whenever the encoder successfully encodes a video frame.
-  // The encoded frame is passed as an argument.
-  func videoEncoder(encoder: VideoEncoder, frame: VideoFrame)
-}
+/// Video encoder protocol using Swift 6 Actor model for thread safety
+/// Output is delivered via AsyncStream instead of delegate callbacks
+protocol VideoEncoder: Actor {
 
-// Protocol for encoding video data
-protocol VideoEncoder: AnyObject {
+  /// Output stream for encoded video frames
+  /// Subscribe to this stream to receive encoded frames asynchronously
+  var outputStream: AsyncStream<VideoFrame> { get }
 
-  // Method to encode a video frame.
-  // The sample buffer contains the raw video data that needs to be encoded.
-  // Throws LiveError if encoding fails.
-  func encode(sampleBuffer: CMSampleBuffer) throws
-  
-  // Property representing the bit rate of the video encoder.
-  // Higher bit rate generally means better video quality but increased bandwidth consumption.
-  var videoBitRate: UInt { get set }
-  
-  // Initializer for the VideoEncoder.
-  // The configuration specifies various encoding settings like resolution, frame rate, etc.
-  init(configuration: LiveVideoConfiguration)
-  
-  // Delegate property for receiving encoding events.
-  // The delegate must conform to `VideoEncoderDelegate`.
-  var delegate: VideoEncoderDelegate? { get set }
-  
-  // Method to stop the encoder.
-  // This can be useful to release resources when encoding is not needed.
+  /// Encodes a video sample buffer (non-blocking)
+  /// This method returns immediately and yields the sample buffer to internal processing stream
+  /// - Parameter sampleBuffer: The video sample buffer containing raw video data
+  nonisolated func encode(sampleBuffer: CMSampleBuffer)
+
+  /// Dynamically adjusts the video bit rate
+  /// Higher bit rate means better quality but increased bandwidth
+  /// - Parameter bitRate: New bit rate value in bits per second
+  func setVideoBitRate(_ bitRate: UInt) async
+
+  /// Gets the current video bit rate
+  var currentVideoBitRate: UInt { get }
+
+  /// Stops the encoder and finishes all streams
   func stop()
 }
