@@ -37,8 +37,13 @@ class TimestampSynchronizer {
             return frame
         }
 
+        // Prevent UInt64 underflow crash
+        let normalizedTimestamp = frame.timestamp >= base
+            ? frame.timestamp - base
+            : 0
+
         return AudioFrame(
-            timestamp: frame.timestamp - base,
+            timestamp: normalizedTimestamp,
             data: frame.data,
             header: frame.header,
             aacHeader: frame.aacHeader
@@ -56,8 +61,13 @@ class TimestampSynchronizer {
             return frame
         }
 
+        // Prevent UInt64 underflow crash
+        let normalizedTimestamp = frame.timestamp >= base
+            ? frame.timestamp - base
+            : 0
+
         return VideoFrame(
-            timestamp: frame.timestamp - base,
+            timestamp: normalizedTimestamp,
             data: frame.data,
             header: frame.header,
             isKeyFrame: frame.isKeyFrame,
