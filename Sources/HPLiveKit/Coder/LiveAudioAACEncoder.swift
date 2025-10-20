@@ -54,12 +54,6 @@ actor LiveAudioAACEncoder: AudioEncoder {
   private var actualSampleRate: Double = 0
   private var actualBitsPerChannel: UInt32 = 16
 
-  // Track timestamp for accumulated buffer
-  private var inputBufferStartTimestamp: CMTime?
-
-  // Track number of frames encoded from current buffer
-  private var encodedFrameCountInBuffer: Int = 0
-
   /// Processing task that consumes input stream and performs encoding
   /// Must be nonisolated(unsafe) to allow assignment in init
   nonisolated(unsafe) private var processingTask: Task<Void, Never>?
@@ -75,14 +69,12 @@ actor LiveAudioAACEncoder: AudioEncoder {
   init(configuration: LiveAudioConfiguration) {
     self.configuration = configuration
 
-    // Create input stream
     var inputCont: AsyncStream<CMSampleBuffer>.Continuation!
     self.inputStream = AsyncStream { continuation in
       inputCont = continuation
     }
     self.inputContinuation = inputCont
 
-    // Create output stream
     var outputCont: AsyncStream<AudioFrame>.Continuation!
     self._outputStream = AsyncStream { continuation in
       outputCont = continuation
@@ -106,14 +98,11 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
   /// Stops the encoder and finishes all streams
   func stop() {
-    // Cancel processing task
     processingTask?.cancel()
 
-    // Finish streams
     inputContinuation.finish()
     outputContinuation.finish()
 
-    // Clean up resources
     converter = nil
     inputDataBuffer = Data()
 
@@ -123,9 +112,6 @@ actor LiveAudioAACEncoder: AudioEncoder {
     actualChannels = 0
     actualSampleRate = 0
     actualBitsPerChannel = 16
-
-    inputBufferStartTimestamp = nil
-    encodedFrameCountInBuffer = 0
   }
 
   // MARK: - Private Processing Loop
@@ -144,50 +130,16 @@ actor LiveAudioAACEncoder: AudioEncoder {
       let audioData = sampleBuffer.audioRawData
       let currentTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
-      // If buffer is empty, record the start timestamp and reset frame count
-      if inputDataBuffer.isEmpty {
-        inputBufferStartTimestamp = currentTimestamp
-        encodedFrameCountInBuffer = 0
-      }
-
       inputDataBuffer.append(audioData)
 
-      // Calculate frame duration: 1024 samples / sample rate
-      let frameDurationInSeconds = 1024.0 / actualSampleRate
-
-      // Encode as many full frames as possible
       while inputDataBuffer.count >= self.bufferLength {
-        guard let startTimestamp = inputBufferStartTimestamp else {
-          Self.logger.error("inputBufferStartTimestamp is nil")
-          break
-        }
-
-        // Calculate current frame's timestamp based on start timestamp + frame index
-        // This approach is more accurate and handles timestamp jumps better
-        let frameTimestamp = CMTimeAdd(
-          startTimestamp,
-          CMTime(seconds: Double(encodedFrameCountInBuffer) * frameDurationInSeconds,
-                 preferredTimescale: 1000000)
-        )
-
         let frameData = inputDataBuffer.prefix(bufferLength)
 
-        // Encode and yield to output stream
-        if let audioFrame = encodeBuffer(audioData: Data(frameData), timestamp: frameTimestamp) {
+        if let audioFrame = encodeBuffer(audioData: Data(frameData), timestamp: currentTimestamp) {
           outputContinuation.yield(audioFrame)
         }
 
-        // Increment frame count for next iteration
-        encodedFrameCountInBuffer += 1
-
-        // Remove encoded data
         inputDataBuffer.removeFirst(bufferLength)
-      }
-
-      // Reset timestamp tracking when buffer is empty (allows new input to set new timestamp)
-      if inputDataBuffer.isEmpty {
-        inputBufferStartTimestamp = nil
-        encodedFrameCountInBuffer = 0
       }
     } catch {
       Self.logger.error("Encoding failed: \(error.localizedDescription)")
@@ -213,7 +165,6 @@ actor LiveAudioAACEncoder: AudioEncoder {
                                                           count: Int(inBufferList.mNumberBuffers))
     buffers[0] = inBuffer
 
-    // Initialize output buffer list
     var outputData = Data(count: Int(inBuffer.mDataByteSize))
     var outBufferList = AudioBufferList()
     outBufferList.mNumberBuffers = 1
@@ -298,39 +249,28 @@ actor LiveAudioAACEncoder: AudioEncoder {
   }
 
   private func createAudioConvertIfNeeded(sb: CMSampleBuffer) throws {
-    // Get audio format description
     guard let formatDescription = CMSampleBufferGetFormatDescription(sb) else {
       Self.logger.error("Cannot get audio format description")
       throw LiveError.audioFormatDescriptionMissing
     }
 
-    // Get audio stream basic description (ASBD)
     let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)!.pointee
 
-    // Get sample rate
     let sampleRate = audioStreamBasicDescription.mSampleRate
-
-    // Get number of channels
     let channels = audioStreamBasicDescription.mChannelsPerFrame
-
-    // Get bits per channel
     let bitsPerChannel = audioStreamBasicDescription.mBitsPerChannel
 
-    // Check if format has changed
     if converter != nil {
       if actualSampleRate != sampleRate || actualChannels != channels || actualBitsPerChannel != bitsPerChannel {
         Self.logger.warning("Audio format changed - Previous: \(self.actualSampleRate) Hz, \(self.actualChannels) channels, \(self.actualBitsPerChannel) bits, New: \(sampleRate) Hz, \(channels) channels, \(bitsPerChannel) bits. Reinitializing encoder.")
         // Reset converter to reinitialize with new format
         converter = nil
         inputDataBuffer = Data()
-        inputBufferStartTimestamp = nil
-        encodedFrameCountInBuffer = 0
       } else {
         return
       }
     }
 
-    // Save actual format parameters
     self.actualSampleRate = sampleRate
     self.actualChannels = channels
     self.actualBitsPerChannel = bitsPerChannel
@@ -358,7 +298,6 @@ actor LiveAudioAACEncoder: AudioEncoder {
     inputFormat.mBytesPerFrame = inputFormat.mBitsPerChannel / 8 * inputFormat.mChannelsPerFrame
     inputFormat.mBytesPerPacket = inputFormat.mBytesPerFrame * inputFormat.mFramesPerPacket
 
-    // Output audio format
     var outputFormat = AudioStreamBasicDescription()
     outputFormat.mSampleRate = inputFormat.mSampleRate // Keep same sample rate
     outputFormat.mFormatFlags = UInt32(MPEG4ObjectID.AAC_LC.rawValue)
@@ -369,9 +308,6 @@ actor LiveAudioAACEncoder: AudioEncoder {
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &outputFormat, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
     self.outFormatDescription = outFormatDescription
 
-
-    // Hardware encoder and software encoder
-    // Audio default is software encoder
     let subtype = kAudioFormatMPEG4AAC
     let requestedCodecs: [AudioClassDescription] = [
       .init(
