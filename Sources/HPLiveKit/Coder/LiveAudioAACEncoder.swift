@@ -38,9 +38,6 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
   // Track number of frames encoded from current buffer
   private var encodedFrameCountInBuffer: Int = 0
 
-  // Track last timestamp for detecting jumps
-  private var lastInputTimestamp: CMTime?
-
   // Calculate buffer length based on actual audio format
   // AAC frame size is 1024 samples: 1024 samples * (bits/8) bytes/sample * channels
   private var bufferLength: Int {
@@ -55,21 +52,6 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
     try setupEncoder(sb: sampleBuffer)
     let audioData = sampleBuffer.audioRawData
     let currentTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-
-    // Check for timestamp jumps
-    if let lastTS = lastInputTimestamp {
-      let timeDiff = CMTimeGetSeconds(CMTimeSubtract(currentTimestamp, lastTS))
-      // Use 200ms threshold to avoid false positives in screen share scenarios
-      if timeDiff < 0 || timeDiff > 0.2 {
-        Self.logger.warning("Timestamp jump detected - Previous: \(CMTimeGetSeconds(lastTS))s, Current: \(CMTimeGetSeconds(currentTimestamp))s, Diff: \(timeDiff * 1000)ms. Clearing audio buffer.")
-
-        // Clear buffer and reset timestamp tracking to avoid mixing old and new data
-        inputDataBuffer = Data()
-        inputBufferStartTimestamp = nil
-        encodedFrameCountInBuffer = 0
-      }
-    }
-    lastInputTimestamp = currentTimestamp
 
     // If buffer is empty, record the start timestamp and reset frame count
     if inputDataBuffer.isEmpty {
@@ -127,7 +109,6 @@ class LiveAudioAACEncoder: AudioEncoder, @unchecked Sendable {
 
     inputBufferStartTimestamp = nil
     encodedFrameCountInBuffer = 0
-    lastInputTimestamp = nil
   }
     
   private func encodeBuffer(audioData: Data, timestamp: CMTime) {
