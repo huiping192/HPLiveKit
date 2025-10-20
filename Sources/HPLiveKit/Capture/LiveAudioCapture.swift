@@ -102,6 +102,7 @@ class LiveAudioCapture: NSObject {
 extension LiveAudioCapture {
   private func configureAudioSession() {
     try? session.setPreferredSampleRate(Double(configuration.audioSampleRate.rawValue))
+    try? session.setPreferredOutputNumberOfChannels(Int(configuration.numberOfChannels))
     try? session.setCategory(AVAudioSession.Category.playAndRecord, options: [.defaultToSpeaker, .interruptSpokenAudioAndMixWithOthers])
     
     try? session.setActive(true, options: [.notifyOthersOnDeactivation])

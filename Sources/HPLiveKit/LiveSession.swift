@@ -10,6 +10,12 @@ import Foundation
 import UIKit
 import CoreMedia
 
+/// Live session mode
+public enum LiveSessionMode {
+    case camera        // Camera capture mode
+    case screenShare   // Screen share mode (for RPBroadcastSampleHandler)
+}
+
 //< only video (External input video)
 struct LiveCaptureType: OptionSet {
     public let rawValue: Int
@@ -72,11 +78,14 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private let audioConfiguration: LiveAudioConfiguration
     private let videoConfiguration: LiveVideoConfiguration
 
-    // video,audio data source
-    private let capture: CaptureManager
+    // video,audio data source (only for camera mode)
+    private let capture: CaptureManager?
 
     // video,audio encoder
     private let encoder: EncoderManager
+
+    // timestamp synchronizer
+    private let timestampSynchronizer = TimestampSynchronizer()
 
     // 推流 publisher
     private var publisher: Publisher?
@@ -91,64 +100,143 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private var state: LiveState?
     // 当前直播type current live type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
+    // 当前模式 (camera or screenShare)
+    private let mode: LiveSessionMode
     /// 当前是否采集到了音频
     private var hasCapturedAudio: Bool = false
     /// 当前是否采集到了关键帧
     private var hasCapturedKeyFrame: Bool = false
 
+    // Frame processing with AsyncStream to ensure sequential order
+    private let frameStream: AsyncStream<any Frame>
+    private let frameContinuation: AsyncStream<any Frame>.Continuation
+    private var frameProcessingTask: Task<Void, Never>?
+
     public var preview: UIView? {
         get {
-            capture.preview
+            capture?.preview
         }
         set {
-            capture.preview = newValue
+            capture?.preview = newValue
         }
     }
 
     public var mute: Bool = false {
         didSet {
-            capture.mute = mute
+            capture?.mute = mute
         }
     }
-  
+
   public var captureDevicePositionFront: Bool = true {
     didSet {
-      capture.captureDevicePositionFront = captureDevicePositionFront
+      capture?.captureDevicePositionFront = captureDevicePositionFront
     }
   }
 
 
-    public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
+    public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration, mode: LiveSessionMode = .camera) {
         self.audioConfiguration = audioConfiguration
         self.videoConfiguration = videoConfiguration
+        self.mode = mode
 
-        capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        // Only create CaptureManager in camera mode to avoid requesting camera/mic permissions
+        if mode == .camera {
+            capture = CaptureManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+        } else {
+            capture = nil
+        }
+
         encoder = EncoderManager(audioConfiguration: audioConfiguration, videoConfiguration: videoConfiguration)
+
+        // Initialize AsyncStream for frame processing
+        var continuation: AsyncStream<any Frame>.Continuation!
+        self.frameStream = AsyncStream<any Frame> { cont in
+            continuation = cont
+        }
+        self.frameContinuation = continuation
 
         super.init()
 
-        capture.delegate = self
-
+        capture?.delegate = self
         encoder.delegate = self
+
+        // Start frame processing task
+        startFrameProcessing()
+    }
+
+    /// Screen share dedicated initializer
+    /// - Parameters:
+    ///   - videoEncodingQuality: Video encoding quality (default: .medium2)
+    ///   - audioEncodingQuality: Audio encoding quality (default: .high)
+    public convenience init(
+        forScreenShare: Void = (),
+        videoEncodingQuality: LiveVideoQuality = .medium2,
+        audioEncodingQuality: LiveAudioQuality = .high
+    ) {
+        let videoConfig: LiveVideoConfiguration
+        switch videoEncodingQuality {
+        case .low1:
+            videoConfig = LiveVideoConfigurationFactory.createLow1()
+        case .low2:
+            videoConfig = LiveVideoConfigurationFactory.createLow2()
+        case .low3:
+            videoConfig = LiveVideoConfigurationFactory.createLow3()
+        case .medium1:
+            videoConfig = LiveVideoConfigurationFactory.createMedium1()
+        case .medium2:
+            videoConfig = LiveVideoConfigurationFactory.createMedium2()
+        case .medium3:
+            videoConfig = LiveVideoConfigurationFactory.createMedium3()
+        case .high1:
+            videoConfig = LiveVideoConfigurationFactory.createHigh1()
+        case .high2:
+            videoConfig = LiveVideoConfigurationFactory.createHigh2()
+        case .high3:
+            videoConfig = LiveVideoConfigurationFactory.createHigh3()
+        }
+
+        let audioConfig: LiveAudioConfiguration
+        switch audioEncodingQuality {
+        case .low:
+            audioConfig = LiveAudioConfigurationFactory.createLow()
+        case .medium:
+            audioConfig = LiveAudioConfigurationFactory.createMedium()
+        case .high:
+            audioConfig = LiveAudioConfigurationFactory.createHigh()
+        case .veryHigh:
+            audioConfig = LiveAudioConfigurationFactory.createVeryHigh()
+        }
+
+        self.init(audioConfiguration: audioConfig,
+                  videoConfiguration: videoConfig,
+                  mode: .screenShare)
     }
 
     deinit {
         stopCapturing()
+        frameProcessingTask?.cancel()
+        frameContinuation.finish()
     }
 
   public func startLive(streamInfo: LiveStreamInfo) {
     Task {
       var mutableStreamInfo = streamInfo
-      
+
       mutableStreamInfo.audioConfiguration = audioConfiguration
       mutableStreamInfo.videoConfiguration = videoConfiguration
-      
+
       self.streamInfo = mutableStreamInfo
-      
+
       if publisher == nil {
         publisher = createRTMPPublisher()
         await publisher?.setDelegate(delegate: self)
       }
+
+      // Ensure frame processing task is running
+      if frameProcessingTask == nil || frameProcessingTask?.isCancelled == true {
+        startFrameProcessing()
+      }
+
       await publisher?.start()
     }
   }
@@ -163,11 +251,63 @@ public class LiveSession: NSObject, @unchecked Sendable {
   }
 
     public func startCapturing() {
-        capture.startCapturing()
+        // Screen share mode does not use internal capture
+        guard mode == .camera else { return }
+        capture?.startCapturing()
     }
 
     public func stopCapturing() {
-        capture.stopCapturing()
+        // Screen share mode does not use internal capture
+        guard mode == .camera else { return }
+        capture?.stopCapturing()
+    }
+
+    // MARK: - Screen Share Methods
+
+    /// Push video sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: Video sample buffer from RPBroadcastSampleHandler
+    public func pushVideo(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushVideo is only available in screenShare mode")
+            #endif
+            return
+        }
+        guard uploading else { return }
+
+        timestampSynchronizer.recordIfNeeded(sampleBuffer)
+        try? encoder.encodeVideo(sampleBuffer: sampleBuffer)
+    }
+
+    /// Push app audio sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: App audio sample buffer from RPBroadcastSampleHandler
+    public func pushAppAudio(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushAppAudio is only available in screenShare mode")
+            #endif
+            return
+        }
+        guard uploading else { return }
+
+        timestampSynchronizer.recordIfNeeded(sampleBuffer)
+        try? encoder.encodeAudio(sampleBuffer: sampleBuffer)
+    }
+
+    /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
+    /// - Parameter sampleBuffer: Mic audio sample buffer from RPBroadcastSampleHandler
+    /// - Note: This method is reserved for future implementation. Currently not supported.
+    public func pushMicAudio(_ sampleBuffer: CMSampleBuffer) {
+        guard mode == .screenShare else {
+            #if DEBUG
+            print("[HPLiveKit] pushMicAudio is only available in screenShare mode")
+            #endif
+            return
+        }
+        // TODO: Implement mic audio mixing with app audio
+        #if DEBUG
+        print("[HPLiveKit] pushMicAudio is not implemented yet")
+        #endif
     }
 }
 
@@ -183,26 +323,50 @@ private extension LiveSession {
 
 private extension LiveSession {
 
-    func pushFrame(frame: any Frame) {
-      Task {
-        guard let publisher = publisher else { return }
+    /// Start the frame processing task that sequentially processes frames from the stream
+    func startFrameProcessing() {
+        frameProcessingTask?.cancel()
+        frameProcessingTask = Task { [weak self] in
+            guard let self = self else { return }
 
-        await publisher.send(frame: frame)
-      }
+            // Process frames sequentially in the order they are yielded
+            // This ensures timestamp ordering is preserved
+            for await frame in self.frameStream {
+                guard let publisher = self.publisher else { continue }
+
+                #if DEBUG
+                // Log frame processing for debugging
+                let frameType = frame is VideoFrame ? "Video" : "Audio"
+                if let videoFrame = frame as? VideoFrame, videoFrame.isKeyFrame {
+                    print("[LiveSession] Processing keyframe: \(frameType) timestamp=\(frame.timestamp)ms")
+                }
+                #endif
+
+                await publisher.send(frame: frame)
+            }
+        }
+    }
+
+    func pushFrame(frame: any Frame) {
+        // Use yield instead of creating a new Task
+        // This ensures frames are processed in the exact order they are received
+        frameContinuation.yield(frame)
     }
 }
 
 extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
-    
-    encoder.encodeAudio(sampleBuffer: audio)
+
+    timestampSynchronizer.recordIfNeeded(audio)
+    try? encoder.encodeAudio(sampleBuffer: audio)
   }
-  
+
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
-    
-    encoder.encodeVideo(sampleBuffer: video)
+
+    timestampSynchronizer.recordIfNeeded(video)
+    try? encoder.encodeVideo(sampleBuffer: video)
   }
 }
 
@@ -210,17 +374,19 @@ extension LiveSession: EncoderManagerDelegate {
   public func encodeOutput(encoderManager: EncoderManager, audioFrame: AudioFrame) {
     guard uploading else { return }
     hasCapturedAudio = true
-    
-    pushFrame(frame: audioFrame)
+
+    let normalizedFrame = timestampSynchronizer.normalize(audioFrame)
+    pushFrame(frame: normalizedFrame)
   }
-  
+
   public func encodeOutput(encoderManager: EncoderManager, videoFrame: VideoFrame) {
     guard uploading else { return }
-    
+
     if videoFrame.isKeyFrame && self.hasCapturedAudio {
       hasCapturedKeyFrame = true
     }
-    pushFrame(frame: videoFrame)
+    let normalizedFrame = timestampSynchronizer.normalize(videoFrame)
+    pushFrame(frame: normalizedFrame)
   }
 }
 
@@ -230,6 +396,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
+            timestampSynchronizer.reset()  // Reset timestamp to start from 0
             uploading = true
         }
 

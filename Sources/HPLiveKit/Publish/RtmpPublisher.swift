@@ -52,6 +52,11 @@ actor RtmpPublisher: Publisher {
   private let configure: PublishConfigure
 
   private var statusMonitorTask: Task<Void, Never>?
+  private var frameProcessingTask: Task<Void, Never>?
+
+  // AsyncStream for frame input
+  private let frameStream: AsyncStream<any Frame>
+  private let frameContinuation: AsyncStream<any Frame>.Continuation
 
   init(stream: LiveStreamInfo, reconnectInterval: Int = 0, reconnectCount: Int = 0) {
     self.stream = stream
@@ -71,9 +76,17 @@ actor RtmpPublisher: Publisher {
 
     configure = conf
 
+    // Initialize AsyncStream
+    var continuation: AsyncStream<any Frame>.Continuation!
+    self.frameStream = AsyncStream<any Frame> { cont in
+      continuation = cont
+    }
+    self.frameContinuation = continuation
+
     Task {
       await buffer.setDelegate(delegate: self)
       await startMonitoringStatus()
+      await startFrameProcessing()
     }
   }
 
@@ -83,6 +96,18 @@ actor RtmpPublisher: Publisher {
     statusMonitorTask = Task {
       for await status in stream {
         await self.handleStatusChange(status)
+      }
+    }
+  }
+
+  private func startFrameProcessing() async {
+    frameProcessingTask?.cancel()
+    frameProcessingTask = Task {
+      for await frame in frameStream {
+        await buffer.append(frame: frame)
+        if !isSending {
+          await self.sendFrame()
+        }
       }
     }
   }
@@ -165,6 +190,10 @@ actor RtmpPublisher: Publisher {
     statusMonitorTask?.cancel()
     statusMonitorTask = nil
 
+    frameProcessingTask?.cancel()
+    frameProcessingTask = nil
+    frameContinuation.finish()
+
     delegate?.publisher(publisher: self, publishStatus: .stop)
 
     await rtmp.stop()
@@ -184,12 +213,7 @@ actor RtmpPublisher: Publisher {
   }
 
   func send(frame: any Frame) {
-    Task {
-      await buffer.append(frame: frame)
-      if !isSending {
-        await self.sendFrame()
-      }
-    }
+    frameContinuation.yield(frame)
   }
 
 }
@@ -201,16 +225,32 @@ private extension RtmpPublisher {
 
     self.isSending = true
 
-    if !self.isConnected || self.isReconnecting || self.isConnecting {
-      self.isSending = false
-      return
+    // Use a loop instead of recursion to avoid stack buildup
+    // Continue sending frames until buffer is empty or disconnected
+    while await !buffer.isEmpty {
+      // Check connection status
+      if !self.isConnected || self.isReconnecting || self.isConnecting {
+        break
+      }
+
+      let bufferSize = await buffer.list.count
+      guard let frame = await self.buffer.popFirstFrame() else {
+        break
+      }
+
+      #if DEBUG
+      // Log buffer status periodically to monitor for accumulation
+      if debugInfo.totalFrameCount % 100 == 0 {
+        print("[RtmpPublisher] Buffer status: \(bufferSize) frames pending")
+        if bufferSize > 100 {
+          print("  ⚠️  WARNING: Buffer is getting large! Possible network slowdown.")
+        }
+      }
+      #endif
+
+      await pushFrame(frame: frame)
+      await updateDebugInfo(frame: frame)
     }
-
-    guard let frame = await self.buffer.popFirstFrame() else { return }
-
-    await pushFrame(frame: frame)
-
-    await updateDebugInfo(frame: frame)
 
     self.isSending = false
   }

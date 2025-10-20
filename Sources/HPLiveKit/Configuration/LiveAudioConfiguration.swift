@@ -84,8 +84,4 @@ public struct LiveAudioConfiguration: Sendable {
   let audioSampleRate: LiveAudioSampleRate
   /// Bitrate
   let audioBitRate: LiveAudioBitRate
-  /// Buffer length
-  var bufferLength: Int {
-    return 1024 * 1 * Int(self.numberOfChannels)
-  }
 }

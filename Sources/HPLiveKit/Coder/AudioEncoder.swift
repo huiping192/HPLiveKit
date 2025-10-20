@@ -17,8 +17,11 @@ protocol AudioEncoder: AnyObject {
     get
     set
   }
-  
-  func encode(sampleBuffer: CMSampleBuffer)
-  
+
+  /// Encodes an audio sample buffer
+  /// - Parameter sampleBuffer: The audio sample buffer to encode
+  /// - Throws: LiveError if encoding fails
+  func encode(sampleBuffer: CMSampleBuffer) throws
+
   func stop()
 }

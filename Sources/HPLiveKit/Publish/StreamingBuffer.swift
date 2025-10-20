@@ -65,18 +65,21 @@ actor StreamingBuffer {
       startTimer = true
       self.tick()
     }
-    
-    if sortList.count < StreamingBuffer.defaultSortBufferMaxCount {
-      sortList.append(frame)
-    } else {
-      ///< 排序
-      sortList.append(frame)
+
+    // Always add to sort list for timestamp ordering
+    sortList.append(frame)
+
+    // When sort list reaches threshold, sort and move oldest frame to send buffer
+    if sortList.count >= StreamingBuffer.defaultSortBufferMaxCount {
+      // Sort by timestamp to ensure correct ordering
       sortList.sort { i, j in
         return i.timestamp < j.timestamp
       }
-      /// 丢帧
+
+      // Remove expired frames if buffer is full
       removeExpireFrame()
-      /// 添加至缓冲区
+
+      // Move the oldest frame (smallest timestamp) to the send buffer
       let firstFrame = sortList.first
       sortList.removeFirst()
       if let firstFrame = firstFrame {

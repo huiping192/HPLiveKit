@@ -50,12 +50,17 @@ struct AudioSpecificConfig {
   var encodeData: Data {
     get {
       let flag = self.frameLengthFlag ? 1 : 0
-      let first = UInt8(self.objectType.rawValue) << 3 | UInt8(self.frequencyType.rawValue >> 1 & 0b00000111)
-      let second = (0b10000000 & self.frequencyType.rawValue << 7) |
-      (0b01111000 & self.channelConfig.rawValue << 3) |
-      (UInt8(flag) << 2) |
-      (self.dependsOnCoreCoder << 1) |
-      self.extensionFlag
+
+      // Byte 0: [audioObjectType(5 bits)] [samplingFreqIndex high 3 bits]
+      let first = UInt8(self.objectType.rawValue << 3) | UInt8((self.frequencyType.rawValue >> 1) & 0x07)
+
+      // Byte 1: [samplingFreqIndex low 1 bit] [channelConfig(4 bits)] [frameLengthFlag] [dependsOnCoreCoder] [extensionFlag]
+      let second = UInt8((self.frequencyType.rawValue & 0x01) << 7) |
+                   UInt8((self.channelConfig.rawValue & 0x0F) << 3) |
+                   UInt8(flag << 2) |
+                   UInt8(self.dependsOnCoreCoder << 1) |
+                   self.extensionFlag
+
       return Data([first, second])
     }
   }

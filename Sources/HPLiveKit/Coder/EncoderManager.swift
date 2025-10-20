@@ -15,13 +15,13 @@ public protocol EncoderManagerDelegate: AnyObject {
 }
 
 public class EncoderManager: NSObject {
-  
+
   // video,audio encoder
   private var videoEncoder: VideoEncoder
   private let audioEncoder: AudioEncoder
-  
+
   public weak var delegate: EncoderManagerDelegate?
-  
+
   public var videoBitRate: UInt {
     get {
       videoEncoder.videoBitRate
@@ -30,32 +30,36 @@ public class EncoderManager: NSObject {
       videoEncoder.videoBitRate = newValue
     }
   }
-  
+
   public init(audioConfiguration: LiveAudioConfiguration, videoConfiguration: LiveVideoConfiguration) {
     videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
     audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
-    
+
     super.init()
-    
+
     videoEncoder.delegate = self
     audioEncoder.delegate = self
   }
-  
-  public func encodeAudio(sampleBuffer: CMSampleBuffer) {
-    audioEncoder.encode(sampleBuffer: sampleBuffer)
+
+  public func encodeAudio(sampleBuffer: CMSampleBuffer) throws {
+    try audioEncoder.encode(sampleBuffer: sampleBuffer)
   }
-  
-  public func encodeVideo(sampleBuffer: CMSampleBuffer) {
-    videoEncoder.encode(sampleBuffer: sampleBuffer)
+
+  public func encodeVideo(sampleBuffer: CMSampleBuffer) throws {
+    try videoEncoder.encode(sampleBuffer: sampleBuffer)
   }
 }
 
 extension EncoderManager: AudioEncoderDelegate, VideoEncoderDelegate {
   func audioEncoder(encoder: AudioEncoder, audioFrame: AudioFrame) {
+    // Pass through the original frame without timestamp normalization
+    // Timestamp normalization will be handled by LiveSession
     delegate?.encodeOutput(encoderManager: self, audioFrame: audioFrame)
   }
-  
+
   func videoEncoder(encoder: VideoEncoder, frame: VideoFrame) {
+    // Pass through the original frame without timestamp normalization
+    // Timestamp normalization will be handled by LiveSession
     delegate?.encodeOutput(encoderManager: self, videoFrame: frame)
   }
 }

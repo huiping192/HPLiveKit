@@ -10,16 +10,19 @@ import Foundation
 import VideoToolbox
 import HPRTMP
 import UIKit
+import os
 
 class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
+  private static let logger = Logger(subsystem: "com.hplivekit", category: "VideoH264Encoder")
+
   private var compressionSession: VTCompressionSession?
   private var frameCount: UInt = 0
   private var sps: Data?
   private var pps: Data?
-  
+
   private var isBackground: Bool = false
   private let configuration: LiveVideoConfiguration
-  
+
   private let kLimitToAverageBitRateFactor = 1.5
   
   private var currentVideoBitRate: UInt
@@ -43,13 +46,11 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
   }
   
   weak var delegate: VideoEncoderDelegate?
-  
+
   required init(configuration: LiveVideoConfiguration) {
     self.configuration = configuration
     self.currentVideoBitRate = configuration.videoBitRate
-    
-    print("LiveVideoH264Encoder init")
-    
+
     resetCompressionSession()
     configureNotifications()
   }
@@ -86,7 +87,7 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
     
     // Check if the compression session creation was successful
     if status != noErr {
-      print("VTCompressionSessionCreate failed!!")
+      Self.logger.error("VTCompressionSessionCreate failed with status: \(status)")
       return
     }
     
@@ -134,16 +135,22 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
   }
   
   @objc func handleWillEnterBackground() {
+    Self.logger.debug("Application entering background - stopping video encoding")
     isBackground = true
   }
-  
+
   @objc func handlewillEnterForeground() {
+    Self.logger.debug("Application entering foreground - resuming video encoding")
     resetCompressionSession()
     isBackground = false
   }
   
-  func encode(sampleBuffer: CMSampleBuffer) {
-    guard !isBackground else { return }
+  func encode(sampleBuffer: CMSampleBuffer) throws {
+    // Skip encoding in background
+    guard !isBackground else {
+      return
+    }
+
     guard let compressionSession = compressionSession else { return }
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
     
@@ -165,12 +172,13 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
     
     let outputHandler: VTCompressionOutputHandler = { [weak self] (status, infoFlags, sampleBuffer) in
       guard let self = self else { return }
-      
+
       if status != noErr {
-        print("Encode video frame error!!")
+        Self.logger.error("Video frame encoding failed with status: \(status)")
         self.resetCompressionSession()
+        return
       }
-      
+
       guard let sampleBuffer = sampleBuffer else { return }
       
       guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: true) else { return }
@@ -185,15 +193,15 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
       }
       
       if let videoFrame = self.convertVideoFrame(sampleBuffer: sampleBuffer, isKeyFrame: isKeyframe) {
-        print("[encoder] video frame")
         self.delegate?.videoEncoder(encoder: self, frame: videoFrame)
       }
     }
     
-    let status =  VTCompressionSessionEncodeFrame(compressionSession, imageBuffer: imageBuffer, presentationTimeStamp: presentationTimeStamp, duration: duration, frameProperties: properties as NSDictionary?, infoFlagsOut: &flags, outputHandler: outputHandler)
-    
+    let status = VTCompressionSessionEncodeFrame(compressionSession, imageBuffer: imageBuffer, presentationTimeStamp: presentationTimeStamp, duration: duration, frameProperties: properties as NSDictionary?, infoFlagsOut: &flags, outputHandler: outputHandler)
+
     if status != noErr {
-      print("Encode video frame error!!")
+      Self.logger.error("VTCompressionSessionEncodeFrame failed with status: \(status)")
+      throw LiveError.videoEncodingFailed(status)
     }
   }
   
@@ -214,7 +222,12 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
     }
     let timestamp = UInt64(decodeTimeStamp.seconds * 1000)
     let compositionTime = Int32((presentationTimeStamp.seconds - decodeTimeStamp.seconds) * 1000)
-    
+
+    // Log timestamp periodically to verify it starts from 0
+    if frameCount % 100 == 0 {
+      Self.logger.debug("Frame \(self.frameCount): timestamp=\(timestamp)ms (\(decodeTimeStamp.seconds)s)")
+    }
+
     return VideoFrame(timestamp: timestamp, data: bufferData, header: nil, isKeyFrame: isKeyFrame, compositionTime: compositionTime, sps: sps, pps: pps)
   }
   
@@ -230,9 +243,9 @@ class LiveVideoH264Encoder: VideoEncoder, @unchecked Sendable {
     var parameterSetPointerOut: UnsafePointer<UInt8>?
     
     let statusCode = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(formatDescription, parameterSetIndex: index, parameterSetPointerOut: &parameterSetPointerOut, parameterSetSizeOut: &size, parameterSetCountOut: nil, nalUnitHeaderLengthOut: nil)
-    
+
     guard let parameterSetPointerOut = parameterSetPointerOut, statusCode == noErr else {
-      print("Receive h264 ParameterSet error, \(statusCode)")
+      Self.logger.error("Failed to receive H.264 parameter set with status: \(statusCode)")
       return Data()
     }
     
