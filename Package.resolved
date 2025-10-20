@@ -1,6 +1,14 @@
 {
-  "originHash" : "f767f22494efda4b3069f371f54cb00c1dc3e59af5c1b0aad899077e86ff8eeb",
+  "originHash" : "311aa48b25db8838eff14561b134482f807fa5adc4ff10baed9902a1c4b5d323",
   "pins" : [
+    {
+      "identity" : "hprtmp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/huiping192/HPRTMP.git",
+      "state" : {
+        "revision" : "85e51c444d850f074b64a63dbfa75d69ebd21c21"
+      }
+    },
     {
       "identity" : "swift-atomics",
       "kind" : "remoteSourceControl",
@@ -24,8 +32,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio",
       "state" : {
-        "revision" : "a18bddb0acf7a40d982b2f128ce73ce4ee31f352",
-        "version" : "2.86.2"
+        "revision" : "4e8f4b1c9adaa59315c523540c1ff2b38adc20a9",
+        "version" : "2.87.0"
       }
     },
     {
@@ -33,8 +41,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-ssl",
       "state" : {
-        "revision" : "b2b043a8810ab6d51b3ff4df17f057d87ef1ec7c",
-        "version" : "2.34.1"
+        "revision" : "d3bad3847c53015fe8ec1e6c3ab54e53a5b6f15f",
+        "version" : "2.35.0"
       }
     },
     {
