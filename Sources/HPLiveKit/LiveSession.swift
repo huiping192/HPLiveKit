@@ -91,9 +91,13 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // Encoder output stream processing tasks
     private var audioEncoderTask: Task<Void, Never>?
     private var videoEncoderTask: Task<Void, Never>?
+    private var mixerTask: Task<Void, Never>?
 
     // 推流 publisher
     private var publisher: Publisher?
+
+    // Audio mixer (only for screenShare mode)
+    private var audioMixer: AudioMixer?
 
     // 调试信息 debug info
     private var debugInfo: LiveDebug?
@@ -171,6 +175,16 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
         // Start encoder output stream subscriptions
         startEncoderStreams()
+
+        // Setup audio mixer for screenShare mode
+        if mode == .screenShare && audioConfiguration.audioMixingEnabled {
+            audioMixer = AudioMixer(
+                targetSampleRate: Double(audioConfiguration.audioSampleRate.rawValue),
+                appVolume: audioConfiguration.appAudioVolume,
+                micVolume: audioConfiguration.micAudioVolume
+            )
+            startMixerStream()
+        }
     }
 
     /// Screen share dedicated initializer
@@ -229,6 +243,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         // Cancel encoder output stream tasks
         audioEncoderTask?.cancel()
         videoEncoderTask?.cancel()
+        mixerTask?.cancel()
     }
 
   public func startLive(streamInfo: LiveStreamInfo) {
@@ -305,13 +320,17 @@ public class LiveSession: NSObject, @unchecked Sendable {
         guard uploading else { return }
 
         timestampSynchronizer.recordIfNeeded(sampleBuffer)
-        // Directly encode audio (non-blocking, encoder is Actor-based)
-        audioEncoder.encode(sampleBuffer: sampleBuffer)
+
+        // Push to audio mixer if available and enabled, otherwise encode directly
+        if let audioMixer = audioMixer, audioConfiguration.audioMixingEnabled {
+            audioMixer.pushAppAudio(sampleBuffer)
+        } else {
+            audioEncoder.encode(sampleBuffer: sampleBuffer)
+        }
     }
 
     /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
     /// - Parameter sampleBuffer: Mic audio sample buffer from RPBroadcastSampleHandler
-    /// - Note: This method is reserved for future implementation. Currently not supported.
     public func pushMicAudio(_ sampleBuffer: CMSampleBuffer) {
         guard mode == .screenShare else {
             #if DEBUG
@@ -319,10 +338,12 @@ public class LiveSession: NSObject, @unchecked Sendable {
             #endif
             return
         }
-        // TODO: Implement mic audio mixing with app audio
-        #if DEBUG
-        print("[HPLiveKit] pushMicAudio is not implemented yet")
-        #endif
+        guard uploading else { return }
+
+        timestampSynchronizer.recordIfNeeded(sampleBuffer)
+
+        // Push to audio mixer
+        audioMixer?.pushMicAudio(sampleBuffer)
     }
 }
 
@@ -389,6 +410,24 @@ private extension LiveSession {
 
                 let normalizedFrame = self.timestampSynchronizer.normalize(videoFrame)
                 self.pushFrame(frame: normalizedFrame)
+            }
+        }
+    }
+
+    /// Start audio mixer output stream subscription
+    /// Subscribe to mixer output and encode mixed audio
+    func startMixerStream() {
+        guard let audioMixer = audioMixer else { return }
+
+        mixerTask?.cancel()
+        mixerTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await mixedBuffer in await audioMixer.outputStream {
+                guard self.uploading else { continue }
+
+                // Mixed audio already has normalized timestamp from mixer
+                // Directly encode without additional timestamp recording
+                self.audioEncoder.encode(sampleBuffer: mixedBuffer)
             }
         }
     }
