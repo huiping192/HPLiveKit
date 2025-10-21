@@ -26,9 +26,10 @@ actor AudioResampler {
     nonisolated(unsafe) private var converter: AudioConverterRef?
 
     // Source format tracking
-    private var sourceSampleRate: Double = 0
-    private var sourceChannels: UInt32 = 0
-    private var sourceBitsPerChannel: UInt32 = 0
+    // Mark as nonisolated(unsafe) because they are accessed from nonisolated resample method
+    nonisolated(unsafe) private var sourceSampleRate: Double = 0
+    nonisolated(unsafe) private var sourceChannels: UInt32 = 0
+    nonisolated(unsafe) private var sourceBitsPerChannel: UInt32 = 0
 
     init(targetSampleRate: Double = 48000, targetChannels: UInt32 = 2, targetBitsPerChannel: UInt32 = 16) {
         self.targetSampleRate = targetSampleRate
@@ -45,7 +46,7 @@ actor AudioResampler {
     /// Resample audio sample buffer to target format
     /// - Parameter sampleBuffer: Input sample buffer
     /// - Returns: Resampled sample buffer with target format, or nil if conversion fails
-    func resample(_ sampleBuffer: CMSampleBuffer) -> CMSampleBuffer? {
+    nonisolated func resample(_ sampleBuffer: CMSampleBuffer) -> CMSampleBuffer? {
         guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else {
             Self.logger.error("Cannot get format description")
             return nil
@@ -90,7 +91,7 @@ actor AudioResampler {
 
     // MARK: - Private Methods
 
-    private func setupConverterIfNeeded(sourceFormat: AudioStreamBasicDescription) -> Bool {
+    nonisolated private func setupConverterIfNeeded(sourceFormat: AudioStreamBasicDescription) -> Bool {
         // Check if format changed
         if sourceSampleRate == sourceFormat.mSampleRate &&
            sourceChannels == sourceFormat.mChannelsPerFrame &&
@@ -136,7 +137,7 @@ actor AudioResampler {
         return true
     }
 
-    private func extractAudioData(from sampleBuffer: CMSampleBuffer) -> Data? {
+    nonisolated private func extractAudioData(from sampleBuffer: CMSampleBuffer) -> Data? {
         var blockBuffer: CMBlockBuffer?
         var audioBufferList = AudioBufferList()
 
@@ -169,7 +170,7 @@ actor AudioResampler {
         return Data(bytes: data, count: Int(buffer.mDataByteSize))
     }
 
-    private func convert(audioData: Data, sourceFormat: AudioStreamBasicDescription) -> Data? {
+    nonisolated private func convert(audioData: Data, sourceFormat: AudioStreamBasicDescription) -> Data? {
         guard let converter = converter else { return nil }
 
         // Calculate output buffer size
@@ -227,7 +228,7 @@ actor AudioResampler {
                    count: Int(outBufferList.mBuffers.mDataByteSize))
     }
 
-    private func createSampleBuffer(from data: Data, timestamp: CMTime) -> CMSampleBuffer? {
+    nonisolated private func createSampleBuffer(from data: Data, timestamp: CMTime) -> CMSampleBuffer? {
         // Create audio format description
         var outputFormat = AudioStreamBasicDescription()
         outputFormat.mSampleRate = targetSampleRate
