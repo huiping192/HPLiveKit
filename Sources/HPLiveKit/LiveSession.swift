@@ -323,7 +323,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
         // Push to audio mixer if available and enabled, otherwise encode directly
         if let audioMixer = audioMixer, audioConfiguration.audioMixingEnabled {
-            audioMixer.pushAppAudio(sampleBuffer)
+            audioMixer.pushAppAudio(SampleBufferBox(samplebuffer: sampleBuffer))
         } else {
             audioEncoder.encode(sampleBuffer: sampleBuffer)
         }
@@ -343,7 +343,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         timestampSynchronizer.recordIfNeeded(sampleBuffer)
 
         // Push to audio mixer
-        audioMixer?.pushMicAudio(sampleBuffer)
+        audioMixer?.pushMicAudio(SampleBufferBox(samplebuffer: sampleBuffer))
     }
 }
 
@@ -422,12 +422,12 @@ private extension LiveSession {
         mixerTask?.cancel()
         mixerTask = Task { [weak self] in
             guard let self = self else { return }
-            for await mixedBuffer in await audioMixer.outputStream {
+            for await mixedBufferBox in await audioMixer.outputStream {
                 guard self.uploading else { continue }
 
                 // Mixed audio already has normalized timestamp from mixer
                 // Directly encode without additional timestamp recording
-                self.audioEncoder.encode(sampleBuffer: mixedBuffer)
+                self.audioEncoder.encode(sampleBuffer: mixedBufferBox.samplebuffer)
             }
         }
     }

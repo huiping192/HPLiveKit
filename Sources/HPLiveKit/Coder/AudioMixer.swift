@@ -27,21 +27,18 @@ actor AudioMixer {
 
     // MARK: - Input Streams
 
-    private let appAudioStream: AsyncStream<CMSampleBuffer>
-    /// Input continuation must be nonisolated(unsafe) because CMSampleBuffer is not Sendable
-    nonisolated(unsafe) private let appAudioContinuation: AsyncStream<CMSampleBuffer>.Continuation
+    private let appAudioStream: AsyncStream<SampleBufferBox>
+    private let appAudioContinuation: AsyncStream<SampleBufferBox>.Continuation
 
-    private let micAudioStream: AsyncStream<CMSampleBuffer>
-    /// Input continuation must be nonisolated(unsafe) because CMSampleBuffer is not Sendable
-    nonisolated(unsafe) private let micAudioContinuation: AsyncStream<CMSampleBuffer>.Continuation
+    private let micAudioStream: AsyncStream<SampleBufferBox>
+    private let micAudioContinuation: AsyncStream<SampleBufferBox>.Continuation
 
     // MARK: - Output Stream
 
-    nonisolated(unsafe) private let _outputStream: AsyncStream<CMSampleBuffer>
-    /// Output continuation must be nonisolated(unsafe) because CMSampleBuffer is not Sendable
-    nonisolated(unsafe) private let outputContinuation: AsyncStream<CMSampleBuffer>.Continuation
+    private let _outputStream: AsyncStream<SampleBufferBox>
+    private let outputContinuation: AsyncStream<SampleBufferBox>.Continuation
 
-    nonisolated var outputStream: AsyncStream<CMSampleBuffer> {
+    nonisolated var outputStream: AsyncStream<SampleBufferBox> {
         _outputStream
     }
 
@@ -60,7 +57,7 @@ actor AudioMixer {
     // MARK: - Helper Types
 
     private struct TimestampedBuffer {
-        let sampleBuffer: CMSampleBuffer
+        let sampleBufferBox: SampleBufferBox
         let timestamp: CMTime
     }
 
@@ -75,20 +72,20 @@ actor AudioMixer {
         self.resampler = AudioResampler(targetSampleRate: targetSampleRate)
 
         // Create input streams
-        var appCont: AsyncStream<CMSampleBuffer>.Continuation!
+        var appCont: AsyncStream<SampleBufferBox>.Continuation!
         self.appAudioStream = AsyncStream { continuation in
             appCont = continuation
         }
         self.appAudioContinuation = appCont
 
-        var micCont: AsyncStream<CMSampleBuffer>.Continuation!
+        var micCont: AsyncStream<SampleBufferBox>.Continuation!
         self.micAudioStream = AsyncStream { continuation in
             micCont = continuation
         }
         self.micAudioContinuation = micCont
 
         // Create output stream
-        var outputCont: AsyncStream<CMSampleBuffer>.Continuation!
+        var outputCont: AsyncStream<SampleBufferBox>.Continuation!
         self._outputStream = AsyncStream { continuation in
             outputCont = continuation
         }
@@ -124,12 +121,12 @@ actor AudioMixer {
     // MARK: - Public API
 
     /// Push app audio sample buffer
-    nonisolated func pushAppAudio(_ sampleBuffer: CMSampleBuffer) {
+    nonisolated func pushAppAudio(_ sampleBuffer: SampleBufferBox) {
         appAudioContinuation.yield(sampleBuffer)
     }
 
     /// Push microphone audio sample buffer
-    nonisolated func pushMicAudio(_ sampleBuffer: CMSampleBuffer) {
+    nonisolated func pushMicAudio(_ sampleBuffer: SampleBufferBox) {
         micAudioContinuation.yield(sampleBuffer)
     }
 
@@ -150,30 +147,30 @@ actor AudioMixer {
     // MARK: - Private Processing Methods
 
     private func processAppAudioStream() async {
-        for await sampleBuffer in appAudioStream {
+        for await sampleBufferBox in appAudioStream {
             // Resample to target format
-            guard let normalized = await resampler.resample(sampleBuffer) else {
+            guard let normalizedBox = await resampler.resample(sampleBufferBox) else {
                 Self.logger.warning("Failed to resample app audio")
                 continue
             }
 
-            let timestamp = CMSampleBufferGetPresentationTimeStamp(normalized)
-            appAudioBuffer.append(TimestampedBuffer(sampleBuffer: normalized, timestamp: timestamp))
+            let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
+            appAudioBuffer.append(TimestampedBuffer(sampleBufferBox: normalizedBox, timestamp: timestamp))
 
             Self.logger.debug("App audio buffered: \(timestamp.seconds)s, buffer size: \(self.appAudioBuffer.count)")
         }
     }
 
     private func processMicAudioStream() async {
-        for await sampleBuffer in micAudioStream {
+        for await sampleBufferBox in micAudioStream {
             // Resample to target format
-            guard let normalized = await resampler.resample(sampleBuffer) else {
+            guard let normalizedBox = await resampler.resample(sampleBufferBox) else {
                 Self.logger.warning("Failed to resample mic audio")
                 continue
             }
 
-            let timestamp = CMSampleBufferGetPresentationTimeStamp(normalized)
-            micAudioBuffer.append(TimestampedBuffer(sampleBuffer: normalized, timestamp: timestamp))
+            let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
+            micAudioBuffer.append(TimestampedBuffer(sampleBufferBox: normalizedBox, timestamp: timestamp))
 
             Self.logger.debug("Mic audio buffered: \(timestamp.seconds)s, buffer size: \(self.micAudioBuffer.count)")
         }
@@ -195,7 +192,7 @@ actor AudioMixer {
         if !appAudioBuffer.isEmpty && micAudioBuffer.isEmpty {
             // Only app audio available
             let buffer = appAudioBuffer.removeFirst()
-            outputContinuation.yield(buffer.sampleBuffer)
+            outputContinuation.yield(buffer.sampleBufferBox)
             Self.logger.debug("Output app audio only: \(buffer.timestamp.seconds)s")
             return
         }
@@ -203,7 +200,7 @@ actor AudioMixer {
         if appAudioBuffer.isEmpty && !micAudioBuffer.isEmpty {
             // Only mic audio available
             let buffer = micAudioBuffer.removeFirst()
-            outputContinuation.yield(buffer.sampleBuffer)
+            outputContinuation.yield(buffer.sampleBufferBox)
             Self.logger.debug("Output mic audio only: \(buffer.timestamp.seconds)s")
             return
         }
@@ -232,8 +229,8 @@ actor AudioMixer {
         }
 
         // Mix audio
-        if let mixed = mixBuffers(appBuffer: appBuffer.sampleBuffer, micBuffer: micBuffer.sampleBuffer) {
-            outputContinuation.yield(mixed)
+        if let mixed = mixBuffers(appBuffer: appBuffer.sampleBufferBox.samplebuffer, micBuffer: micBuffer.sampleBufferBox.samplebuffer) {
+            outputContinuation.yield(SampleBufferBox(samplebuffer: mixed))
             Self.logger.debug("Output mixed audio: app=\(appBuffer.timestamp.seconds)s, mic=\(micBuffer.timestamp.seconds)s")
         } else {
             Self.logger.warning("Failed to mix audio buffers")
