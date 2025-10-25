@@ -21,10 +21,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
   // MARK: - AsyncStream for Input/Output
 
   /// Input stream: receives CMSampleBuffer from external callers
-  private let inputStream: AsyncStream<CMSampleBuffer>
+  private let inputStream: AsyncStream<SampleBufferBox>
   /// Input continuation must be nonisolated(unsafe) because CMSampleBuffer is not Sendable
   /// but we need to yield from nonisolated encode() method
-  nonisolated(unsafe) private let inputContinuation: AsyncStream<CMSampleBuffer>.Continuation
+  private let inputContinuation: AsyncStream<SampleBufferBox>.Continuation
 
   /// Output stream: delivers encoded AudioFrame to subscribers
   private let _outputStream: AsyncStream<AudioFrame>
@@ -76,18 +76,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
     self.configuration = configuration
 
     // Create input stream
-    var inputCont: AsyncStream<CMSampleBuffer>.Continuation!
-    self.inputStream = AsyncStream { continuation in
-      inputCont = continuation
-    }
-    self.inputContinuation = inputCont
+    (self.inputStream, self.inputContinuation) = AsyncStream.makeStream()
 
     // Create output stream
-    var outputCont: AsyncStream<AudioFrame>.Continuation!
-    self._outputStream = AsyncStream { continuation in
-      outputCont = continuation
-    }
-    self.outputContinuation = outputCont
+    (self._outputStream, self.outputContinuation) = AsyncStream.makeStream()
 
     // Start processing task (cannot access self.processingTask in nonisolated init)
     let task: Task<Void, Never> = Task { [weak self] in
@@ -100,7 +92,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
   /// Encodes an audio sample buffer (non-blocking, returns immediately)
   /// The sample buffer is yielded to internal processing stream
-  nonisolated func encode(sampleBuffer: CMSampleBuffer) {
+  nonisolated func encode(sampleBuffer: SampleBufferBox) {
     inputContinuation.yield(sampleBuffer)
   }
 
@@ -138,10 +130,14 @@ actor LiveAudioAACEncoder: AudioEncoder {
   }
 
   /// Encodes a single sample buffer
-  private func encodeSampleBuffer(_ sampleBuffer: CMSampleBuffer) async {
+  private func encodeSampleBuffer(_ sampleBufferBox: SampleBufferBox) async {
     do {
+      let sampleBuffer = sampleBufferBox.samplebuffer
       try setupEncoder(sb: sampleBuffer)
-      let audioData = sampleBuffer.audioRawData
+      guard let audioData = AudioSampleBufferUtils.extractPCMData(from: sampleBuffer) else {
+        Self.logger.error("Failed to extract PCM data from sample buffer")
+        return
+      }
       let currentTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
       // If buffer is empty, record the start timestamp and reset frame count
@@ -209,20 +205,16 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
     var inBufferList = AudioBufferList()
     inBufferList.mNumberBuffers = 1
-    var buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &inBufferList.mBuffers,
-                                                          count: Int(inBufferList.mNumberBuffers))
-    buffers[0] = inBuffer
+    inBufferList.mBuffers = inBuffer
 
     // Initialize output buffer list
     var outputData = Data(count: Int(inBuffer.mDataByteSize))
     var outBufferList = AudioBufferList()
     outBufferList.mNumberBuffers = 1
-    let outBuffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &outBufferList.mBuffers,
-                                                             count: Int(outBufferList.mNumberBuffers))
-    outBuffers[0].mNumberChannels = inBuffer.mNumberChannels
-    outBuffers[0].mDataByteSize = inBuffer.mDataByteSize
+    outBufferList.mBuffers.mNumberChannels = inBuffer.mNumberChannels
+    outBufferList.mBuffers.mDataByteSize = inBuffer.mDataByteSize
     outputData.withUnsafeMutableBytes { bytes in
-      outBuffers[0].mData = bytes.baseAddress
+      outBufferList.mBuffers.mData = bytes.baseAddress
     }
 
     var outputDataPacketSize = UInt32(1)
@@ -239,7 +231,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
     }
 
     // Get actual encoded data size from output buffer
-    let actualOutputSize = Int(outBuffers[0].mDataByteSize)
+    let actualOutputSize = Int(outBufferList.mBuffers.mDataByteSize)
     let actualEncodedData = Data(outputData.prefix(actualOutputSize))
 
     let compressionRatio = Double(audioData.count) / Double(actualOutputSize)
@@ -265,16 +257,14 @@ actor LiveAudioAACEncoder: AudioEncoder {
     ioPacketDesc,
     inUserData ) -> OSStatus in
 
-    guard var bufferList = inUserData?.assumingMemoryBound(to: AudioBufferList.self).pointee else {
+    guard let bufferList = inUserData?.assumingMemoryBound(to: AudioBufferList.self).pointee else {
       return noErr
     }
-    let buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &bufferList.mBuffers,
-                                                          count: Int(bufferList.mNumberBuffers))
 
     let dataPtr = UnsafeMutableAudioBufferListPointer(ioData)
-    dataPtr[0].mNumberChannels = buffers[0].mNumberChannels  // Use actual channels
-    dataPtr[0].mData = buffers[0].mData
-    dataPtr[0].mDataByteSize = buffers[0].mDataByteSize
+    dataPtr[0].mNumberChannels = bufferList.mBuffers.mNumberChannels
+    dataPtr[0].mData = bufferList.mBuffers.mData
+    dataPtr[0].mDataByteSize = bufferList.mBuffers.mDataByteSize
 
     return noErr
   }
@@ -409,7 +399,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
   }
 
   private func getAudioHeader(outFormatDescription: CMFormatDescription) -> Data? {
-    guard let streamBasicDesc = outFormatDescription.streamBasicDesc,
+    guard let streamBasicDesc = AudioSampleBufferUtils.extractFormat(from: outFormatDescription),
           let mp4Id = MPEG4ObjectID(rawValue: Int(streamBasicDesc.mFormatFlags)) else {
       return nil
     }
@@ -434,7 +424,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
    Sound type: a 1-bit field that indicates the audio channel configuration, such as stereo or mono.
    */
   private func getAacHeader(outFormatDescription: CMFormatDescription) -> Data? {
-    guard let streamBasicDesc = outFormatDescription.streamBasicDesc else {
+    guard let streamBasicDesc = AudioSampleBufferUtils.extractFormat(from: outFormatDescription) else {
       return nil
     }
 

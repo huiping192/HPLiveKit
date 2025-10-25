@@ -21,15 +21,15 @@ actor LiveVideoH264Encoder: VideoEncoder {
   // MARK: - AsyncStream for Input/Output
 
   /// Input stream: receives CMSampleBuffer from external callers
-  private let inputStream: AsyncStream<CMSampleBuffer>
+  private let inputStream: AsyncStream<SampleBufferBox>
   /// Input continuation must be nonisolated(unsafe) because CMSampleBuffer is not Sendable
   /// but we need to yield from nonisolated encode() method
-  nonisolated(unsafe) private let inputContinuation: AsyncStream<CMSampleBuffer>.Continuation
+  private let inputContinuation: AsyncStream<SampleBufferBox>.Continuation
 
   /// Output stream: delivers encoded VideoFrame to subscribers
   private let _outputStream: AsyncStream<VideoFrame>
   /// Output continuation must be nonisolated(unsafe) to be captured in VTCompressionOutputHandler
-  nonisolated(unsafe) private let outputContinuation: AsyncStream<VideoFrame>.Continuation
+  private let outputContinuation: AsyncStream<VideoFrame>.Continuation
 
   /// Public read-only access to output stream
   nonisolated var outputStream: AsyncStream<VideoFrame> {
@@ -66,18 +66,10 @@ actor LiveVideoH264Encoder: VideoEncoder {
     self._currentVideoBitRate = configuration.videoBitRate
 
     // Create input stream
-    var inputCont: AsyncStream<CMSampleBuffer>.Continuation!
-    self.inputStream = AsyncStream { continuation in
-      inputCont = continuation
-    }
-    self.inputContinuation = inputCont
+    (self.inputStream, self.inputContinuation) = AsyncStream.makeStream()
 
     // Create output stream
-    var outputCont: AsyncStream<VideoFrame>.Continuation!
-    self._outputStream = AsyncStream { continuation in
-      outputCont = continuation
-    }
-    self.outputContinuation = outputCont
+    (self._outputStream, self.outputContinuation) = AsyncStream.makeStream()
 
     // Note: Cannot call actor-isolated methods in init
     // We'll initialize compression session and notifications in processingTask
@@ -99,7 +91,7 @@ actor LiveVideoH264Encoder: VideoEncoder {
 
   /// Encodes a video sample buffer (non-blocking, returns immediately)
   /// The sample buffer is yielded to internal processing stream
-  nonisolated func encode(sampleBuffer: CMSampleBuffer) {
+  nonisolated func encode(sampleBuffer: SampleBufferBox) {
     inputContinuation.yield(sampleBuffer)
   }
 
@@ -152,11 +144,13 @@ actor LiveVideoH264Encoder: VideoEncoder {
   }
 
   /// Encodes a single sample buffer
-  private func encodeSampleBuffer(_ sampleBuffer: CMSampleBuffer) async {
+  private func encodeSampleBuffer(_ sampleBufferBox: SampleBufferBox) async {
     // Skip encoding in background
     guard !isBackground else {
       return
     }
+    
+    let sampleBuffer = sampleBufferBox.samplebuffer
 
     guard let compressionSession = compressionSession else { return }
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
@@ -198,18 +192,14 @@ actor LiveVideoH264Encoder: VideoEncoder {
       }
 
       let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
-
-      // Extract SPS/PPS for keyframes (must use Task to call actor method)
-      if isKeyframe {
-        Task { await self.receiveSpsAndPpsIfNeeded(sampleBuffer: sampleBuffer) }
-      }
-
-      // Convert and yield to output stream
-      // Note: convertVideoFrame uses actor state (sps, pps, frameCount)
-      // We need to access it via Task, but for now we'll pass the values
+      let format = CMSampleBufferGetFormatDescription(sampleBuffer)
+      
+      let samplebufferBox = SampleBufferBox(samplebuffer: sampleBuffer)
       Task {
-        if let videoFrame = await self.convertVideoFrame(sampleBuffer: sampleBuffer, isKeyFrame: isKeyframe) {
-          // outputContinuation.yield is nonisolated, safe to call from any thread
+        if let format, isKeyframe {
+          await self.receiveSpsAndPpsIfNeeded(format: format)
+        }
+        if let videoFrame = await self.convertVideoFrame(sampleBufferBox: samplebufferBox, isKeyFrame: isKeyframe) {
           outputContinuation.yield(videoFrame)
         }
       }
@@ -318,7 +308,8 @@ actor LiveVideoH264Encoder: VideoEncoder {
 
   /// Converts a compressed sample buffer to VideoFrame
   /// This method accesses actor-isolated state (sps, pps, frameCount)
-  private func convertVideoFrame(sampleBuffer: CMSampleBuffer, isKeyFrame: Bool) -> VideoFrame? {
+  private func convertVideoFrame(sampleBufferBox: SampleBufferBox, isKeyFrame: Bool) -> VideoFrame? {
+    let sampleBuffer = sampleBufferBox.samplebuffer
     guard let bufferData = CMSampleBufferGetDataBuffer(sampleBuffer)?.data else {
       return nil
     }
@@ -340,11 +331,9 @@ actor LiveVideoH264Encoder: VideoEncoder {
   }
 
   /// Extracts SPS and PPS from keyframe if not already set
-  private func receiveSpsAndPpsIfNeeded(sampleBuffer: CMSampleBuffer) {
+  private func receiveSpsAndPpsIfNeeded(format: CMFormatDescription) {
     // Only extract if we don't have them yet
     guard sps == nil || pps == nil else { return }
-
-    guard let format = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
 
     self.sps = receiveParameterSet(formatDescription: format, index: 0)
     self.pps = receiveParameterSet(formatDescription: format, index: 1)

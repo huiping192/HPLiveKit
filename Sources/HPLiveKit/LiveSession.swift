@@ -9,6 +9,8 @@
 import Foundation
 import UIKit
 import CoreMedia
+import ReplayKit
+import os
 
 /// Live session mode
 public enum LiveSessionMode {
@@ -67,6 +69,7 @@ extension LiveSessionDelegate {
 }
 
 public class LiveSession: NSObject, @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.hplivekit", category: "LiveSession")
 
     // live stream call back delegate
     public weak var delegate: LiveSessionDelegate?
@@ -179,7 +182,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         // Setup audio mixer for screenShare mode
         if mode == .screenShare && audioConfiguration.audioMixingEnabled {
             audioMixer = AudioMixer(
-                targetSampleRate: Double(audioConfiguration.audioSampleRate.rawValue),
+                targetSampleRate: 48000,
                 appVolume: audioConfiguration.appAudioVolume,
                 micVolume: audioConfiguration.micAudioVolume
             )
@@ -291,29 +294,17 @@ public class LiveSession: NSObject, @unchecked Sendable {
     }
 
     // MARK: - Screen Share Methods
+  
+  var a = AudioResampler()
 
-    /// Push video sample buffer (for RPBroadcastSampleHandler)
-    /// - Parameter sampleBuffer: Video sample buffer from RPBroadcastSampleHandler
-    public func pushVideo(_ sampleBuffer: CMSampleBuffer) {
+    /// Push sample buffer from RPBroadcastSampleHandler
+    /// - Parameters:
+    ///   - sampleBuffer: Sample buffer from RPBroadcastSampleHandler
+    ///   - type: Sample buffer type (video, audioApp, or audioMic)
+    public func push(_ sampleBuffer: CMSampleBuffer, type: RPSampleBufferType) {
         guard mode == .screenShare else {
             #if DEBUG
-            print("[HPLiveKit] pushVideo is only available in screenShare mode")
-            #endif
-            return
-        }
-        guard uploading else { return }
-
-        timestampSynchronizer.recordIfNeeded(sampleBuffer)
-        // Directly encode video (non-blocking, encoder is Actor-based)
-        videoEncoder.encode(sampleBuffer: sampleBuffer)
-    }
-
-    /// Push app audio sample buffer (for RPBroadcastSampleHandler)
-    /// - Parameter sampleBuffer: App audio sample buffer from RPBroadcastSampleHandler
-    public func pushAppAudio(_ sampleBuffer: CMSampleBuffer) {
-        guard mode == .screenShare else {
-            #if DEBUG
-            print("[HPLiveKit] pushAppAudio is only available in screenShare mode")
+            print("[HPLiveKit] push(_:type:) is only available in screenShare mode")
             #endif
             return
         }
@@ -321,29 +312,42 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
         timestampSynchronizer.recordIfNeeded(sampleBuffer)
 
-        // Push to audio mixer if available and enabled, otherwise encode directly
-        if let audioMixer = audioMixer, audioConfiguration.audioMixingEnabled {
-            audioMixer.pushAppAudio(SampleBufferBox(samplebuffer: sampleBuffer))
-        } else {
-            audioEncoder.encode(sampleBuffer: sampleBuffer)
-        }
-    }
+        switch type {
+        case .video:
+            videoEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: sampleBuffer))
 
-    /// Push mic audio sample buffer (for RPBroadcastSampleHandler)
-    /// - Parameter sampleBuffer: Mic audio sample buffer from RPBroadcastSampleHandler
-    public func pushMicAudio(_ sampleBuffer: CMSampleBuffer) {
-        guard mode == .screenShare else {
+        case .audioApp:
+          // Push to audio mixer if available and enabled, otherwise encode directly
+//          if let audioMixer = audioMixer, audioConfiguration.audioMixingEnabled {
+            audioMixer?.pushAppAudio(SampleBufferBox(samplebuffer: sampleBuffer))
+//          } else {
+//            audioEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: sampleBuffer))
+//          }
+
+        case .audioMic:
+            // Push to audio mixer
+            audioMixer?.pushMicAudio(SampleBufferBox(samplebuffer: sampleBuffer))
+//          let sb = SampleBufferBox(samplebuffer: sampleBuffer)
+//          Task {
+//            if let b = await a.resample(sb) {
+//              // [DIAGNOSTIC] Before encoding (Scenario A: direct resample)
+//              let timestamp = CMSampleBufferGetPresentationTimeStamp(b.samplebuffer)
+//              if let pcmData = AudioSampleBufferUtils.extractPCMData(from: b.samplebuffer),
+//                 let format = AudioSampleBufferUtils.extractFormat(from: b.samplebuffer) {
+//                let rms = AudioSampleBufferUtils.calculateRMS(pcmData: pcmData, bitsPerChannel: Int(format.mBitsPerChannel))
+//                Self.logger.info("[DIAGNOSTIC] SCENARIO-A (direct resample) ENCODE INPUT: ts=\(timestamp.seconds)s, size=\(pcmData.count), RMS=\(String(format: "%.4f", rms)), format=\(format.mSampleRate)Hz/\(format.mChannelsPerFrame)ch/\(format.mBitsPerChannel)bit")
+//              }
+//              audioEncoder.encode(sampleBuffer: b)
+//            } else {
+//              print("[test] resample failed")
+//            }
+//          }
+        @unknown default:
             #if DEBUG
-            print("[HPLiveKit] pushMicAudio is only available in screenShare mode")
+            print("[HPLiveKit] Unknown sample buffer type: \(type)")
             #endif
-            return
+            break
         }
-        guard uploading else { return }
-
-        timestampSynchronizer.recordIfNeeded(sampleBuffer)
-
-        // Push to audio mixer
-        audioMixer?.pushMicAudio(SampleBufferBox(samplebuffer: sampleBuffer))
     }
 }
 
@@ -389,7 +393,7 @@ private extension LiveSession {
         // Subscribe to audio encoder output
         audioEncoderTask = Task { [weak self] in
             guard let self = self else { return }
-            for await audioFrame in await self.audioEncoder.outputStream {
+            for await audioFrame in self.audioEncoder.outputStream {
                 guard self.uploading else { continue }
                 self.hasCapturedAudio = true
 
@@ -401,7 +405,7 @@ private extension LiveSession {
         // Subscribe to video encoder output
         videoEncoderTask = Task { [weak self] in
             guard let self = self else { return }
-            for await videoFrame in await self.videoEncoder.outputStream {
+            for await videoFrame in self.videoEncoder.outputStream {
                 guard self.uploading else { continue }
 
                 if videoFrame.isKeyFrame && self.hasCapturedAudio {
@@ -422,12 +426,20 @@ private extension LiveSession {
         mixerTask?.cancel()
         mixerTask = Task { [weak self] in
             guard let self = self else { return }
-            for await mixedBufferBox in await audioMixer.outputStream {
+            for await mixedBufferBox in audioMixer.outputStream {
                 guard self.uploading else { continue }
+
+                // [DIAGNOSTIC] Before encoding (Scenario B: AudioMixer passthrough)
+                let timestamp = CMSampleBufferGetPresentationTimeStamp(mixedBufferBox.samplebuffer)
+                if let pcmData = AudioSampleBufferUtils.extractPCMData(from: mixedBufferBox.samplebuffer),
+                   let format = AudioSampleBufferUtils.extractFormat(from: mixedBufferBox.samplebuffer) {
+                    let rms = AudioSampleBufferUtils.calculateRMS(pcmData: pcmData, bitsPerChannel: Int(format.mBitsPerChannel))
+                    Self.logger.info("[DIAGNOSTIC] SCENARIO-B (AudioMixer) ENCODE INPUT: ts=\(timestamp.seconds)s, size=\(pcmData.count), RMS=\(String(format: "%.4f", rms)), format=\(format.mSampleRate)Hz/\(format.mChannelsPerFrame)ch/\(format.mBitsPerChannel)bit")
+                }
 
                 // Mixed audio already has normalized timestamp from mixer
                 // Directly encode without additional timestamp recording
-                self.audioEncoder.encode(sampleBuffer: mixedBufferBox.samplebuffer)
+                self.audioEncoder.encode(sampleBuffer: mixedBufferBox)
             }
         }
     }
@@ -445,7 +457,7 @@ extension LiveSession: CaptureManagerDelegate {
 
     timestampSynchronizer.recordIfNeeded(audio)
     // Directly encode audio (non-blocking, encoder is Actor-based)
-    audioEncoder.encode(sampleBuffer: audio)
+    audioEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: audio))
   }
 
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
@@ -453,7 +465,7 @@ extension LiveSession: CaptureManagerDelegate {
 
     timestampSynchronizer.recordIfNeeded(video)
     // Directly encode video (non-blocking, encoder is Actor-based)
-    videoEncoder.encode(sampleBuffer: video)
+    videoEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: video))
   }
 }
 

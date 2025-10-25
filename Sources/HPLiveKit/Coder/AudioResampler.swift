@@ -13,36 +13,74 @@ import os
 
 /// Audio format resampler using Swift 6 Actor for thread safety
 /// Converts input CMSampleBuffer to normalized format
+///
+/// **Thread Safety**: All methods are actor-isolated and safe for concurrent access
+/// **Resource Management**: Call stop() to release resources, or they will be released when actor is deallocated
 actor AudioResampler {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioResampler")
-  
+
+  // MARK: - Configuration
+
   // Target format specifications
   private let targetSampleRate: Double
   private let targetChannels: UInt32
   private let targetBitsPerChannel: UInt32
-  
-  // Audio converter for resampling
-  private var converter: AudioConverterRef?
-  
+
+  // MARK: - State
+
+  // Audio converter wrapper for automatic cleanup
+  private final class ConverterBox {
+    var converter: AudioConverterRef?
+
+    deinit {
+      if let converter {
+        AudioConverterDispose(converter)
+      }
+    }
+  }
+
+  private let converterBox = ConverterBox()
+
+  private var converter: AudioConverterRef? {
+    get { converterBox.converter }
+    set { converterBox.converter = newValue }
+  }
+
   // Source format tracking
   private var sourceSampleRate: Double = 0
   private var sourceChannels: UInt32 = 0
   private var sourceBitsPerChannel: UInt32 = 0
-  
+
+  // Cached format descriptors for performance
+  private var cachedTargetFormat: AudioStreamBasicDescription?
+  private var cachedFormatDescription: CMAudioFormatDescription?
+
+  // MARK: - Initialization
+
   init(targetSampleRate: Double = 48000, targetChannels: UInt32 = 2, targetBitsPerChannel: UInt32 = 16) {
     self.targetSampleRate = targetSampleRate
     self.targetChannels = targetChannels
     self.targetBitsPerChannel = targetBitsPerChannel
   }
-  
+
+  // MARK: - Public API
+
   func stop() {
     if let converter {
       AudioConverterDispose(converter)
       self.converter = nil
     }
+    cachedFormatDescription = nil
   }
   
+  // MARK: - Private Helpers
+
+  /// Get cached or create target audio format
   private var targetFormat: AudioStreamBasicDescription {
+    if let cached = cachedTargetFormat {
+      return cached
+    }
+
     var outputFormat = AudioStreamBasicDescription()
     outputFormat.mSampleRate = targetSampleRate
     outputFormat.mFormatID = kAudioFormatLinearPCM
@@ -52,6 +90,8 @@ actor AudioResampler {
     outputFormat.mBytesPerFrame = targetBitsPerChannel / 8 * targetChannels
     outputFormat.mFramesPerPacket = 1
     outputFormat.mBytesPerPacket = outputFormat.mBytesPerFrame
+
+    cachedTargetFormat = outputFormat
     return outputFormat
   }
   
@@ -86,7 +126,7 @@ actor AudioResampler {
     }
     
     // Extract audio data
-    guard let audioData = extractAudioData(from: sampleBuffer) else {
+    guard let audioData = AudioSampleBufferUtils.extractPCMData(from: sampleBuffer) else {
       Self.logger.error("Failed to extract audio data")
       return nil
     }
@@ -115,203 +155,254 @@ actor AudioResampler {
        converter != nil {
       return true // Converter already setup
     }
-    
+
     // Dispose old converter
     if let oldConverter = converter {
       AudioConverterDispose(oldConverter)
       converter = nil
     }
-    
+
     // Save source format
     sourceSampleRate = sourceFormat.mSampleRate
     sourceChannels = sourceFormat.mChannelsPerFrame
     sourceBitsPerChannel = sourceFormat.mBitsPerChannel
-    
+
     // Create input format
     var inputFormat = sourceFormat
-    
+
     // Create output format
     var outputFormat = targetFormat
-    
+
     // Create converter
-    let status = AudioConverterNew(&inputFormat, &outputFormat, &converter)
+    var status = AudioConverterNew(&inputFormat, &outputFormat, &converter)
     if status != noErr {
-      Self.logger.error("AudioConverterNew failed: \(status)")
+      Self.logger.error("AudioConverterNew failed: \(status, privacy: .public)")
       return false
     }
-    
-    Self.logger.info("Audio converter created - Input: \(sourceFormat.mSampleRate)Hz \(sourceFormat.mChannelsPerFrame)ch \(sourceFormat.mBitsPerChannel)bit -> Output: \(self.targetSampleRate)Hz \(self.targetChannels)ch \(self.targetBitsPerChannel)bit")
-    
+
+    // Set sample rate converter quality to maximum for best audio quality
+    // This is especially important for upsampling (e.g., 44.1kHz -> 48kHz)
+    guard let converter = converter else { return false }
+    var quality = kAudioConverterQuality_Max
+    status = AudioConverterSetProperty(
+      converter,
+      kAudioConverterSampleRateConverterQuality,
+      UInt32(MemoryLayout<UInt32>.size),
+      &quality
+    )
+
+    if status != noErr {
+      Self.logger.warning("Failed to set audio converter quality: \(status, privacy: .public), using default quality")
+    } else {
+      Self.logger.info("Audio converter quality set to MAX")
+    }
+
+    Self.logger.info("Audio converter created - Input: \(sourceFormat.mSampleRate, privacy: .public)Hz \(sourceFormat.mChannelsPerFrame, privacy: .public)ch \(sourceFormat.mBitsPerChannel, privacy: .public)bit -> Output: \(self.targetSampleRate, privacy: .public)Hz \(self.targetChannels, privacy: .public)ch \(self.targetBitsPerChannel, privacy: .public)bit")
+
     return true
   }
-  
-  private func extractAudioData(from sampleBuffer: CMSampleBuffer) -> Data? {
-    var blockBuffer: CMBlockBuffer?
-    var audioBufferList = AudioBufferList()
-    
-    let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-      sampleBuffer,
-      bufferListSizeNeededOut: nil,
-      bufferListOut: &audioBufferList,
-      bufferListSize: MemoryLayout<AudioBufferList>.size,
-      blockBufferAllocator: kCFAllocatorDefault,
-      blockBufferMemoryAllocator: kCFAllocatorDefault,
-      flags: 0,
-      blockBufferOut: &blockBuffer
-    )
-    
-    guard status == noErr else {
-      Self.logger.error("Failed to get audio buffer list: \(status)")
-      return nil
+  /// Context for audio conversion to ensure proper memory lifetime
+  private struct ConversionContext {
+    let inputData: Data
+    var hasProvidedData: Bool = false
+    let sourceFormat: AudioStreamBasicDescription
+
+    init(inputData: Data, sourceFormat: AudioStreamBasicDescription) {
+      self.inputData = inputData
+      self.sourceFormat = sourceFormat
     }
-    
-    defer {
-      // CMBlockBuffer is automatically memory managed in Swift 6
-      _ = blockBuffer
-    }
-    
-    let buffers = UnsafeMutableAudioBufferListPointer(&audioBufferList)
-    guard let buffer = buffers.first, let data = buffer.mData else {
-      return nil
-    }
-    
-    return Data(bytes: data, count: Int(buffer.mDataByteSize))
   }
-  
+
   private func convert(audioData: Data, sourceFormat: AudioStreamBasicDescription) -> Data? {
     guard let converter = converter else { return nil }
-    
-    // Calculate output buffer size
+
+    // Calculate output buffer size with 1.5x margin for safety
     let sourceFrames = audioData.count / Int(sourceFormat.mBytesPerFrame)
     let targetFrames = Int(Double(sourceFrames) * targetSampleRate / sourceFormat.mSampleRate)
-    let outputSize = targetFrames * Int(targetBitsPerChannel / 8 * targetChannels)
-    
+    let outputBytesPerFrame = Int(targetBitsPerChannel / 8 * targetChannels)
+    let outputSize = Int(Double(targetFrames * outputBytesPerFrame) * 1.5)
+
+    // [DIAGNOSTIC] Log input info
+    let inputRMS = AudioSampleBufferUtils.calculateRMS(pcmData: audioData, bitsPerChannel: Int(sourceFormat.mBitsPerChannel))
+    Self.logger.info("[DIAGNOSTIC] AudioConverter INPUT: \(sourceFrames) frames, \(audioData.count) bytes, RMS=\(String(format: "%.4f", inputRMS)), \(sourceFormat.mSampleRate)Hz/\(sourceFormat.mChannelsPerFrame)ch")
+    Self.logger.info("[DIAGNOSTIC] AudioConverter EXPECTED OUTPUT: \(targetFrames) frames, \(targetFrames * outputBytesPerFrame) bytes, \(self.targetSampleRate)Hz/\(self.targetChannels)ch")
+
     var outputData = Data(count: outputSize)
-    
-    // Setup input buffer list
-    var inBuffer = AudioBuffer()
-    inBuffer.mNumberChannels = sourceFormat.mChannelsPerFrame
-    inBuffer.mDataByteSize = UInt32(audioData.count)
-    audioData.withUnsafeBytes { bytes in
-      inBuffer.mData = UnsafeMutableRawPointer(mutating: bytes.baseAddress!)
+
+    // Pre-allocate input buffer to ensure lifetime
+    let inputDataCopy = audioData
+    let sourceFormatCopy = sourceFormat
+
+    // Use AudioConverterFillComplexBuffer with improved callback that allows multiple reads
+    let result: (status: OSStatus, actualSize: Int) = inputDataCopy.withUnsafeBytes { inputBytes in
+      outputData.withUnsafeMutableBytes { outputBytes in
+        guard let inputBaseAddress = inputBytes.baseAddress,
+              let outputBaseAddress = outputBytes.baseAddress else {
+          return (kAudioConverterErr_InvalidInputSize, 0)
+        }
+
+        // Setup output buffer list
+        var outBufferList = AudioBufferList()
+        outBufferList.mNumberBuffers = 1
+        outBufferList.mBuffers.mNumberChannels = targetChannels
+        outBufferList.mBuffers.mDataByteSize = UInt32(outputSize)
+        outBufferList.mBuffers.mData = outputBaseAddress
+
+        var ioOutputDataPacketSize = UInt32(targetFrames)
+
+        // Callback state - track how much data has been consumed
+        struct CallbackState {
+          let inputBaseAddress: UnsafeRawPointer
+          let inputDataSize: Int
+          let sourceFormat: AudioStreamBasicDescription
+          var consumedFrames: Int = 0  // Track consumed frames instead of boolean flag
+          var callCount: Int = 0
+        }
+
+        var callbackState = CallbackState(
+          inputBaseAddress: inputBaseAddress,
+          inputDataSize: inputDataCopy.count,
+          sourceFormat: sourceFormatCopy
+        )
+
+        // Call converter with callback that supports multiple reads
+        let status = withUnsafeMutablePointer(to: &callbackState) { statePtr in
+          AudioConverterFillComplexBuffer(
+            converter,
+            { (_, ioNumDataPackets, ioData, _, inUserData) -> OSStatus in
+              guard let userDataPtr = inUserData else {
+                return kAudioConverterErr_InvalidInputSize
+              }
+
+              let state = userDataPtr.assumingMemoryBound(to: CallbackState.self)
+              state.pointee.callCount += 1
+
+              let bytesPerFrame = Int(state.pointee.sourceFormat.mBytesPerFrame)
+              let totalFrames = state.pointee.inputDataSize / bytesPerFrame
+              let remainingFrames = totalFrames - state.pointee.consumedFrames
+
+              // If all data consumed, signal end of data
+              if remainingFrames <= 0 {
+                ioNumDataPackets.pointee = 0
+                return noErr
+              }
+
+              // Provide remaining data (AudioConverter will read what it needs)
+              let framesToProvide = min(remainingFrames, Int(ioNumDataPackets.pointee))
+              let bytesToProvide = framesToProvide * bytesPerFrame
+              let offsetBytes = state.pointee.consumedFrames * bytesPerFrame
+
+              // Setup input buffer list pointing to remaining data
+              var inBufferList = AudioBufferList()
+              inBufferList.mNumberBuffers = 1
+              inBufferList.mBuffers.mNumberChannels = state.pointee.sourceFormat.mChannelsPerFrame
+              inBufferList.mBuffers.mDataByteSize = UInt32(bytesToProvide)
+              inBufferList.mBuffers.mData = UnsafeMutableRawPointer(mutating: state.pointee.inputBaseAddress.advanced(by: offsetBytes))
+
+              ioData.pointee = inBufferList
+              ioNumDataPackets.pointee = UInt32(framesToProvide)
+
+              // Update consumed frames
+              state.pointee.consumedFrames += framesToProvide
+
+              return noErr
+            },
+            statePtr,
+            &ioOutputDataPacketSize,
+            &outBufferList,
+            nil
+          )
+        }
+
+        // [RESAMPLE-DEBUG] Log callback statistics
+        Self.logger.info("[RESAMPLE-DEBUG] Callback called \(callbackState.callCount) times")
+        Self.logger.info("[RESAMPLE-DEBUG] Total frames consumed: \(callbackState.consumedFrames) / \(sourceFrames)")
+
+        // [DIAGNOSTIC] Log what AudioConverter actually wrote
+        let actualFramesWritten = Int(ioOutputDataPacketSize)
+        let actualBytesWritten = actualFramesWritten * outputBytesPerFrame
+        let reportedSize = Int(outBufferList.mBuffers.mDataByteSize)
+        Self.logger.info("[DIAGNOSTIC] AudioConverter WRITE INFO: ioOutputDataPacketSize=\(actualFramesWritten) frames, calculated=\(actualBytesWritten) bytes, mDataByteSize=\(reportedSize) bytes, diff=\(reportedSize - actualBytesWritten) bytes")
+
+        // [RESAMPLE-DEBUG] Verify AudioConverter output
+        Self.logger.info("[RESAMPLE-DEBUG] AudioConverter completed - status: \(status)")
+        Self.logger.info("[RESAMPLE-DEBUG] Output size - ioOutputDataPacketSize: \(actualFramesWritten) frames")
+        Self.logger.info("[RESAMPLE-DEBUG] Output size - calculated: \(actualBytesWritten) bytes (\(actualFramesWritten) × \(outputBytesPerFrame))")
+        Self.logger.info("[RESAMPLE-DEBUG] Output size - mDataByteSize: \(reportedSize) bytes")
+        Self.logger.info("[RESAMPLE-DEBUG] Output size - diff: \(reportedSize - actualBytesWritten) bytes")
+
+        return (status, actualBytesWritten)
+      }
     }
-    
-    var inBufferList = AudioBufferList()
-    inBufferList.mNumberBuffers = 1
-    inBufferList.mBuffers = inBuffer
-    
-    // Setup output buffer list
-    var outBufferList = AudioBufferList()
-    outBufferList.mNumberBuffers = 1
-    
-    // Setup buffer properties before using in closure to avoid data race
-    outBufferList.mBuffers.mNumberChannels = targetChannels
-    outBufferList.mBuffers.mDataByteSize = UInt32(outputSize)
-    outputData.withUnsafeMutableBytes { bytes in
-      outBufferList.mBuffers.mData = bytes.baseAddress
-    }
-    
-    var ioOutputDataPacketSize = UInt32(targetFrames)
-    
-    let status = AudioConverterFillComplexBuffer(
-      converter,
-      { (converter, ioNumDataPackets, ioData, _, inUserData) -> OSStatus in
-        guard let userData = inUserData else { return noErr }
-        let bufferList = userData.assumingMemoryBound(to: AudioBufferList.self).pointee
-        ioData.pointee = bufferList
-        return noErr
-      },
-      &inBufferList,
-      &ioOutputDataPacketSize,
-      &outBufferList,
-      nil
-    )
-    
-    if status != noErr {
-      Self.logger.error("AudioConverterFillComplexBuffer failed: \(status)")
+
+    guard result.status == noErr else {
+      Self.logger.error("AudioConverterFillComplexBuffer failed: \(result.status, privacy: .public)")
       return nil
     }
-    
-    return Data(bytes: outBufferList.mBuffers.mData!,
-                count: Int(outBufferList.mBuffers.mDataByteSize))
+
+    // [RESAMPLE-DEBUG] Before trim
+    let beforeTrimSize = outputData.count
+    Self.logger.info("[RESAMPLE-DEBUG] Before trim - outputData.count: \(beforeTrimSize) bytes")
+    Self.logger.info("[RESAMPLE-DEBUG] Trimming to - result.actualSize: \(result.actualSize) bytes")
+
+    // Trim to actual size
+    outputData.count = result.actualSize
+
+    // [RESAMPLE-DEBUG] After trim
+    let afterTrimSize = outputData.count
+    Self.logger.info("[RESAMPLE-DEBUG] After trim - outputData.count: \(afterTrimSize) bytes")
+    Self.logger.info("[RESAMPLE-DEBUG] Trimmed bytes: \(beforeTrimSize - afterTrimSize)")
+
+    // [DIAGNOSTIC] Log output info
+    let actualFrames = result.actualSize / outputBytesPerFrame
+    let outputRMS = AudioSampleBufferUtils.calculateRMS(pcmData: outputData, bitsPerChannel: Int(targetBitsPerChannel))
+    Self.logger.info("[DIAGNOSTIC] AudioConverter ACTUAL OUTPUT: \(actualFrames) frames, \(result.actualSize) bytes, RMS=\(String(format: "%.4f", outputRMS))")
+
+    // [RESAMPLE-DEBUG] Verify trimmed data integrity
+    Self.logger.info("[RESAMPLE-DEBUG] Final data RMS: \(String(format: "%.4f", outputRMS))")
+    Self.logger.info("[RESAMPLE-DEBUG] Data integrity - frames: \(actualFrames), expected: ~\(targetFrames)")
+
+    let rmsLossPercent = inputRMS > 0 ? (1 - outputRMS/inputRMS) * 100 : 0
+    Self.logger.info("[DIAGNOSTIC] AudioConverter RMS COMPARISON: input=\(String(format: "%.4f", inputRMS)), output=\(String(format: "%.4f", outputRMS)), loss=\(String(format: "%.1f%%", rmsLossPercent))")
+
+    return outputData
   }
   
   private func createSampleBuffer(from data: Data, timestamp: CMTime) -> CMSampleBuffer? {
-    // Create audio format description
-    var outputFormat = targetFormat
-    
-    var formatDescription: CMAudioFormatDescription?
-    var status = CMAudioFormatDescriptionCreate(
-      allocator: kCFAllocatorDefault,
-      asbd: &outputFormat,
-      layoutSize: 0,
-      layout: nil,
-      magicCookieSize: 0,
-      magicCookie: nil,
-      extensions: nil,
-      formatDescriptionOut: &formatDescription
-    )
-    
-    guard status == noErr, let formatDesc = formatDescription else {
-      Self.logger.error("Failed to create format description: \(status)")
-      return nil
-    }
-    
-    // Create block buffer
-    var blockBuffer: CMBlockBuffer?
-    status = CMBlockBufferCreateWithMemoryBlock(
-      allocator: kCFAllocatorDefault,
-      memoryBlock: nil,
-      blockLength: data.count,
-      blockAllocator: kCFAllocatorDefault,
-      customBlockSource: nil,
-      offsetToData: 0,
-      dataLength: data.count,
-      flags: 0,
-      blockBufferOut: &blockBuffer
-    )
-    
-    guard status == noErr, let blockBuf = blockBuffer else {
-      Self.logger.error("Failed to create block buffer: \(status)")
-      return nil
-    }
-    
-    // Copy data
-    status = data.withUnsafeBytes { bytes in
-      CMBlockBufferReplaceDataBytes(
-        with: bytes.baseAddress!,
-        blockBuffer: blockBuf,
-        offsetIntoDestination: 0,
-        dataLength: data.count
+    // Get or create cached format description for performance
+    if cachedFormatDescription == nil {
+      var outputFormat = targetFormat
+      var formatDescription: CMAudioFormatDescription?
+      let status = CMAudioFormatDescriptionCreate(
+        allocator: kCFAllocatorDefault,
+        asbd: &outputFormat,
+        layoutSize: 0,
+        layout: nil,
+        magicCookieSize: 0,
+        magicCookie: nil,
+        extensions: nil,
+        formatDescriptionOut: &formatDescription
       )
+
+      guard status == noErr, let desc = formatDescription else {
+        Self.logger.error("Failed to create format description: \(status, privacy: .public)")
+        return nil
+      }
+
+      cachedFormatDescription = desc
     }
-    
-    guard status == noErr else {
-      Self.logger.error("Failed to copy data to block buffer: \(status)")
+
+    // Use utility method to create sample buffer with cached format description
+    guard let sampleBuffer = AudioSampleBufferUtils.createAudioSampleBuffer(
+      from: data,
+      timestamp: timestamp,
+      format: targetFormat,
+      formatDescription: cachedFormatDescription
+    ) else {
+      Self.logger.error("Failed to create sample buffer using AudioSampleBufferUtils")
       return nil
     }
-    
-    // Create sample buffer
-    let frameCount = data.count / Int(outputFormat.mBytesPerFrame)
-    var sampleBuffer: CMSampleBuffer?
-    status = CMAudioSampleBufferCreateWithPacketDescriptions(
-      allocator: kCFAllocatorDefault,
-      dataBuffer: blockBuf,
-      dataReady: true,
-      makeDataReadyCallback: nil,
-      refcon: nil,
-      formatDescription: formatDesc,
-      sampleCount: frameCount,
-      presentationTimeStamp: timestamp,
-      packetDescriptions: nil,
-      sampleBufferOut: &sampleBuffer
-    )
-    
-    guard status == noErr, let sample = sampleBuffer else {
-      Self.logger.error("Failed to create sample buffer: \(status)")
-      return nil
-    }
-    
-    return sample
+
+    return sampleBuffer
   }
 }

@@ -18,7 +18,7 @@ protocol AudioEncoder: Actor {
   /// Encodes an audio sample buffer (non-blocking)
   /// This method returns immediately and yields the sample buffer to internal processing stream
   /// - Parameter sampleBuffer: The audio sample buffer to encode
-  nonisolated func encode(sampleBuffer: CMSampleBuffer)
+  nonisolated func encode(sampleBuffer: SampleBufferBox)
 
   /// Stops the encoder and finishes all streams
   func stop()
