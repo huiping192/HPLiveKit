@@ -295,8 +295,6 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
     // MARK: - Screen Share Methods
   
-  var a = AudioResampler()
-
     /// Push sample buffer from RPBroadcastSampleHandler
     /// - Parameters:
     ///   - sampleBuffer: Sample buffer from RPBroadcastSampleHandler
@@ -315,7 +313,6 @@ public class LiveSession: NSObject, @unchecked Sendable {
         switch type {
         case .video:
             videoEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: sampleBuffer))
-
         case .audioApp:
             audioMixer?.pushAppAudio(SampleBufferBox(samplebuffer: sampleBuffer))
         case .audioMic:
