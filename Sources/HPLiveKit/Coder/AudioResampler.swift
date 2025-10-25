@@ -65,6 +65,20 @@ actor AudioResampler {
 
   // MARK: - Public API
 
+  /// Get target audio format (for creating sample buffers externally)
+  nonisolated var targetAudioFormat: AudioStreamBasicDescription {
+    var outputFormat = AudioStreamBasicDescription()
+    outputFormat.mSampleRate = targetSampleRate
+    outputFormat.mFormatID = kAudioFormatLinearPCM
+    outputFormat.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked
+    outputFormat.mChannelsPerFrame = targetChannels
+    outputFormat.mBitsPerChannel = targetBitsPerChannel
+    outputFormat.mBytesPerFrame = targetBitsPerChannel / 8 * targetChannels
+    outputFormat.mFramesPerPacket = 1
+    outputFormat.mBytesPerPacket = outputFormat.mBytesPerFrame
+    return outputFormat
+  }
+
   func stop() {
     if let converter {
       AudioConverterDispose(converter)
@@ -72,10 +86,10 @@ actor AudioResampler {
     }
     cachedFormatDescription = nil
   }
-  
+
   // MARK: - Private Helpers
 
-  /// Get cached or create target audio format
+  /// Get cached or create target audio format (private, actor-isolated)
   private var targetFormat: AudioStreamBasicDescription {
     if let cached = cachedTargetFormat {
       return cached
@@ -100,15 +114,24 @@ actor AudioResampler {
   /// - Returns: Resampled sample buffer box with target format, or nil if conversion fails
   func resample(_ sampleBufferBox: SampleBufferBox) -> SampleBufferBox? {
     let sampleBuffer = sampleBufferBox.samplebuffer
+
+    // [FRAME-DIAG] Record input info
+    let inputFrameCount = CMSampleBufferGetNumSamples(sampleBuffer)
+    let inputDuration = CMSampleBufferGetDuration(sampleBuffer)
+    let inputTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+
     guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else {
       Self.logger.error("Cannot get format description")
       return nil
     }
-    
+
     guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else {
       Self.logger.error("Cannot get audio stream basic description")
       return nil
     }
+
+    // [FRAME-DIAG] Log input
+    Self.logger.info("[FRAME-DIAG] RESAMPLE-IN: frames=\(inputFrameCount), dur=\(String(format: "%.6f", inputDuration.seconds))s, rate=\(asbd.mSampleRate)Hz, ts=\(String(format: "%.6f", inputTimestamp.seconds))s")
     
     // Check if resampling is needed
     let needsResampling = asbd.mSampleRate != targetSampleRate ||
@@ -142,6 +165,13 @@ actor AudioResampler {
                                                      timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) else {
       return nil
     }
+
+    // [FRAME-DIAG] Log output
+    let outputFrameCount = CMSampleBufferGetNumSamples(newSampleBuffer)
+    let outputDuration = CMSampleBufferGetDuration(newSampleBuffer)
+    let delta = outputFrameCount - inputFrameCount
+    Self.logger.info("[FRAME-DIAG] RESAMPLE-OUT: frames=\(outputFrameCount), dur=\(String(format: "%.6f", outputDuration.seconds))s, delta=\(delta)")
+
     return SampleBufferBox(samplebuffer: newSampleBuffer)
   }
   

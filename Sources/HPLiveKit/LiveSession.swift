@@ -317,31 +317,9 @@ public class LiveSession: NSObject, @unchecked Sendable {
             videoEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: sampleBuffer))
 
         case .audioApp:
-          // Push to audio mixer if available and enabled, otherwise encode directly
-//          if let audioMixer = audioMixer, audioConfiguration.audioMixingEnabled {
             audioMixer?.pushAppAudio(SampleBufferBox(samplebuffer: sampleBuffer))
-//          } else {
-//            audioEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: sampleBuffer))
-//          }
-
         case .audioMic:
-            // Push to audio mixer
             audioMixer?.pushMicAudio(SampleBufferBox(samplebuffer: sampleBuffer))
-//          let sb = SampleBufferBox(samplebuffer: sampleBuffer)
-//          Task {
-//            if let b = await a.resample(sb) {
-//              // [DIAGNOSTIC] Before encoding (Scenario A: direct resample)
-//              let timestamp = CMSampleBufferGetPresentationTimeStamp(b.samplebuffer)
-//              if let pcmData = AudioSampleBufferUtils.extractPCMData(from: b.samplebuffer),
-//                 let format = AudioSampleBufferUtils.extractFormat(from: b.samplebuffer) {
-//                let rms = AudioSampleBufferUtils.calculateRMS(pcmData: pcmData, bitsPerChannel: Int(format.mBitsPerChannel))
-//                Self.logger.info("[DIAGNOSTIC] SCENARIO-A (direct resample) ENCODE INPUT: ts=\(timestamp.seconds)s, size=\(pcmData.count), RMS=\(String(format: "%.4f", rms)), format=\(format.mSampleRate)Hz/\(format.mChannelsPerFrame)ch/\(format.mBitsPerChannel)bit")
-//              }
-//              audioEncoder.encode(sampleBuffer: b)
-//            } else {
-//              print("[test] resample failed")
-//            }
-//          }
         @unknown default:
             #if DEBUG
             print("[HPLiveKit] Unknown sample buffer type: \(type)")

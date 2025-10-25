@@ -46,10 +46,14 @@ actor AudioMixer {
   }
   
   // MARK: - Processing State
-  
-  private var appAudioBuffer: [TimestampedBuffer] = []
-  private var micAudioBuffer: [TimestampedBuffer] = []
-  
+
+  // PCM buffer pools with timestamp tracking
+  private var appPCMBuffer = TimestampedPCMBuffer(sampleRate: 48000, bytesPerFrame: 4)
+  private var micPCMBuffer = TimestampedPCMBuffer(sampleRate: 48000, bytesPerFrame: 4)
+
+  // Buffer overflow protection (max 100ms buffering)
+  private let maxBufferFrames = 4800  // 100ms @ 48kHz
+
   private let bufferTimeThreshold: CMTime = CMTime(seconds: 0.05, preferredTimescale: 1000000) // 50ms
   private let maxTimeDiffBeforeDrop: CMTime = CMTime(seconds: 1.0, preferredTimescale: 1000000) // 1s - drop buffer if time diff exceeds this
   
@@ -58,10 +62,73 @@ actor AudioMixer {
   nonisolated(unsafe) private var micProcessingTask: Task<Void, Never>?
   
   // MARK: - Helper Types
-  
+
   private struct TimestampedBuffer {
     let sampleBufferBox: SampleBufferBox
     let timestamp: CMTime
+  }
+
+  /// PCM buffer with timestamp tracking for precise alignment
+  private struct TimestampedPCMBuffer {
+    var data: Data
+    var startTimestamp: CMTime
+    var sampleRate: Double
+    var bytesPerFrame: Int
+
+    init(sampleRate: Double = 48000, bytesPerFrame: Int = 4) {
+      self.data = Data()
+      self.startTimestamp = .zero
+      self.sampleRate = sampleRate
+      self.bytesPerFrame = bytesPerFrame
+    }
+
+    var isEmpty: Bool { data.isEmpty }
+    var frameCount: Int { data.count / bytesPerFrame }
+
+    /// Append new PCM data with timestamp
+    mutating func append(_ newData: Data, timestamp: CMTime) {
+      if data.isEmpty {
+        // First data, set timestamp
+        data = newData
+        startTimestamp = timestamp
+      } else {
+        // Append to existing data
+        data.append(newData)
+        // startTimestamp remains pointing to the first frame
+      }
+    }
+
+    /// Consume frames from buffer and return data with timestamp
+    /// - Parameter frames: Number of frames to consume
+    /// - Returns: Tuple of (consumed data, timestamp of first frame)
+    mutating func consume(frames: Int) -> (data: Data, timestamp: CMTime)? {
+      guard frames > 0, data.count >= frames * bytesPerFrame else {
+        return nil
+      }
+
+      let consumeBytes = frames * bytesPerFrame
+      let consumedData = Data(data.prefix(consumeBytes))
+      let timestamp = startTimestamp
+
+      // Update remaining data
+      data = Data(data.suffix(from: consumeBytes))
+
+      // Update timestamp for remaining data
+      if !data.isEmpty {
+        let duration = CMTime(seconds: Double(frames) / sampleRate, preferredTimescale: 1000000)
+        startTimestamp = CMTimeAdd(startTimestamp, duration)
+      } else {
+        startTimestamp = .zero
+      }
+
+      return (consumedData, timestamp)
+    }
+
+    /// Clear all buffered data
+    mutating func clear() {
+      data.removeAll()
+      startTimestamp = .zero
+    }
   }
   
   // MARK: - Initialization
@@ -108,6 +175,13 @@ actor AudioMixer {
   /// Push app audio sample buffer
   /// - Parameter sampleBuffer: Must be 16-bit PCM format
   nonisolated func pushAppAudio(_ sampleBuffer: SampleBufferBox) {
+    // [FRAME-DIAG] Record original input frames
+    let frameCount = CMSampleBufferGetNumSamples(sampleBuffer.samplebuffer)
+    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer.samplebuffer)
+    let duration = CMSampleBufferGetDuration(sampleBuffer.samplebuffer)
+
+    Self.logger.info("[FRAME-DIAG] APP-SOURCE: frames=\(frameCount), dur=\(String(format: "%.6f", duration.seconds))s, ts=\(String(format: "%.6f", timestamp.seconds))s")
+
     // Debug: Log app audio data with actual PCM data size
     let format = CMSampleBufferGetFormatDescription(sampleBuffer.samplebuffer)
     if let asbd = format.flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) {
@@ -126,6 +200,13 @@ actor AudioMixer {
   /// Push microphone audio sample buffer
   /// - Parameter sampleBuffer: Must be 16-bit PCM format
   nonisolated func pushMicAudio(_ sampleBuffer: SampleBufferBox) {
+    // [FRAME-DIAG] Record original input frames
+    let frameCount = CMSampleBufferGetNumSamples(sampleBuffer.samplebuffer)
+    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer.samplebuffer)
+    let duration = CMSampleBufferGetDuration(sampleBuffer.samplebuffer)
+
+    Self.logger.info("[FRAME-DIAG] MIC-SOURCE: frames=\(frameCount), dur=\(String(format: "%.6f", duration.seconds))s, ts=\(String(format: "%.6f", timestamp.seconds))s")
+
     // Debug: Log mic audio data with actual PCM data size
     let format = CMSampleBufferGetFormatDescription(sampleBuffer.samplebuffer)
     if let asbd = format.flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) {
@@ -140,7 +221,6 @@ actor AudioMixer {
     }
 
     // [DIAGNOSTIC] Input tracking
-    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer.samplebuffer)
     if let pcmData = AudioSampleBufferUtils.extractPCMData(from: sampleBuffer.samplebuffer),
        let asbd = format.flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) {
       let rms = AudioSampleBufferUtils.calculateRMS(pcmData: pcmData, bitsPerChannel: Int(asbd.mBitsPerChannel))
@@ -159,8 +239,9 @@ actor AudioMixer {
     micAudioContinuation.finish()
     outputContinuation.finish()
 
-    appAudioBuffer.removeAll()
-    micAudioBuffer.removeAll()
+    // Clear PCM buffer pools
+    appPCMBuffer.clear()
+    micPCMBuffer.clear()
   }
   
   // MARK: - Private Processing Methods
@@ -191,10 +272,23 @@ actor AudioMixer {
         Self.logger.info("[DIAGNOSTIC] APP AFTER RESAMPLE: ts=\(outputTimestamp.seconds)s, size=\(outputPCM.count), RMS=\(String(format: "%.4f", outputRMS)), format=\(outputFormat.mSampleRate)Hz/\(outputFormat.mChannelsPerFrame)ch/\(outputFormat.mBitsPerChannel)bit")
       }
 
-      let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
-      appAudioBuffer.append(TimestampedBuffer(sampleBufferBox: normalizedBox, timestamp: timestamp))
+      // Extract PCM data and append to buffer pool
+      guard let pcmData = AudioSampleBufferUtils.extractPCMData(from: normalizedBox.samplebuffer) else {
+        Self.logger.error("Failed to extract PCM data from app audio")
+        continue
+      }
 
-      Self.logger.info("[DIAGNOSTIC] APP buffered, triggering mixing... app_buffer=\(self.appAudioBuffer.count), mic_buffer=\(self.micAudioBuffer.count)")
+      let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
+      appPCMBuffer.append(pcmData, timestamp: timestamp)
+
+      // Buffer overflow protection
+      if appPCMBuffer.frameCount > maxBufferFrames {
+        let dropFrames = appPCMBuffer.frameCount - maxBufferFrames
+        _ = appPCMBuffer.consume(frames: dropFrames)
+        Self.logger.warning("[BUFFER-POOL] App buffer overflow, dropped \(dropFrames) frames")
+      }
+
+      Self.logger.info("[DIAGNOSTIC] APP buffered, triggering mixing... app_buffer=\(self.appPCMBuffer.frameCount)F, mic_buffer=\(self.micPCMBuffer.frameCount)F")
 
       // Event-driven mixing: process immediately when new data arrives
       await processMixing()
@@ -228,10 +322,23 @@ actor AudioMixer {
         Self.logger.info("[DIAGNOSTIC] AFTER RESAMPLE: ts=\(outputTimestamp.seconds)s, size=\(outputPCM.count), RMS=\(String(format: "%.4f", outputRMS)), format=\(outputFormat.mSampleRate)Hz/\(outputFormat.mChannelsPerFrame)ch/\(outputFormat.mBitsPerChannel)bit")
       }
 
-      let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
-      micAudioBuffer.append(TimestampedBuffer(sampleBufferBox: normalizedBox, timestamp: timestamp))
+      // Extract PCM data and append to buffer pool
+      guard let pcmData = AudioSampleBufferUtils.extractPCMData(from: normalizedBox.samplebuffer) else {
+        Self.logger.error("Failed to extract PCM data from mic audio")
+        continue
+      }
 
-      Self.logger.debug("Mic audio buffered: \(timestamp.seconds)s, buffer size: \(self.micAudioBuffer.count)")
+      let timestamp = CMSampleBufferGetPresentationTimeStamp(normalizedBox.samplebuffer)
+      micPCMBuffer.append(pcmData, timestamp: timestamp)
+
+      // Buffer overflow protection
+      if micPCMBuffer.frameCount > maxBufferFrames {
+        let dropFrames = micPCMBuffer.frameCount - maxBufferFrames
+        _ = micPCMBuffer.consume(frames: dropFrames)
+        Self.logger.warning("[BUFFER-POOL] Mic buffer overflow, dropped \(dropFrames) frames")
+      }
+
+      Self.logger.debug("Mic audio buffered: \(timestamp.seconds)s, buffer size: \(self.micPCMBuffer.frameCount)F")
 
       // Note: Mic audio stream does NOT trigger mixing - it only buffers data
       // Mixing is driven by app audio stream (main driver)
@@ -240,123 +347,85 @@ actor AudioMixer {
 
   private func processMixing() async {
     // Strategy: Single-stream passthrough when only one stream has data
-    // If only one stream has data, output it directly
 
     // [DIAGNOSTIC] Log every mixing call
-    Self.logger.info("[DIAGNOSTIC] processMixing() CALLED - app_buffer: \(self.appAudioBuffer.count), mic_buffer: \(self.micAudioBuffer.count)")
+    Self.logger.info("[DIAGNOSTIC] processMixing() CALLED - app_buffer: \(self.appPCMBuffer.frameCount)F, mic_buffer: \(self.micPCMBuffer.frameCount)F")
 
-    if !appAudioBuffer.isEmpty && micAudioBuffer.isEmpty {
-      // Only app audio available - direct passthrough (no limiting needed)
-      // AudioResampler output is already safe and doesn't require limiting
-      let buffer = appAudioBuffer.removeFirst()
-      outputContinuation.yield(buffer.sampleBufferBox)
-      Self.logger.info("[Decision] Output app audio ONLY (direct passthrough): \(buffer.timestamp.seconds)s")
-      return
-    }
+    // Get target format for creating sample buffers
+    let targetFormat = appResampler.targetAudioFormat
 
-    if appAudioBuffer.isEmpty && !micAudioBuffer.isEmpty {
-      // Only mic audio available - direct passthrough (no limiting needed)
-      // AudioResampler output is already safe and doesn't require limiting
-      let buffer = micAudioBuffer.removeFirst()
-
-      // [DIAGNOSTIC] Output tracking
-      let currentTime = Date().timeIntervalSince1970
-      if let outputPCM = AudioSampleBufferUtils.extractPCMData(from: buffer.sampleBufferBox.samplebuffer),
-         let outputFormat = AudioSampleBufferUtils.extractFormat(from: buffer.sampleBufferBox.samplebuffer) {
-        let outputRMS = AudioSampleBufferUtils.calculateRMS(pcmData: outputPCM, bitsPerChannel: Int(outputFormat.mBitsPerChannel))
-        let delay = currentTime - buffer.timestamp.seconds
-        Self.logger.info("[DIAGNOSTIC] MIC-ONLY OUTPUT: ts=\(buffer.timestamp.seconds)s, size=\(outputPCM.count), RMS=\(String(format: "%.4f", outputRMS)), bufferSize=\(self.micAudioBuffer.count), delay=\(String(format: "%.3f", delay))s")
+    if !appPCMBuffer.isEmpty && micPCMBuffer.isEmpty {
+      // Only app audio available - direct passthrough
+      guard let (appData, appTimestamp) = appPCMBuffer.consume(frames: appPCMBuffer.frameCount) else {
+        return
       }
 
-      outputContinuation.yield(buffer.sampleBufferBox)
-      Self.logger.info("[Decision] Output mic audio ONLY (direct passthrough): \(buffer.timestamp.seconds)s")
+      if let outputBuffer = createSampleBuffer(from: appData, timestamp: appTimestamp, format: targetFormat) {
+        outputContinuation.yield(SampleBufferBox(samplebuffer: outputBuffer))
+        Self.logger.info("[Decision] Output app audio ONLY (direct passthrough): \(appTimestamp.seconds)s, \(appData.count / 4)F")
+      }
       return
     }
 
-    if appAudioBuffer.isEmpty || micAudioBuffer.isEmpty {
+    if appPCMBuffer.isEmpty && !micPCMBuffer.isEmpty {
+      // Only mic audio available - direct passthrough
+      guard let (micData, micTimestamp) = micPCMBuffer.consume(frames: micPCMBuffer.frameCount) else {
+        return
+      }
+
+      if let outputBuffer = createSampleBuffer(from: micData, timestamp: micTimestamp, format: targetFormat) {
+        // [DIAGNOSTIC] Output tracking
+        let currentTime = Date().timeIntervalSince1970
+        let outputRMS = AudioSampleBufferUtils.calculateRMS(pcmData: micData, bitsPerChannel: 16)
+        let delay = currentTime - micTimestamp.seconds
+        Self.logger.info("[DIAGNOSTIC] MIC-ONLY OUTPUT: ts=\(micTimestamp.seconds)s, size=\(micData.count), RMS=\(String(format: "%.4f", outputRMS)), bufferSize=\(self.micPCMBuffer.frameCount)F, delay=\(String(format: "%.3f", delay))s")
+
+        outputContinuation.yield(SampleBufferBox(samplebuffer: outputBuffer))
+        Self.logger.info("[Decision] Output mic audio ONLY (direct passthrough): \(micTimestamp.seconds)s, \(micData.count / 4)F")
+      }
+      return
+    }
+
+    if appPCMBuffer.isEmpty || micPCMBuffer.isEmpty {
       // No data to process
-      Self.logger.info("[DIAGNOSTIC] [Decision] No data to process (waiting for both streams) - app: \(self.appAudioBuffer.count), mic: \(self.micAudioBuffer.count)")
+      Self.logger.info("[DIAGNOSTIC] [Decision] No data to process (waiting for both streams) - app: \(self.appPCMBuffer.frameCount)F, mic: \(self.micPCMBuffer.frameCount)F")
       return
     }
-    
+
     // Both streams have data, mix them
-    let appBuffer = appAudioBuffer.first!
-    let micBuffer = micAudioBuffer.first!
-    
-    // Check timestamp alignment
-    let timeDiff = CMTimeSubtract(appBuffer.timestamp, micBuffer.timestamp)
-    let timeDiffAbs = abs(timeDiff.seconds)
+    let mixFrames = min(appPCMBuffer.frameCount, micPCMBuffer.frameCount)
 
-    if timeDiffAbs > bufferTimeThreshold.seconds {
-      // Time diff exceeds threshold - use adaptive strategy
-      if timeDiffAbs > self.maxTimeDiffBeforeDrop.seconds {
-        // Time diff > 1s: One stream is severely delayed or stalled, drop old buffer
-        Self.logger.error("Severe timestamp mismatch (>\(self.maxTimeDiffBeforeDrop.seconds)s): app=\(appBuffer.timestamp.seconds)s, mic=\(micBuffer.timestamp.seconds)s, diff=\(timeDiffAbs)s - dropping old buffer")
-
-        if CMTimeCompare(appBuffer.timestamp, micBuffer.timestamp) < 0 {
-          appAudioBuffer.removeFirst()
-        } else {
-          micAudioBuffer.removeFirst()
-        }
-      } else {
-        // Time diff between threshold and 1s: Output older buffer to maintain audio continuity
-        Self.logger.warning("Timestamp mismatch: app=\(appBuffer.timestamp.seconds)s, mic=\(micBuffer.timestamp.seconds)s, diff=\(timeDiffAbs)s - outputting older buffer to maintain continuity")
-
-        if CMTimeCompare(appBuffer.timestamp, micBuffer.timestamp) < 0 {
-          // App is older, output app audio
-          let buffer = appAudioBuffer.removeFirst()
-          outputContinuation.yield(buffer.sampleBufferBox)
-        } else {
-          // Mic is older, output mic audio
-          let buffer = micAudioBuffer.removeFirst()
-          outputContinuation.yield(buffer.sampleBufferBox)
-        }
-      }
+    guard let (appData, appTimestamp) = appPCMBuffer.consume(frames: mixFrames),
+          let (micData, _) = micPCMBuffer.consume(frames: mixFrames) else {
+      Self.logger.error("Failed to consume data from buffers")
       return
     }
-    
-    // Mix audio with soft limiting
-    Self.logger.info("[Decision] MIXING both streams: app=\(appBuffer.timestamp.seconds)s, mic=\(micBuffer.timestamp.seconds)s")
-    if let mixed = mixBuffers(appBuffer: appBuffer.sampleBufferBox.samplebuffer, micBuffer: micBuffer.sampleBufferBox.samplebuffer) {
-      // Apply soft limiter to mixed output
-      if let limitedMixed = applySoftLimiterToSampleBuffer(SampleBufferBox(samplebuffer: mixed)) {
-        outputContinuation.yield(limitedMixed)
-        Self.logger.info("[Output] Mixed audio successful (soft limited)")
-      } else {
-        outputContinuation.yield(SampleBufferBox(samplebuffer: mixed)) // Fallback
-        Self.logger.warning("[Output] Mixed audio successful (limiter failed, using original)")
-      }
-    } else {
+
+    Self.logger.info("[FRAME-DIAG] BUFFER-POOL: mixed=\(mixFrames)F, app_residual=\(self.appPCMBuffer.frameCount)F, mic_residual=\(self.micPCMBuffer.frameCount)F, output_ts=\(String(format: "%.6f", appTimestamp.seconds))s")
+    Self.logger.info("[Decision] MIXING both streams: \(mixFrames)F, output_ts=\(appTimestamp.seconds)s")
+
+    // Mix PCM data
+    guard let mixedData = mixPCMData(app: appData, mic: micData, bitsPerChannel: 16) else {
       Self.logger.error("[Output] Failed to mix audio buffers")
+      return
     }
 
-    // Remove processed buffers
-    appAudioBuffer.removeFirst()
-    micAudioBuffer.removeFirst()
+    // Create sample buffer with correct timestamp
+    guard let mixedBuffer = createSampleBuffer(from: mixedData, timestamp: appTimestamp, format: targetFormat) else {
+      Self.logger.error("Failed to create mixed sample buffer")
+      return
+    }
+
+    // Apply soft limiter
+    if let limitedMixed = applySoftLimiterToSampleBuffer(SampleBufferBox(samplebuffer: mixedBuffer)) {
+      outputContinuation.yield(limitedMixed)
+      Self.logger.info("[Output] Mixed audio successful (soft limited)")
+    } else {
+      outputContinuation.yield(SampleBufferBox(samplebuffer: mixedBuffer))
+      Self.logger.warning("[Output] Mixed audio successful (limiter failed, using original)")
+    }
   }
   
-  private func mixBuffers(appBuffer: CMSampleBuffer, micBuffer: CMSampleBuffer) -> CMSampleBuffer? {
-    // Extract PCM data from both buffers
-    guard let appData = AudioSampleBufferUtils.extractPCMData(from: appBuffer),
-          let micData = AudioSampleBufferUtils.extractPCMData(from: micBuffer) else {
-      return nil
-    }
-
-    // Get format information
-    guard let asbd = AudioSampleBufferUtils.extractFormat(from: appBuffer) else {
-      Self.logger.error("Failed to get audio format description")
-      return nil
-    }
-
-    // Mix PCM data with volume ratio
-    guard let mixedData = mixPCMData(app: appData, mic: micData, bitsPerChannel: asbd.mBitsPerChannel) else {
-      return nil
-    }
-
-    // Create new sample buffer with mixed data
-    let timestamp = CMSampleBufferGetPresentationTimeStamp(appBuffer)
-    return createSampleBuffer(from: mixedData, timestamp: timestamp, format: asbd)
-  }
   private func mixPCMData(app: Data, mic: Data, bitsPerChannel: UInt32) -> Data? {
     // Only support 16-bit PCM
     guard bitsPerChannel == 16 else {
@@ -364,29 +433,21 @@ actor AudioMixer {
       return nil
     }
 
+    // Verify both buffers are same size (should be guaranteed by buffer pool)
+    guard app.count == mic.count else {
+      Self.logger.error("[CRITICAL] Buffer size mismatch after pool alignment - app: \(app.count)B, mic: \(mic.count)B")
+      return nil
+    }
+
     // Calculate bytes per frame (16-bit stereo = 2 channels × 2 bytes = 4 bytes per frame)
     let bytesPerFrame = 4  // 2 channels × 2 bytes
     let samplesPerFrame = 2  // 2 channels
-
-    // [FIX] Ensure both buffers are frame-aligned to prevent sample misalignment
-    // This prevents clipping/distortion caused by resampler size differences
-    let appFrames = app.count / bytesPerFrame
-    let micFrames = mic.count / bytesPerFrame
-    let frameCount = min(appFrames, micFrames)
+    let frameCount = app.count / bytesPerFrame
     let sampleCount = frameCount * samplesPerFrame  // Total samples for vDSP operations
 
-    // Log size difference for diagnostics
-    if app.count != mic.count {
-      Self.logger.warning("[DIAGNOSTIC] Buffer size mismatch before mixing - app: \(app.count) bytes (\(appFrames) frames), mic: \(mic.count) bytes (\(micFrames) frames), using: \(frameCount) frames (\(sampleCount) samples)")
-    }
-
-    // Trim buffers to exact same frame count
-    let appData = Data(app.prefix(frameCount * bytesPerFrame))
-    let micData = Data(mic.prefix(frameCount * bytesPerFrame))
-
-    // Calculate RMS to detect silence (use aligned data)
-    let appRMS = AudioSampleBufferUtils.calculateRMS(pcmData: appData, bitsPerChannel: 16)
-    let micRMS = AudioSampleBufferUtils.calculateRMS(pcmData: micData, bitsPerChannel: 16)
+    // Calculate RMS to detect silence
+    let appRMS = AudioSampleBufferUtils.calculateRMS(pcmData: app, bitsPerChannel: 16)
+    let micRMS = AudioSampleBufferUtils.calculateRMS(pcmData: mic, bitsPerChannel: 16)
     let silenceThreshold = 0.001 // RMS below this is considered silence
 
     Self.logger.info("[RMS] app=\(String(format: "%.4f", appRMS)), mic=\(String(format: "%.4f", micRMS))")
@@ -394,19 +455,19 @@ actor AudioMixer {
     // If app audio is silence, return mic only (no mixing needed)
     if appRMS < silenceThreshold {
       Self.logger.warning("[Silence Detection] App audio is SILENT (RMS=\(String(format: "%.4f", appRMS))), returning mic only")
-      return micData
+      return mic
     }
 
     // If mic audio is silence, return app only
     if micRMS < silenceThreshold {
       Self.logger.warning("[Silence Detection] Mic audio is SILENT (RMS=\(String(format: "%.4f", micRMS))), returning app only")
-      return appData
+      return app
     }
 
     var mixedData = Data(count: sampleCount * 2)  // sampleCount samples × 2 bytes per sample
 
-    appData.withUnsafeBytes { appBytes in
-      micData.withUnsafeBytes { micBytes in
+    app.withUnsafeBytes { appBytes in
+      mic.withUnsafeBytes { micBytes in
         mixedData.withUnsafeMutableBytes { mixedBytes in
           let appSamples = appBytes.bindMemory(to: Int16.self)
           let micSamples = micBytes.bindMemory(to: Int16.self)
