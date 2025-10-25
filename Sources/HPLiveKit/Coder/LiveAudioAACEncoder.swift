@@ -10,6 +10,8 @@ import Foundation
 @preconcurrency import AudioToolbox
 @preconcurrency import AVFoundation
 import HPRTMP
+import NIOCore
+import NIOFoundationCompat
 import os
 
 /// Audio AAC encoder using Swift 6 Actor for thread safety
@@ -44,7 +46,8 @@ actor LiveAudioAACEncoder: AudioEncoder {
   private var outFormatDescription: CMFormatDescription?
 
   /// Buffer to accumulate input audio data before encoding
-  private var inputDataBuffer = Data()
+  /// Using ByteBuffer for efficient memory management and zero-copy operations
+  private var inputDataBuffer = ByteBuffer()
 
   private var audioHeader: Data?
   private var aacHeader: Data?
@@ -107,7 +110,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
     // Clean up resources
     converter = nil
-    inputDataBuffer = Data()
+    inputDataBuffer.clear()
 
     audioHeader = nil
     aacHeader = nil
@@ -141,18 +144,18 @@ actor LiveAudioAACEncoder: AudioEncoder {
       let currentTimestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
 
       // If buffer is empty, record the start timestamp and reset frame count
-      if inputDataBuffer.isEmpty {
+      if inputDataBuffer.readableBytes == 0 {
         inputBufferStartTimestamp = currentTimestamp
         encodedFrameCountInBuffer = 0
       }
 
-      inputDataBuffer.append(audioData)
+      inputDataBuffer.writeBytes(audioData)
 
       // Calculate frame duration: 1024 samples / sample rate
       let frameDurationInSeconds = 1024.0 / actualSampleRate
 
       // Encode as many full frames as possible
-      while inputDataBuffer.count >= self.bufferLength {
+      while inputDataBuffer.readableBytes >= self.bufferLength {
         guard let startTimestamp = inputBufferStartTimestamp else {
           Self.logger.error("inputBufferStartTimestamp is nil")
           break
@@ -166,22 +169,27 @@ actor LiveAudioAACEncoder: AudioEncoder {
                  preferredTimescale: 1000000)
         )
 
-        let frameData = inputDataBuffer.prefix(bufferLength)
+        // Read frame data from ByteBuffer (automatically advances read pointer)
+        guard let frameData = inputDataBuffer.readData(length: bufferLength) else {
+          Self.logger.error("Failed to read data from ByteBuffer")
+          break
+        }
 
         // Encode and yield to output stream
-        if let audioFrame = encodeBuffer(audioData: Data(frameData), timestamp: frameTimestamp) {
+        if let audioFrame = encodeBuffer(audioData: frameData, timestamp: frameTimestamp) {
           outputContinuation.yield(audioFrame)
         }
 
         // Increment frame count for next iteration
         encodedFrameCountInBuffer += 1
-
-        // Remove encoded data
-        inputDataBuffer.removeFirst(bufferLength)
       }
 
+      // Discard already-read bytes to prevent memory growth
+      // This moves unread data to the beginning of the buffer and frees the read portion
+      inputDataBuffer.discardReadBytes()
+
       // Reset timestamp tracking when buffer is empty (allows new input to set new timestamp)
-      if inputDataBuffer.isEmpty {
+      if inputDataBuffer.readableBytes == 0 {
         inputBufferStartTimestamp = nil
         encodedFrameCountInBuffer = 0
       }
@@ -312,7 +320,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
         Self.logger.warning("Audio format changed - Previous: \(self.actualSampleRate) Hz, \(self.actualChannels) channels, \(self.actualBitsPerChannel) bits, New: \(sampleRate) Hz, \(channels) channels, \(bitsPerChannel) bits. Reinitializing encoder.")
         // Reset converter to reinitialize with new format
         converter = nil
-        inputDataBuffer = Data()
+        inputDataBuffer.clear()
         inputBufferStartTimestamp = nil
         encodedFrameCountInBuffer = 0
       } else {

@@ -347,17 +347,7 @@ private extension LiveSession {
             // Process frames sequentially in the order they are yielded
             // This ensures timestamp ordering is preserved
             for await frame in self.frameStream {
-                guard let publisher = self.publisher else { continue }
-
-                #if DEBUG
-                // Log frame processing for debugging
-                let frameType = frame is VideoFrame ? "Video" : "Audio"
-                if let videoFrame = frame as? VideoFrame, videoFrame.isKeyFrame {
-                    print("[LiveSession] Processing keyframe: \(frameType) timestamp=\(frame.timestamp)ms")
-                }
-                #endif
-
-                await publisher.send(frame: frame)
+                await publisher?.send(frame: frame)
             }
         }
     }
