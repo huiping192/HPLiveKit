@@ -18,8 +18,8 @@ actor AudioMixer {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioMixer")
 
   private let targetSampleRate: Double
-  private let appVolume: Float
-  private let micVolume: Float
+  private var appVolume: Float
+  private var micVolume: Float
   
   private let appResampler: AudioResampler
   private let micResampler: AudioResampler
@@ -101,7 +101,7 @@ actor AudioMixer {
     }
   }
 
-  init(targetSampleRate: Double = 48000, appVolume: Float = 0.7, micVolume: Float = 1.0) {
+  init(targetSampleRate: Double, appVolume: Float, micVolume: Float) {
     self.targetSampleRate = targetSampleRate
     self.appVolume = appVolume
     self.micVolume = micVolume
@@ -152,6 +152,16 @@ actor AudioMixer {
 
     appPCMBuffer.clear()
     micPCMBuffer.clear()
+  }
+
+  func setAppVolume(_ volume: Float) {
+    self.appVolume = max(0.0, min(2.0, volume))
+    Self.logger.info("App volume set to \(self.appVolume)")
+  }
+
+  func setMicVolume(_ volume: Float) {
+    self.micVolume = max(0.0, min(2.0, volume))
+    Self.logger.info("Mic volume set to \(self.micVolume)")
   }
 
   /// Process app audio stream (MAIN DRIVER for mixing)
@@ -214,7 +224,9 @@ actor AudioMixer {
         return
       }
 
-      if let outputBuffer = createSampleBuffer(from: appData, timestamp: appTimestamp, format: targetFormat) {
+      let volumedData = applyVolume(to: appData, volume: appVolume)
+
+      if let outputBuffer = createSampleBuffer(from: volumedData, timestamp: appTimestamp, format: targetFormat) {
         outputContinuation.yield(SampleBufferBox(samplebuffer: outputBuffer))
       }
       return
@@ -225,7 +237,9 @@ actor AudioMixer {
         return
       }
 
-      if let outputBuffer = createSampleBuffer(from: micData, timestamp: micTimestamp, format: targetFormat) {
+      let volumedData = applyVolume(to: micData, volume: micVolume)
+
+      if let outputBuffer = createSampleBuffer(from: volumedData, timestamp: micTimestamp, format: targetFormat) {
         outputContinuation.yield(SampleBufferBox(samplebuffer: outputBuffer))
       }
       return
@@ -305,10 +319,16 @@ actor AudioMixer {
           vDSP_vflt16(appSamples.baseAddress!, 1, &appFloat, 1, vDSP_Length(sampleCount))
           vDSP_vflt16(micSamples.baseAddress!, 1, &micFloat, 1, vDSP_Length(sampleCount))
 
-          // Use 0.5x gain for each stream to prevent overflow (total gain = 1.0x)
-          var halfGain: Float = 0.5
-          vDSP_vsmul(appFloat, 1, &halfGain, &appFloat, 1, vDSP_Length(sampleCount))
-          vDSP_vsmul(micFloat, 1, &halfGain, &micFloat, 1, vDSP_Length(sampleCount))
+          var effectiveAppGain = appVolume
+          var effectiveMicGain = micVolume
+
+          let totalGain = appVolume + micVolume
+          if totalGain > 1.5 {
+            Self.logger.warning("Total gain (\(String(format: "%.2f", totalGain))) is high. Relying on soft limiter to prevent clipping.")
+          }
+
+          vDSP_vsmul(appFloat, 1, &effectiveAppGain, &appFloat, 1, vDSP_Length(sampleCount))
+          vDSP_vsmul(micFloat, 1, &effectiveMicGain, &micFloat, 1, vDSP_Length(sampleCount))
           vDSP_vadd(appFloat, 1, micFloat, 1, &mixedFloat, 1, vDSP_Length(sampleCount))
 
           var minValue = Float(Int16.min)
@@ -402,6 +422,38 @@ actor AudioMixer {
     }
 
     return limitedData
+  }
+
+  private func applyVolume(to data: Data, volume: Float) -> Data {
+    if abs(volume - 1.0) < 0.001 {
+      return data
+    }
+
+    let bytesPerSample = 2
+    let sampleCount = data.count / bytesPerSample
+    var outputData = Data(count: data.count)
+
+    data.withUnsafeBytes { inputBytes in
+      outputData.withUnsafeMutableBytes { outputBytes in
+        let inputSamples = inputBytes.bindMemory(to: Int16.self)
+        let outputSamples = outputBytes.bindMemory(to: Int16.self)
+
+        var floatSamples = [Float](repeating: 0, count: sampleCount)
+
+        vDSP_vflt16(inputSamples.baseAddress!, 1, &floatSamples, 1, vDSP_Length(sampleCount))
+
+        var volumeGain = volume
+        vDSP_vsmul(floatSamples, 1, &volumeGain, &floatSamples, 1, vDSP_Length(sampleCount))
+
+        var minValue = Float(Int16.min)
+        var maxValue = Float(Int16.max)
+        vDSP_vclip(floatSamples, 1, &minValue, &maxValue, &floatSamples, 1, vDSP_Length(sampleCount))
+
+        vDSP_vfix16(floatSamples, 1, outputSamples.baseAddress!, 1, vDSP_Length(sampleCount))
+      }
+    }
+
+    return outputData
   }
 }
 
