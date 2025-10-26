@@ -88,9 +88,9 @@ public struct LiveAudioConfiguration: Sendable {
   // Audio mixing configuration (for screenShare mode)
   /// Enable audio mixing (app audio + mic audio)
   let audioMixingEnabled: Bool
-  /// App audio volume ratio (0.0 - 1.0)
+  /// App audio volume ratio (0.0 - 2.0)
   let appAudioVolume: Float
-  /// Mic audio volume ratio (0.0 - 1.0)
+  /// Mic audio volume ratio (0.0 - 2.0)
   let micAudioVolume: Float
 
   /// Initialize audio configuration
@@ -99,14 +99,14 @@ public struct LiveAudioConfiguration: Sendable {
   ///   - audioSampleRate: Sample rate
   ///   - audioBitRate: Bitrate
   ///   - audioMixingEnabled: Enable audio mixing (default: true)
-  ///   - appAudioVolume: App audio volume ratio (default: 0.7)
+  ///   - appAudioVolume: App audio volume ratio (default: 0.6)
   ///   - micAudioVolume: Mic audio volume ratio (default: 1.0)
   public init(
     numberOfChannels: UInt32,
     audioSampleRate: LiveAudioSampleRate,
     audioBitRate: LiveAudioBitRate,
     audioMixingEnabled: Bool = true,
-    appAudioVolume: Float = 0.7,
+    appAudioVolume: Float = 0.6,
     micAudioVolume: Float = 1.0
   ) {
     self.numberOfChannels = numberOfChannels
