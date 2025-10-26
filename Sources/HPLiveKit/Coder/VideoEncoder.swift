@@ -16,10 +16,10 @@ protocol VideoEncoder: Actor {
   /// Subscribe to this stream to receive encoded frames asynchronously
   var outputStream: AsyncStream<VideoFrame> { get }
 
-  /// Encodes a video sample buffer (non-blocking)
+  /// Encodes a video sample buffer
   /// This method returns immediately and yields the sample buffer to internal processing stream
-  /// - Parameter sampleBuffer: The video sample buffer containing raw video data
-  nonisolated func encode(sampleBuffer: CMSampleBuffer)
+  /// - Parameter SampleBufferBox: The video sample buffer containing raw video data
+  func encode(sampleBuffer: SampleBufferBox)
 
   /// Dynamically adjusts the video bit rate
   /// Higher bit rate means better quality but increased bandwidth

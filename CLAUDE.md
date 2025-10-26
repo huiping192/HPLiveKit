@@ -8,21 +8,23 @@ HPLiveKit 是一个用 Swift 编写的 iOS RTMP 直播推流库，支持视频�
 
 ## Build Commands
 
-### 使用 Swift Package Manager
-```bash
-# 构建项目
-swift build
+**注意:** HPLiveKit 是 iOS-only 库,不支持 macOS 平台。必须使用 xcodebuild 指定 iOS SDK 进行构建。
 
-# 运行测试
-swift test
+### 构建 SPM 库 (iOS Simulator)
+```bash
+# Build for iOS Simulator (generic)
+xcodebuild -scheme HPLiveKit -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build
+
+# Run tests (需要指定具体模拟器)
+xcodebuild -scheme HPLiveKit -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPad (10th generation),OS=17.0' test
 ```
 
-### 使用 Xcode
+### 使用 Xcode 打开示例项目
 ```bash
-# 打开示例项目
+# Open example project
 open Example/HPLiveKit.xcodeproj
 
-# 使用 xcodebuild 构建示例项目
+# Build example project
 xcodebuild -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug build
 
 # Resolve SPM dependencies
@@ -46,9 +48,7 @@ HPLiveKit 采用分层架构设计，核心组件职责清晰：
   - `startLive(streamInfo:)` - 开始推流
   - `stopLive()` - 停止推流
   - `startCapturing()` / `stopCapturing()` - 控制音视频采集（仅 camera 模式）
-  - `pushVideo(_:)` - 推送视频帧（仅 screenShare 模式）
-  - `pushAppAudio(_:)` - 推送应用音频（仅 screenShare 模式）
-  - `pushMicAudio(_:)` - 推送麦克风音频（预留，暂未实现）
+  - `push(_:type:)` - 推送音视频数据（仅 screenShare 模式，统一接口处理 video/audioApp/audioMic）
   - `preview` - 设置预览视图（仅 camera 模式）
   - `mute` - 音频静音控制（仅 camera 模式）
 
@@ -153,18 +153,8 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer,
                                       with sampleBufferType: RPSampleBufferType) {
-        switch sampleBufferType {
-        case .video:
-            liveSession?.pushVideo(sampleBuffer)
-        case .audioApp:
-            liveSession?.pushAppAudio(sampleBuffer)
-        case .audioMic:
-            // 暂不支持，预留接口
-            // liveSession?.pushMicAudio(sampleBuffer)
-            break
-        @unknown default:
-            break
-        }
+        // 统一接口，无需手动 switch
+        liveSession?.push(sampleBuffer, type: sampleBufferType)
     }
 
     override func broadcastFinished() {
@@ -184,3 +174,8 @@ class SampleHandler: RPBroadcastSampleHandler {
 - 禁用规则: identifier_name, line_length
 - 包含路径: ../HPLiveKit
 - 排除路径: Pods
+
+### Comment Guidelines
+- **Only keep necessary "why" comments**: Explain the reasoning behind non-obvious decisions
+- **Remove redundant "what" comments**: The code itself should be self-explanatory
+- **Use simple English**: Keep comments clear and concise
