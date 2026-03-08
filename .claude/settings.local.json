@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Read(//Users/huipingguo/git/HPRTMP/**)",
+      "Bash(mkdir:*)",
+      "Bash(xcrun simctl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
