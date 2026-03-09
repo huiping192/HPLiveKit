@@ -92,8 +92,11 @@ class LiveAudioCapture: NSObject {
   }
   
   deinit {
-    taskQueue.sync {
-      self.running = false
+    // Fix: Use async instead of sync to avoid deadlock
+    // In deinit, sync will wait for the queue, but the setter is async,
+    // causing a deadlock. Using async or direct stopRunning() is safe.
+    taskQueue.async { [weak self] in
+      self?.captureSession.stopRunning()
     }
   }
   
