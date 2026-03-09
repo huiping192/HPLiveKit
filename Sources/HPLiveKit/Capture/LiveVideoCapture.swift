@@ -34,13 +34,28 @@ extension LiveVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate, AVCapt
 class LiveVideoCapture: NSObject {
   
   private let captureSession = AVCaptureSession()
+  // Use dedicated queue for all capture session operations to ensure thread safety
+  private let sessionQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.VideoCaptureQueue")
   
   private var videoDevice: AVCaptureDevice?
   private var videoInput: AVCaptureDeviceInput?
   
-  private let videoCaptureQueue = DispatchQueue(label: "com.huiping192.HPLiveKit.VideoCaptureQueue")
+  // Use weak to avoid retain cycle with preview view
+  private weak var previewVideoView: PreviewView?
   
-  private var previewVideoView: PreviewView?
+  // Track if session is running (thread-safe via sessionQueue)
+  private var _isRunning = false
+  
+  private var isRunning: Bool {
+    get {
+      sessionQueue.sync { _isRunning }
+    }
+    set {
+      sessionQueue.sync {
+        _isRunning = newValue
+      }
+    }
+  }
   
   private func configureVideo() {
     guard let videoDevice = frontVideoDevice else {
@@ -59,7 +74,7 @@ class LiveVideoCapture: NSObject {
     
     let output = AVCaptureVideoDataOutput()
     output.videoSettings = [kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA] as [String: Any]
-    output.setSampleBufferDelegate(self, queue: videoCaptureQueue)
+    output.setSampleBufferDelegate(self, queue: sessionQueue)
     
     if captureSession.canAddOutput(output) {
       captureSession.addOutput(output)
@@ -157,26 +172,73 @@ class LiveVideoCapture: NSObject {
   }
   
   deinit {
-    UIApplication.shared.isIdleTimerDisabled = false
-    NotificationCenter.default.removeObserver(self)
-    
-    captureSession.stopRunning()
-    
-    previewVideoView?.removeFromSuperview()
-    previewVideoView = nil
+    invalidate()
   }
   
+  /// Invalidates the capture session and releases all resources.
+  /// Must be called before deallocation to ensure proper cleanup.
+  func invalidate() {
+    // Remove notification observers
+    NotificationCenter.default.removeObserver(self)
+    
+    // Capture preview view reference before stopping session
+    let previewToClean = previewVideoView
+    
+    // Stop capture session on the session queue to ensure thread safety
+    sessionQueue.sync {
+      _isRunning = false
+      captureSession.stopRunning()
+    }
+    
+    // Clean up preview on main thread
+    DispatchQueue.main.async {
+      previewToClean?.removeFromSuperview()
+    }
+    
+    UIApplication.shared.isIdleTimerDisabled = false
+  }
+  
+  /// Start capturing video
+  /// Thread-safe: can be called from any queue
+  public func startCapture() {
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      guard !self._isRunning else { return }
+      
+      self._isRunning = true
+      
+      DispatchQueue.main.async {
+        UIApplication.shared.isIdleTimerDisabled = true
+      }
+      
+      self.captureSession.startRunning()
+    }
+  }
+  
+  /// Stop capturing video
+  /// Thread-safe: can be called from any queue
+  public func stopCapture() {
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+      guard self._isRunning else { return }
+      
+      self._isRunning = false
+      
+      DispatchQueue.main.async {
+        UIApplication.shared.isIdleTimerDisabled = false
+      }
+      
+      self.captureSession.stopRunning()
+    }
+  }
+  
+  /// Property for backward compatibility - prefer using startCapture/stopCapture
   var running: Bool = false {
     didSet {
-      guard running != oldValue else { return }
       if running {
-        UIApplication.shared.isIdleTimerDisabled = true
-        DispatchQueue.global(qos: .default).async {
-          self.captureSession.startRunning()
-        }
+        startCapture()
       } else {
-        UIApplication.shared.isIdleTimerDisabled = false
-        captureSession.stopRunning()
+        stopCapture()
       }
     }
   }
@@ -216,17 +278,13 @@ extension LiveVideoCapture {
   }
   
   @objc func handleWillEnterBackground() {
-    UIApplication.shared.isIdleTimerDisabled = false
-    
-    captureSession.stopRunning()
+    // Use stopCapture() for thread-safe stop
+    stopCapture()
   }
   
   @objc func handleWillEnterForeground() {
-    DispatchQueue.global(qos: .default).async {
-      self.captureSession.startRunning()
-    }
-    
-    UIApplication.shared.isIdleTimerDisabled = true
+    // Use startCapture() for thread-safe start
+    startCapture()
   }
 }
 
