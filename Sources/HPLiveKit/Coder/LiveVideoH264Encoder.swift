@@ -59,6 +59,11 @@ actor LiveVideoH264Encoder: VideoEncoder {
   /// Must be nonisolated(unsafe) to allow assignment in init
   nonisolated(unsafe) private var processingTask: Task<Void, Never>?
 
+  /// Notification token for background notification (stored for cleanup)
+  private var backgroundNotificationToken: NSObjectProtocol?
+  /// Notification token for foreground notification (stored for cleanup)
+  private var foregroundNotificationToken: NSObjectProtocol?
+
   // MARK: - Initialization
 
   init(configuration: LiveVideoConfiguration) {
@@ -79,12 +84,6 @@ actor LiveVideoH264Encoder: VideoEncoder {
       await self?.processEncodingLoop()
     }
     self.processingTask = task
-  }
-
-  deinit {
-    // deinit is nonisolated, cannot call actor methods directly
-    // Compression session cleanup will be handled by stop() or Task cancellation
-    NotificationCenter.default.removeObserver(self)
   }
 
   // MARK: - Public API
@@ -121,10 +120,21 @@ actor LiveVideoH264Encoder: VideoEncoder {
     outputContinuation.finish()
 
     // Complete and invalidate compression session
-    guard let compressionSession = compressionSession else { return }
-    VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.indefinite)
-    VTCompressionSessionInvalidate(compressionSession)
-    self.compressionSession = nil
+    if let compressionSession = compressionSession {
+      VTCompressionSessionCompleteFrames(compressionSession, untilPresentationTimeStamp: CMTime.indefinite)
+      VTCompressionSessionInvalidate(compressionSession)
+      self.compressionSession = nil
+    }
+
+    // Remove notification observers
+    if let token = backgroundNotificationToken {
+      NotificationCenter.default.removeObserver(token)
+    }
+    if let token = foregroundNotificationToken {
+      NotificationCenter.default.removeObserver(token)
+    }
+    backgroundNotificationToken = nil
+    foregroundNotificationToken = nil
   }
 
   // MARK: - Private Processing Loop
@@ -282,21 +292,36 @@ actor LiveVideoH264Encoder: VideoEncoder {
   }
 
   private func configureNotifications() {
-    NotificationCenter.default.addObserver(self, selector: #selector(self.handleWillEnterBackground), name: UIApplication.willResignActiveNotification, object: nil)
+    // Remove existing notifications first to avoid duplicates
+    if let token = backgroundNotificationToken {
+      NotificationCenter.default.removeObserver(token)
+    }
+    if let token = foregroundNotificationToken {
+      NotificationCenter.default.removeObserver(token)
+    }
 
-    NotificationCenter.default.addObserver(self, selector: #selector(self.handlewillEnterForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
-  }
+    // Register new notification observers and store tokens for cleanup
+    backgroundNotificationToken = NotificationCenter.default.addObserver(
+      forName: UIApplication.willResignActiveNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard let self = self else { return }
+      Self.logger.debug("Application entering background - stopping video encoding")
+      Task { await self.setBackgroundState(true) }
+    }
 
-  @objc nonisolated func handleWillEnterBackground() {
-    Self.logger.debug("Application entering background - stopping video encoding")
-    Task { await setBackgroundState(true) }
-  }
-
-  @objc nonisolated func handlewillEnterForeground() {
-    Self.logger.debug("Application entering foreground - resuming video encoding")
-    Task {
-      await resetCompressionSession()
-      await setBackgroundState(false)
+    foregroundNotificationToken = NotificationCenter.default.addObserver(
+      forName: UIApplication.didBecomeActiveNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard let self = self else { return }
+      Self.logger.debug("Application entering foreground - resuming video encoding")
+      Task {
+        await self.resetCompressionSession()
+        await self.setBackgroundState(false)
+      }
     }
   }
 
