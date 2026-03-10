@@ -65,6 +65,21 @@ public class CaptureManager: NSObject {
     audioCapture.delegate = self
   }
   
+  deinit {
+    invalidate()
+  }
+  
+  /// Stops capturing and releases all resources.
+  /// Must be called before deallocation to ensure proper cleanup.
+  public func invalidate() {
+    // Stop capturing first
+    stopCapturing()
+    
+    // Clear delegate references to prevent retain cycles
+    videoCapture.delegate = nil
+    audioCapture.delegate = nil
+  }
+  
   public func startCapturing() {
     videoCapture.running = true
     audioCapture.running = true
