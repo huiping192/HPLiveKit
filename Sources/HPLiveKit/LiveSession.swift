@@ -276,6 +276,18 @@ public class LiveSession: NSObject, @unchecked Sendable {
     Task {
       uploading = false
       
+      // Cancel frame processing task to prevent accessing nil publisher
+      frameProcessingTask?.cancel()
+      frameProcessingTask = nil
+      
+      // Cancel encoder tasks to prevent memory leaks and unnecessary processing
+      audioEncoderTask?.cancel()
+      audioEncoderTask = nil
+      videoEncoderTask?.cancel()
+      videoEncoderTask = nil
+      mixerTask?.cancel()
+      mixerTask = nil
+      
       await publisher?.stop()
       publisher = nil
     }
