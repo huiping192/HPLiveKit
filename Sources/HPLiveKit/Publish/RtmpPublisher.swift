@@ -208,6 +208,7 @@ actor RtmpPublisher: Publisher {
     sendAudioHead = false
     sendVideoHead = false
     debugInfo = LiveDebug()
+    await buffer.stop()
     await buffer.removeAll()
     retryTimes4netWorkBreaken = 0
   }

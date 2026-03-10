@@ -27,38 +27,49 @@ actor StreamingBuffer {
   private static let defaultUpdateInterval = UInt(1) ///< 更新频率为1s
   private static let defaultCallBackInterval = UInt(5) ///< 5s计时一次
   private static let defaultSendBufferMaxCount = UInt(600) ///< 最大缓冲区为600
-  
+
+  /// Task for periodic buffer state checking - must be cancelled on stop to prevent leak
+  private var tickTask: Task<Void, Never>?
+
   weak var delegate: StreamingBufferDelegate?
-  
+
   func setDelegate(delegate: StreamingBufferDelegate?) {
     self.delegate = delegate
   }
-  
+
   /** current frame buffer */
   private(set) var list: [any Frame] = .init()
-  
+
   /** buffer count max size */
   var maxCount: UInt = defaultSendBufferMaxCount
-  
+
   /** count of drop frames in last time */
   var lastDropFrames: Int = 0
-  
+
   private var sortList: [any Frame] = .init()
   private var thresholdList: [Int] = .init()
-  
+
   /** 处理buffer缓冲区情况 */
   private var currentInterval: UInt = 0
   private var callBackInterval: UInt = StreamingBuffer.defaultCallBackInterval
   private var updateInterval: UInt = StreamingBuffer.defaultUpdateInterval
   private var startTimer: Bool = false
-  
+
   var isEmpty: Bool {
     list.isEmpty
   }
-  
+
   func clearDropFramesCount() {
     lastDropFrames = 0
   }
+
+  /// Stop the periodic timer task to prevent memory leak
+  func stop() {
+    tickTask?.cancel()
+    tickTask = nil
+    startTimer = false
+  }
+
   /** add frame to buffer */
   func append(frame: any Frame) {
     if !startTimer {
@@ -87,23 +98,23 @@ actor StreamingBuffer {
       }
     }
   }
-  
+
   /** pop the first frome buffer */
   func popFirstFrame() -> (any Frame)? {
     guard let firstFrame = list.first else { return nil }
     list.removeFirst()
     return firstFrame
   }
-  
+
   /** remove all objects from Buffer */
   func removeAll() {
     list.removeAll()
   }
-  
+
   init() {
-    
+
   }
-  
+
   private func removeExpireFrame() {
     if list.count < maxCount {
       return
@@ -117,7 +128,7 @@ actor StreamingBuffer {
       }
       return
     }
-    
+
     ///<  删除一个I帧（但一个I帧可能对应多个nal）
     let iFrames = expirePFrames()
     if !iFrames.isEmpty {
@@ -126,14 +137,14 @@ actor StreamingBuffer {
       }
       return
     }
-    
+
     list.removeAll()
   }
-  
+
   private func expirePFrames() -> [any Frame] {
     var iframes = [any Frame]()
     var timestamp = UInt64(0)
-    
+
     for frame in list {
       if let frame = frame as? VideoFrame, frame.isKeyFrame {
         if timestamp != 0 && timestamp != frame.timestamp {
@@ -143,15 +154,15 @@ actor StreamingBuffer {
         timestamp = frame.timestamp
       }
     }
-    
+
     return iframes
   }
-  
+
   func currentBufferState() -> BufferState {
     var currentCount = 0
     var increaseCount = 0
     var decreaseCount = 0
-    
+
     for number in thresholdList {
       if number > currentCount {
         increaseCount += 1
@@ -160,25 +171,42 @@ actor StreamingBuffer {
       }
       currentCount = number
     }
-    
+
     if increaseCount >= callBackInterval {
       return .increase
     }
-    
+
     if decreaseCount >= self.callBackInterval {
       return .decline
     }
-    
+
     return .unknown
   }
-  
+
   // -- 采样
   private func tick() {
+    // Cancel any existing task before creating a new one
+    tickTask?.cancel()
+
+    tickTask = Task { [weak self] in
+      while !Task.isCancelled {
+        guard let self = self else { break }
+
+        // Perform the tick work
+        await self.performTick()
+
+        // Wait for next interval
+        try? await Task.sleep(nanoseconds: UInt64(self.updateInterval) * 1_000_000)
+      }
+    }
+  }
+
+  private func performTick() async {
     /** 采样 3个阶段   如果网络都是好或者都是差给回调 */
     currentInterval += updateInterval
-    
+
     thresholdList.append(list.count)
-    
+
     if currentInterval >= callBackInterval {
       let state = currentBufferState()
       if state == .increase {
@@ -186,15 +214,10 @@ actor StreamingBuffer {
       } else if state == .decline {
         delegate?.steamingBuffer(streamingBuffer: self, bufferState: .decline)
       }
-      
+
       currentInterval = 0
       thresholdList.removeAll()
     }
-    
-    Task {
-      try? await Task.sleep(nanoseconds: UInt64(updateInterval) * 1000000)
-      tick()
-    }
   }
-  
+
 }
