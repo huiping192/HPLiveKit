@@ -27,7 +27,16 @@ protocol VideoCaptureDelegate: AnyObject {
 
 extension LiveVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-    self.delegate?.captureOutput(capture: self, video: sampleBuffer)
+    // Deliver callback on main thread for UI-safe operations
+    // This is the expected behavior for most use cases
+    if Thread.isMainThread {
+      self.delegate?.captureOutput(capture: self, video: sampleBuffer)
+    } else {
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        self.delegate?.captureOutput(capture: self, video: sampleBuffer)
+      }
+    }
   }
 }
 
