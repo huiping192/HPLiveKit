@@ -91,9 +91,14 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
   func stop() {
     processingTask?.cancel()
+    processingTask = nil
     inputContinuation.finish()
     outputContinuation.finish()
 
+    // Critical: Dispose AudioConverter to prevent resource leak
+    if let converter = converter {
+      AudioConverterDispose(converter)
+    }
     converter = nil
     pcmDataBuffer.clear()
     audioHeader = nil
@@ -368,6 +373,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
   }
 
   private func resetConverterState() {
+    // Critical: Dispose AudioConverter to prevent resource leak
+    if let converter = converter {
+      AudioConverterDispose(converter)
+    }
     converter = nil
     pcmDataBuffer.clear()
     bufferStartTimestamp = nil
