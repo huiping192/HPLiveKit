@@ -10,7 +10,11 @@ import CoreMedia
 
 /// Synchronizes timestamps across audio and video frames
 /// Converts absolute timestamps to relative timestamps starting from 0
-class TimestampSynchronizer {
+/// Thread-safe using NSLock for concurrent access from multiple Tasks
+final class TimestampSynchronizer: @unchecked Sendable {
+
+    // Lock for thread-safe access to baseTimestamp
+    private let lock = NSLock()
 
     // Unified base timestamp for audio/video synchronization
     // Set to the timestamp of the first frame (audio or video) that arrives
@@ -20,6 +24,9 @@ class TimestampSynchronizer {
     /// Call this BEFORE encoding to ensure correct timestamp order
     /// - Parameter sampleBuffer: The sample buffer to extract timestamp from
     func recordIfNeeded(_ sampleBuffer: CMSampleBuffer) {
+        lock.lock()
+        defer { lock.unlock() }
+
         if baseTimestamp == nil {
             let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
             baseTimestamp = UInt64(CMTimeGetSeconds(pts) * 1000)
@@ -31,7 +38,11 @@ class TimestampSynchronizer {
     /// - Parameter frame: Original audio frame with absolute timestamp
     /// - Returns: New audio frame with normalized timestamp (relative to base)
     func normalize(_ frame: AudioFrame) -> AudioFrame {
-        guard let base = baseTimestamp else {
+        lock.lock()
+        let base = baseTimestamp
+        lock.unlock()
+
+        guard let base = base else {
             // If baseTimestamp is not set, return original frame
             // This should not happen in normal flow
             return frame
@@ -55,7 +66,11 @@ class TimestampSynchronizer {
     /// - Parameter frame: Original video frame with absolute timestamp
     /// - Returns: New video frame with normalized timestamp (relative to base)
     func normalize(_ frame: VideoFrame) -> VideoFrame {
-        guard let base = baseTimestamp else {
+        lock.lock()
+        let base = baseTimestamp
+        lock.unlock()
+
+        guard let base = base else {
             // If baseTimestamp is not set, return original frame
             // This should not happen in normal flow
             return frame
@@ -79,6 +94,8 @@ class TimestampSynchronizer {
 
     /// Reset base timestamp (call when starting a new stream)
     func reset() {
+        lock.lock()
+        defer { lock.unlock() }
         baseTimestamp = nil
     }
 }
