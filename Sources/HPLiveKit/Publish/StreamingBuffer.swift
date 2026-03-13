@@ -52,6 +52,9 @@ actor StreamingBuffer {
   private var updateInterval: UInt = StreamingBuffer.defaultUpdateInterval
   private var startTimer: Bool = false
   
+  /// Task reference for the tick timer to allow proper cancellation
+  private var tickTask: Task<Void, Never>?
+  
   var isEmpty: Bool {
     list.isEmpty
   }
@@ -98,6 +101,12 @@ actor StreamingBuffer {
   /** remove all objects from Buffer */
   func removeAll() {
     list.removeAll()
+  }
+  
+  /// Stops the tick timer and releases all resources
+  func invalidate() {
+    tickTask?.cancel()
+    tickTask = nil
   }
   
   init() {
@@ -174,6 +183,24 @@ actor StreamingBuffer {
   
   // -- 采样
   private func tick() {
+    // Cancel any existing task before creating a new one
+    tickTask?.cancel()
+
+    tickTask = Task { [weak self] in
+      while !Task.isCancelled {
+        guard let self = self else { break }
+
+        // Perform the tick work
+        await self.performTick()
+
+        // Wait for next interval
+        try? await Task.sleep(nanoseconds: UInt64(self.updateInterval) * 1_000_000)
+      }
+    }
+  }
+  
+  /// Performs the actual tick work (separated for better cancellation handling)
+  private func performTick() {
     /** 采样 3个阶段   如果网络都是好或者都是差给回调 */
     currentInterval += updateInterval
     
@@ -189,11 +216,6 @@ actor StreamingBuffer {
       
       currentInterval = 0
       thresholdList.removeAll()
-    }
-    
-    Task {
-      try? await Task.sleep(nanoseconds: UInt64(updateInterval) * 1000000)
-      tick()
     }
   }
   
