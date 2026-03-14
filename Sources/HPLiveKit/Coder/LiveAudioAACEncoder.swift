@@ -94,6 +94,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
     inputContinuation.finish()
     outputContinuation.finish()
 
+    // Dispose AudioConverter to prevent resource leak
+    if let converter = converter {
+      AudioConverterDispose(converter)
+    }
     converter = nil
     pcmDataBuffer.clear()
     audioHeader = nil
@@ -368,6 +372,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
   }
 
   private func resetConverterState() {
+    // Dispose AudioConverter to prevent resource leak
+    if let converter = converter {
+      AudioConverterDispose(converter)
+    }
     converter = nil
     pcmDataBuffer.clear()
     bufferStartTimestamp = nil
