@@ -31,6 +31,12 @@ class ViewController: UIViewController {
   }
   
   @objc private func buttonTapped() {
+    Task {
+      await handleButtonTapped()
+    }
+  }
+
+  private func handleButtonTapped() async {
     switch liveState {
     case .ready, .stop, .error:
       let info = LiveStreamInfo(url: "rtmp://192.168.11.23:1936/live/haha")
@@ -38,7 +44,7 @@ class ViewController: UIViewController {
       liveState = .start
       button.setTitle("Stop", for: .normal)
     case .start:
-      liveSession?.stopLive()
+      await liveSession?.stopLive()
       liveState = .stop
       button.setTitle("Publish", for: .normal)
     default:

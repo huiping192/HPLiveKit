@@ -272,13 +272,14 @@ public class LiveSession: NSObject, @unchecked Sendable {
     }
   }
   
-  public func stopLive() {
-    Task {
-      uploading = false
-      
-      await publisher?.stop()
-      publisher = nil
-    }
+  public func stopLive() async {
+    uploading = false
+    
+    // Stop audio mixer if exists
+    await audioMixer?.stop()
+    
+    await publisher?.stop()
+    publisher = nil
   }
 
     public func startCapturing() {
