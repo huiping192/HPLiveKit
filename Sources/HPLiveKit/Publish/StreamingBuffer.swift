@@ -23,6 +23,9 @@ protocol StreamingBufferDelegate: AnyObject {
 }
 
 actor StreamingBuffer {
+
+  // Task for timer to prevent Task leak
+  private var timerTask: Task<Void, Never>?
   private static let defaultSortBufferMaxCount = UInt(5) ///< 排序10个内
   private static let defaultUpdateInterval = UInt(1) ///< 更新频率为1s
   private static let defaultCallBackInterval = UInt(5) ///< 5s计时一次
@@ -172,6 +175,13 @@ actor StreamingBuffer {
     return .unknown
   }
   
+  // Stop the timer
+  func stop() {
+    timerTask?.cancel()
+    timerTask = nil
+    startTimer = false
+  }
+
   // -- 采样
   private func tick() {
     /** 采样 3个阶段   如果网络都是好或者都是差给回调 */
@@ -191,7 +201,7 @@ actor StreamingBuffer {
       thresholdList.removeAll()
     }
     
-    Task {
+    timerTask = Task {
       try? await Task.sleep(nanoseconds: UInt64(updateInterval) * 1000000)
       tick()
     }
