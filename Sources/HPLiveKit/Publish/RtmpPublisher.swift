@@ -199,6 +199,7 @@ actor RtmpPublisher: Publisher {
     await rtmp.stop()
 
     await clean()
+    await buffer.stop()
   }
 
   private func clean() async {
