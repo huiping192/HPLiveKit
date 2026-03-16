@@ -308,7 +308,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
         }
         guard uploading else { return }
 
-        timestampSynchronizer.recordIfNeeded(sampleBuffer)
+        await timestampSynchronizer.recordIfNeeded(sampleBuffer)
 
         switch type {
         case .video:
@@ -362,7 +362,7 @@ private extension LiveSession {
                 guard self.uploading else { continue }
                 self.hasCapturedAudio = true
 
-                let normalizedFrame = self.timestampSynchronizer.normalize(audioFrame)
+                let normalizedFrame = await self.timestampSynchronizer.normalize(audioFrame)
                 self.pushFrame(frame: normalizedFrame)
             }
         }
@@ -377,7 +377,7 @@ private extension LiveSession {
                     self.hasCapturedKeyFrame = true
                 }
 
-                let normalizedFrame = self.timestampSynchronizer.normalize(videoFrame)
+                let normalizedFrame = await self.timestampSynchronizer.normalize(videoFrame)
                 self.pushFrame(frame: normalizedFrame)
             }
         }
@@ -420,7 +420,7 @@ extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, audio: CMSampleBuffer) {
     guard uploading else { return }
 
-    timestampSynchronizer.recordIfNeeded(audio)
+    Task { await timestampSynchronizer.recordIfNeeded(audio) }
     // Directly encode audio (non-blocking, encoder is Actor-based)
     audioEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: audio))
   }
@@ -428,7 +428,7 @@ extension LiveSession: CaptureManagerDelegate {
   public func captureOutput(captureManager: CaptureManager, video: CMSampleBuffer) {
     guard uploading else { return }
 
-    timestampSynchronizer.recordIfNeeded(video)
+    Task { await timestampSynchronizer.recordIfNeeded(video) }
     // Directly encode video (non-blocking, encoder is Actor-based)
     videoEncoder.encode(sampleBuffer: SampleBufferBox(samplebuffer: video))
   }
@@ -440,7 +440,7 @@ extension LiveSession: PublisherDelegate {
         if publishStatus == .start && !uploading {
             hasCapturedAudio = false
             hasCapturedKeyFrame = false
-            timestampSynchronizer.reset()  // Reset timestamp to start from 0
+            Task { await timestampSynchronizer.reset() }  // Reset timestamp to start from 0
             uploading = true
         }
 

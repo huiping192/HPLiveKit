@@ -10,7 +10,10 @@ import CoreMedia
 
 /// Synchronizes timestamps across audio and video frames
 /// Converts absolute timestamps to relative timestamps starting from 0
-class TimestampSynchronizer {
+/// 
+/// Thread-safe implementation using actor to prevent race conditions
+/// when accessed from multiple threads (capture delegate + encoder streams)
+actor TimestampSynchronizer {
 
     // Unified base timestamp for audio/video synchronization
     // Set to the timestamp of the first frame (audio or video) that arrives
