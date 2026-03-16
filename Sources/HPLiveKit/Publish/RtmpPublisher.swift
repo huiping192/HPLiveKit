@@ -26,6 +26,16 @@ actor RtmpPublisher: Publisher {
     self.delegate = delegate
   }
 
+  /// Notify delegate on main thread to ensure UI updates are safe
+  /// Most delegate callbacks involve UI updates (state changes, debug info)
+  /// so they must be called on the main thread to avoid crashes and race conditions
+  private func notifyDelegateOnMainThread(_ block: @escaping @Sendable (PublisherDelegate) -> Void) {
+    Task { @MainActor [delegate] in
+      guard let delegate = delegate else { return }
+      block(delegate)
+    }
+  }
+
   private let stream: LiveStreamInfo
 
   private let buffer: StreamingBuffer = StreamingBuffer()
@@ -139,7 +149,7 @@ actor RtmpPublisher: Publisher {
 
     debugInfo.uploadUrl = stream.url
 
-    delegate?.publisher(publisher: self, publishStatus: .pending)
+    notifyDelegateOnMainThread { $0.publisher(publisher: self, publishStatus: .pending) }
 
     await connect()
   }
@@ -153,7 +163,7 @@ actor RtmpPublisher: Publisher {
 
     await rtmp.publish(url: stream.url, configure: configure)
 
-    delegate?.publisher(publisher: self, publishStatus: .start)
+    notifyDelegateOnMainThread { $0.publisher(publisher: self, publishStatus: .start) }
   }
 
   private func reconnect() {
@@ -166,8 +176,8 @@ actor RtmpPublisher: Publisher {
         try await Task.sleep(nanoseconds: UInt64(reconnectInterval) * 1000000)
         await self._reconnect()
       } else if self.retryTimes4netWorkBreaken >= self.reconnectCount {
-        self.delegate?.publisher(publisher: self, publishStatus: .error)
-        self.delegate?.publisher(publisher: self, errorCode: .reconnectTimeOut)
+        self.notifyDelegateOnMainThread { $0.publisher(publisher: self, publishStatus: .error) }
+        self.notifyDelegateOnMainThread { $0.publisher(publisher: self, errorCode: .reconnectTimeOut) }
       }
     }
   }
@@ -179,7 +189,7 @@ actor RtmpPublisher: Publisher {
     sendAudioHead = false
     sendVideoHead = false
 
-    delegate?.publisher(publisher: self, publishStatus: .refresh)
+    notifyDelegateOnMainThread { $0.publisher(publisher: self, publishStatus: .refresh) }
 
     await rtmp.stop()
 
@@ -194,7 +204,7 @@ actor RtmpPublisher: Publisher {
     frameProcessingTask = nil
     frameContinuation.finish()
 
-    delegate?.publisher(publisher: self, publishStatus: .stop)
+    notifyDelegateOnMainThread { $0.publisher(publisher: self, publishStatus: .stop) }
 
     await rtmp.stop()
 
@@ -314,7 +324,7 @@ private extension RtmpPublisher {
       debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
       debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCountPerSec
 
-      delegate?.publisher(publisher: self, debugInfo: debugInfo)
+      notifyDelegateOnMainThread { $0.publisher(publisher: self, debugInfo: debugInfo) }
 
       debugInfo.bandwidthPerSec = 0
       debugInfo.capturedVideoCountPerSec = 0
@@ -420,8 +430,24 @@ private extension RtmpPublisher {
 
 extension RtmpPublisher: StreamingBufferDelegate {
   nonisolated func steamingBuffer(streamingBuffer: StreamingBuffer, bufferState: BufferState) {
-    Task {
-      await delegate?.publisher(publisher: self, bufferStatus: bufferState)
+    // Use MainActor to ensure delegate callback is called on main thread
+    // This is critical because most implementations update UI in delegate methods
+    Task { @MainActor [weak self] in
+      guard let self = self else { return }
+      // Access actor-isolated delegate through a computed property approach
+      // Since we can't directly access actor state from non-isolated context,
+      // we need to re-implement the notification here
+      // Note: We need to notify through the actor - use a workaround
+      await self.notifyDelegateOnBufferState(bufferState)
+    }
+  }
+
+  /// Helper to notify delegate about buffer state on main thread
+  /// This is called from nonisolated context via MainActor
+  private func notifyDelegateOnBufferState(_ bufferState: BufferState) async {
+    guard let delegate = delegate else { return }
+    await MainActor.run {
+      delegate.publisher(publisher: self, bufferStatus: bufferState)
     }
   }
 }
