@@ -51,6 +51,9 @@ actor StreamingBuffer {
   private var callBackInterval: UInt = StreamingBuffer.defaultCallBackInterval
   private var updateInterval: UInt = StreamingBuffer.defaultUpdateInterval
   private var startTimer: Bool = false
+
+  // Timer task for periodic buffer state checking
+  private var timerTask: Task<Void, Never>?
   
   var isEmpty: Bool {
     list.isEmpty
@@ -98,6 +101,13 @@ actor StreamingBuffer {
   /** remove all objects from Buffer */
   func removeAll() {
     list.removeAll()
+  }
+
+  /** stop the timer task */
+  func stop() {
+    timerTask?.cancel()
+    timerTask = nil
+    startTimer = false
   }
   
   init() {
@@ -191,7 +201,7 @@ actor StreamingBuffer {
       thresholdList.removeAll()
     }
     
-    Task {
+    timerTask = Task {
       try? await Task.sleep(nanoseconds: UInt64(updateInterval) * 1000000)
       tick()
     }

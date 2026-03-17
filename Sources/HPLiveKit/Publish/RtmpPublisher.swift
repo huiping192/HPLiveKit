@@ -198,6 +198,7 @@ actor RtmpPublisher: Publisher {
 
     await rtmp.stop()
 
+    await buffer.stop()
     await clean()
   }
 
