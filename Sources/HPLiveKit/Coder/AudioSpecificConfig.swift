@@ -34,8 +34,8 @@ struct AudioSpecificConfig {
     self.channelConfig = ChannelConfigType(rawValue: (0b01111000 & data[1]) >> 3)
     let value = UInt8(data[1] & 0b00100000) == 1
     self.frameLengthFlag = value
-    self.dependsOnCoreCoder = data[1] & 0b000000010
-    self.extensionFlag = data[1] & 0b000000001
+    self.dependsOnCoreCoder = (data[1] & 0b01000000) >> 6
+    self.extensionFlag = (data[1] & 0b10000000) >> 7
   }
   
   init(objectType: MPEG4ObjectID, channelConfig: ChannelConfigType, frequencyType: SampleFrequencyType, frameLengthFlag: Bool = false, dependsOnCoreCoder: UInt8 = 0, extensionFlag: UInt8 = 0) {
