@@ -30,6 +30,9 @@ actor StreamingBuffer {
   
   weak var delegate: StreamingBufferDelegate?
   
+  // Store timer task to prevent leak and allow cancellation
+  private var timerTask: Task<Void, Never>?
+  
   func setDelegate(delegate: StreamingBufferDelegate?) {
     self.delegate = delegate
   }
@@ -97,7 +100,15 @@ actor StreamingBuffer {
   
   /** remove all objects from Buffer */
   func removeAll() {
+    // Cancel timer task to prevent leak
+    timerTask?.cancel()
+    timerTask = nil
+    startTimer = false
+    
     list.removeAll()
+    sortList.removeAll()
+    thresholdList.removeAll()
+    currentInterval = 0
   }
   
   init() {
@@ -174,6 +185,9 @@ actor StreamingBuffer {
   
   // -- 采样
   private func tick() {
+    // Check if task was cancelled before running
+    guard timerTask == nil || !Task.isCancelled else { return }
+    
     /** 采样 3个阶段   如果网络都是好或者都是差给回调 */
     currentInterval += updateInterval
     
@@ -191,9 +205,12 @@ actor StreamingBuffer {
       thresholdList.removeAll()
     }
     
-    Task {
+    // Store task reference to prevent leak and allow cancellation
+    timerTask = Task {
       try? await Task.sleep(nanoseconds: UInt64(updateInterval) * 1000000)
-      tick()
+      // Check if cancelled before continuing
+      guard !Task.isCancelled else { return }
+      await self.tick()
     }
   }
   
