@@ -62,10 +62,18 @@ public protocol LiveSessionDelegate: AnyObject, Sendable {
 
     ///** live debug info callback */
     func liveSession(session: LiveSession, debugInfo: LiveDebug)
+
+    // Per-publisher callbacks (multi-stream support)
+    func liveSession(session: LiveSession, url: String, liveStateDidChange state: LiveState)
+    func liveSession(session: LiveSession, url: String, errorCode: LiveSocketErrorCode)
+    func liveSession(session: LiveSession, url: String, debugInfo: LiveDebug)
 }
 
 extension LiveSessionDelegate {
-    func liveSession(session: LiveSession, debugInfo: LiveDebug) {}
+    public func liveSession(session: LiveSession, debugInfo: LiveDebug) {}
+    public func liveSession(session: LiveSession, url: String, liveStateDidChange state: LiveState) {}
+    public func liveSession(session: LiveSession, url: String, errorCode: LiveSocketErrorCode) {}
+    public func liveSession(session: LiveSession, url: String, debugInfo: LiveDebug) {}
 }
 
 public class LiveSession: NSObject, @unchecked Sendable {
@@ -96,16 +104,14 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private var videoEncoderTask: Task<Void, Never>?
     private var mixerTask: Task<Void, Never>?
 
-    // 推流 publisher
-    private var publisher: Publisher?
+    // 推流 publisher manager
+    private let publisherManager = PublisherManager()
 
     // Audio mixer (only for screenShare mode)
     private var audioMixer: AudioMixer?
 
     // 调试信息 debug info
     private var debugInfo: LiveDebug?
-    // 流信息 stream info
-    private var streamInfo: LiveStreamInfo?
     // 是否开始上传  is publishing
     private var uploading: Bool = false
     // 当前状态 current live stream state
@@ -249,37 +255,39 @@ public class LiveSession: NSObject, @unchecked Sendable {
         mixerTask?.cancel()
     }
 
-  public func startLive(streamInfo: LiveStreamInfo) {
-    Task {
-      var mutableStreamInfo = streamInfo
-
-      mutableStreamInfo.audioConfiguration = audioConfiguration
-      mutableStreamInfo.videoConfiguration = videoConfiguration
-
-      self.streamInfo = mutableStreamInfo
-
-      if publisher == nil {
-        publisher = createRTMPPublisher()
-        await publisher?.setDelegate(delegate: self)
-      }
-
-      // Ensure frame processing task is running
-      if frameProcessingTask == nil || frameProcessingTask?.isCancelled == true {
-        startFrameProcessing()
-      }
-
-      await publisher?.start()
+    public func startLive(streamInfo: LiveStreamInfo) {
+        startLive(streamInfos: [streamInfo])
     }
-  }
-  
-  public func stopLive() {
-    Task {
-      uploading = false
-      
-      await publisher?.stop()
-      publisher = nil
+
+    public func startLive(streamInfos: [LiveStreamInfo]) {
+        Task { [weak self] in
+            guard let self else { return }
+            await publisherManager.stopAll()
+            await publisherManager.removeAll()
+
+            for streamInfo in streamInfos {
+                var info = streamInfo
+                info.audioConfiguration = audioConfiguration
+                info.videoConfiguration = videoConfiguration
+                await publisherManager.add(streamInfo: info)
+            }
+
+            await publisherManager.setDelegate(self)
+
+            if frameProcessingTask == nil || frameProcessingTask?.isCancelled == true {
+                startFrameProcessing()
+            }
+
+            await publisherManager.startAll()
+        }
     }
-  }
+
+    public func stopLive() {
+        Task {
+            uploading = false
+            await publisherManager.stopAll()
+        }
+    }
 
     public func startCapturing() {
         // Screen share mode does not use internal capture
@@ -327,27 +335,13 @@ public class LiveSession: NSObject, @unchecked Sendable {
 }
 
 private extension LiveSession {
-    func createRTMPPublisher() -> Publisher {
-        guard let streamInfo = streamInfo else {
-            fatalError("[HPLiveKit] streamInfo can not be nil!!!")
-        }
 
-        return RtmpPublisher(stream: streamInfo)
-    }
-}
-
-private extension LiveSession {
-
-    /// Start the frame processing task that sequentially processes frames from the stream
     func startFrameProcessing() {
         frameProcessingTask?.cancel()
         frameProcessingTask = Task { [weak self] in
-            guard let self = self else { return }
-
-            // Process frames sequentially in the order they are yielded
-            // This ensures timestamp ordering is preserved
+            guard let self else { return }
             for await frame in self.frameStream {
-                await publisher?.send(frame: frame)
+                await self.publisherManager.send(frame: frame)
             }
         }
     }
@@ -434,62 +428,61 @@ extension LiveSession: CaptureManagerDelegate {
   }
 }
 
-extension LiveSession: PublisherDelegate {
-    func publisher(publisher: Publisher, publishStatus: LiveState) {
-        // reset status and start uploading data
-        if publishStatus == .start && !uploading {
-            hasCapturedAudio = false
-            hasCapturedKeyFrame = false
-            timestampSynchronizer.reset()  // Reset timestamp to start from 0
-            uploading = true
-        }
-
-        // stop uploading
-        if publishStatus == .stop || publishStatus == .error {
-            uploading = false
-        }
-
-        self.state = publishStatus
-        delegate?.liveSession(session: self, liveStateDidChange: publishStatus)
-    }
-
-    func publisher(publisher: Publisher, bufferStatus: BufferState) {
-        // only adjust video bitrate, audio cannot
+extension LiveSession: PublisherManagerDelegate {
+    func publisherManager(_ manager: PublisherManager, aggregatedBufferStatus: BufferState) {
         guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
-
-        // Adjust video bitrate asynchronously (encoder is Actor-based)
         Task { [weak self] in
-            guard let self = self else { return }
-
+            guard let self else { return }
             let videoBitRate = await self.videoEncoder.currentVideoBitRate
-
-            if bufferStatus == .decline && videoBitRate < self.videoConfiguration.videoMaxBitRate {
-                let adjustedVideoBitRate = min(videoBitRate + 50 * 1000, self.videoConfiguration.videoMaxBitRate)
-                await self.videoEncoder.setVideoBitRate(adjustedVideoBitRate)
+            if aggregatedBufferStatus == .decline && videoBitRate < self.videoConfiguration.videoMaxBitRate {
+                let adjusted = min(videoBitRate + 50 * 1000, self.videoConfiguration.videoMaxBitRate)
+                await self.videoEncoder.setVideoBitRate(adjusted)
                 #if DEBUG
-                print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+                print("[HPLiveKit] Increase bitrate \(videoBitRate) --> \(adjusted)")
                 #endif
                 return
             }
-
-            if bufferStatus == .increase && videoBitRate > self.videoConfiguration.videoMinBitRate {
-                let adjustedVideoBitRate = max(videoBitRate - 100 * 1000, self.videoConfiguration.videoMinBitRate)
-                await self.videoEncoder.setVideoBitRate(adjustedVideoBitRate)
+            if aggregatedBufferStatus == .increase && videoBitRate > self.videoConfiguration.videoMinBitRate {
+                let adjusted = max(videoBitRate - 100 * 1000, self.videoConfiguration.videoMinBitRate)
+                await self.videoEncoder.setVideoBitRate(adjusted)
                 #if DEBUG
-                print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjustedVideoBitRate)")
+                print("[HPLiveKit] Decline bitrate \(videoBitRate) --> \(adjusted)")
                 #endif
-                return
             }
         }
     }
 
-    func publisher(publisher: Publisher, errorCode: LiveSocketErrorCode) {
-        delegate?.liveSession(session: self, errorCode: errorCode)
+    func publisherManager(_ manager: PublisherManager, url: String, stateDidChange state: LiveState) {
+        delegate?.liveSession(session: self, url: url, liveStateDidChange: state)
+        Task { [weak self] in
+            guard let self else { return }
+            let aggregated = await manager.aggregatedState
+            if aggregated == .start && !self.uploading {
+                self.hasCapturedAudio = false
+                self.hasCapturedKeyFrame = false
+                self.timestampSynchronizer.reset()
+                self.uploading = true
+            }
+            if aggregated == .stop || aggregated == .error {
+                self.uploading = false
+            }
+            self.state = aggregated
+            self.delegate?.liveSession(session: self, liveStateDidChange: aggregated)
+        }
     }
 
-    func publisher(publisher: Publisher, debugInfo: LiveDebug) {
+    func publisherManager(_ manager: PublisherManager, url: String, errorCode: LiveSocketErrorCode) {
+        delegate?.liveSession(session: self, url: url, errorCode: errorCode)
+        Task { [weak self] in
+            guard let self else { return }
+            if await manager.aggregatedState == .error {
+                self.delegate?.liveSession(session: self, errorCode: errorCode)
+            }
+        }
+    }
+
+    func publisherManager(_ manager: PublisherManager, url: String, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
-        delegate?.liveSession(session: self, debugInfo: debugInfo)
+        delegate?.liveSession(session: self, url: url, debugInfo: debugInfo)
     }
-
 }
