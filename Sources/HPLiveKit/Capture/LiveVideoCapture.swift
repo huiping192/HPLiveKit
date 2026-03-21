@@ -88,25 +88,25 @@ class LiveVideoCapture: NSObject {
     videoConnection?.videoOrientation = .portrait
   }
   
-  private func configurePreview() {
-    let previewVideoView = PreviewView(frame: CGRect.zero)
-    previewVideoView.videoPreviewLayer?.session = captureSession
-    
-    self.previewVideoView = previewVideoView
-  }
-  
+  @MainActor
   public var preview: UIView? {
     get {
       return previewVideoView?.superview
     }
     set {
+      if previewVideoView == nil {
+        let view = PreviewView(frame: .zero)
+        view.videoPreviewLayer?.session = captureSession
+        previewVideoView = view
+      }
+
       if previewVideoView?.superview != nil {
         previewVideoView?.removeFromSuperview()
       }
-      
+
       if let perview = newValue, let previewVideoView = previewVideoView {
         perview.insertSubview(previewVideoView, at: 0)
-        
+
         previewVideoView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
           perview.topAnchor.constraint(equalTo: previewVideoView.topAnchor),
@@ -173,7 +173,6 @@ class LiveVideoCapture: NSObject {
     
     configureNotifications()
     configureVideo()
-    configurePreview()
   }
   
   deinit {
@@ -200,7 +199,9 @@ class LiveVideoCapture: NSObject {
       previewToClean?.removeFromSuperview()
     }
     
-    UIApplication.shared.isIdleTimerDisabled = false
+    DispatchQueue.main.async {
+      UIApplication.shared.isIdleTimerDisabled = false
+    }
   }
   
   /// Start capturing video

@@ -302,41 +302,37 @@ package actor AudioMixer {
       return app
     }
 
+    // Copy to [Int16] arrays: Sendable value types not tied to any Data region,
+    // so they can be safely captured inside withUnsafeMutableBytes under Swift 6.
+    let appSamples: [Int16] = app.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+    let micSamples: [Int16] = mic.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+
+    var appFloat = [Float](repeating: 0, count: sampleCount)
+    var micFloat = [Float](repeating: 0, count: sampleCount)
+    var mixedFloat = [Float](repeating: 0, count: sampleCount)
+
+    vDSP_vflt16(appSamples, 1, &appFloat, 1, vDSP_Length(sampleCount))
+    vDSP_vflt16(micSamples, 1, &micFloat, 1, vDSP_Length(sampleCount))
+
+    var effectiveAppGain = appVolume
+    var effectiveMicGain = micVolume
+
+    let totalGain = appVolume + micVolume
+    if totalGain > 1.5 {
+      Self.logger.warning("Total gain (\(String(format: "%.2f", totalGain))) is high. Relying on soft limiter to prevent clipping.")
+    }
+
+    vDSP_vsmul(appFloat, 1, &effectiveAppGain, &appFloat, 1, vDSP_Length(sampleCount))
+    vDSP_vsmul(micFloat, 1, &effectiveMicGain, &micFloat, 1, vDSP_Length(sampleCount))
+    vDSP_vadd(appFloat, 1, micFloat, 1, &mixedFloat, 1, vDSP_Length(sampleCount))
+
+    var minValue = Float(Int16.min)
+    var maxValue = Float(Int16.max)
+    vDSP_vclip(mixedFloat, 1, &minValue, &maxValue, &mixedFloat, 1, vDSP_Length(sampleCount))
+
     var mixedData = Data(count: sampleCount * 2)
-
-    app.withUnsafeBytes { appBytes in
-      mic.withUnsafeBytes { micBytes in
-        mixedData.withUnsafeMutableBytes { mixedBytes in
-          let appSamples = appBytes.bindMemory(to: Int16.self)
-          let micSamples = micBytes.bindMemory(to: Int16.self)
-          let mixedSamples = mixedBytes.bindMemory(to: Int16.self)
-
-          var appFloat = [Float](repeating: 0, count: sampleCount)
-          var micFloat = [Float](repeating: 0, count: sampleCount)
-          var mixedFloat = [Float](repeating: 0, count: sampleCount)
-
-          vDSP_vflt16(appSamples.baseAddress!, 1, &appFloat, 1, vDSP_Length(sampleCount))
-          vDSP_vflt16(micSamples.baseAddress!, 1, &micFloat, 1, vDSP_Length(sampleCount))
-
-          var effectiveAppGain = appVolume
-          var effectiveMicGain = micVolume
-
-          let totalGain = appVolume + micVolume
-          if totalGain > 1.5 {
-            Self.logger.warning("Total gain (\(String(format: "%.2f", totalGain))) is high. Relying on soft limiter to prevent clipping.")
-          }
-
-          vDSP_vsmul(appFloat, 1, &effectiveAppGain, &appFloat, 1, vDSP_Length(sampleCount))
-          vDSP_vsmul(micFloat, 1, &effectiveMicGain, &micFloat, 1, vDSP_Length(sampleCount))
-          vDSP_vadd(appFloat, 1, micFloat, 1, &mixedFloat, 1, vDSP_Length(sampleCount))
-
-          var minValue = Float(Int16.min)
-          var maxValue = Float(Int16.max)
-          vDSP_vclip(mixedFloat, 1, &minValue, &maxValue, &mixedFloat, 1, vDSP_Length(sampleCount))
-
-          vDSP_vfix16(mixedFloat, 1, mixedSamples.baseAddress!, 1, vDSP_Length(sampleCount))
-        }
-      }
+    mixedData.withUnsafeMutableBytes { mixedBytes in
+      vDSP_vfix16(mixedFloat, 1, mixedBytes.bindMemory(to: Int16.self).baseAddress!, 1, vDSP_Length(sampleCount))
     }
 
     return mixedData

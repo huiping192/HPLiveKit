@@ -178,101 +178,88 @@ package actor AudioResampler {
     let outputBytesPerFrame = Int(targetBitsPerChannel / 8 * targetChannels)
     let outputSize = Int(Double(targetFrames * outputBytesPerFrame) * 1.5)
 
-    var outputData = Data(count: outputSize)
+    // Use independently allocated buffers (not borrowed from any Data) so that pointers
+    // can be used freely across closure boundaries without Swift 6 region isolation errors.
+    let inputCount = audioData.count
+    let inputBuffer = UnsafeMutableRawPointer.allocate(byteCount: inputCount, alignment: MemoryLayout<UInt8>.alignment)
+    defer { inputBuffer.deallocate() }
+    audioData.copyBytes(to: inputBuffer.assumingMemoryBound(to: UInt8.self), count: inputCount)
 
-    let inputDataCopy = audioData
-    let sourceFormatCopy = sourceFormat
+    let outputBuffer = UnsafeMutableRawPointer.allocate(byteCount: outputSize, alignment: MemoryLayout<UInt8>.alignment)
+    defer { outputBuffer.deallocate() }
 
-    // Callback supports multiple reads - AudioConverter may request data in chunks
-    let result: (status: OSStatus, actualSize: Int) = inputDataCopy.withUnsafeBytes { inputBytes in
-      outputData.withUnsafeMutableBytes { outputBytes in
-        guard let inputBaseAddress = inputBytes.baseAddress,
-              let outputBaseAddress = outputBytes.baseAddress else {
-          return (kAudioConverterErr_InvalidInputSize, 0)
-        }
-
-        var outBufferList = AudioBufferList()
-        outBufferList.mNumberBuffers = 1
-        outBufferList.mBuffers.mNumberChannels = targetChannels
-        outBufferList.mBuffers.mDataByteSize = UInt32(outputSize)
-        outBufferList.mBuffers.mData = outputBaseAddress
-
-        var ioOutputDataPacketSize = UInt32(targetFrames)
-
-        // Track consumed frames to support multiple callback invocations
-        struct CallbackState {
-          let inputBaseAddress: UnsafeRawPointer
-          let inputDataSize: Int
-          let sourceFormat: AudioStreamBasicDescription
-          var consumedFrames: Int = 0
-          var callCount: Int = 0
-        }
-
-        var callbackState = CallbackState(
-          inputBaseAddress: inputBaseAddress,
-          inputDataSize: inputDataCopy.count,
-          sourceFormat: sourceFormatCopy
-        )
-
-        let status = withUnsafeMutablePointer(to: &callbackState) { statePtr in
-          AudioConverterFillComplexBuffer(
-            converter,
-            { (_, ioNumDataPackets, ioData, _, inUserData) -> OSStatus in
-              guard let userDataPtr = inUserData else {
-                return kAudioConverterErr_InvalidInputSize
-              }
-
-              let state = userDataPtr.assumingMemoryBound(to: CallbackState.self)
-              state.pointee.callCount += 1
-
-              let bytesPerFrame = Int(state.pointee.sourceFormat.mBytesPerFrame)
-              let totalFrames = state.pointee.inputDataSize / bytesPerFrame
-              let remainingFrames = totalFrames - state.pointee.consumedFrames
-
-              if remainingFrames <= 0 {
-                ioNumDataPackets.pointee = 0
-                return noErr
-              }
-
-              let framesToProvide = min(remainingFrames, Int(ioNumDataPackets.pointee))
-              let bytesToProvide = framesToProvide * bytesPerFrame
-              let offsetBytes = state.pointee.consumedFrames * bytesPerFrame
-
-              var inBufferList = AudioBufferList()
-              inBufferList.mNumberBuffers = 1
-              inBufferList.mBuffers.mNumberChannels = state.pointee.sourceFormat.mChannelsPerFrame
-              inBufferList.mBuffers.mDataByteSize = UInt32(bytesToProvide)
-              inBufferList.mBuffers.mData = UnsafeMutableRawPointer(mutating: state.pointee.inputBaseAddress.advanced(by: offsetBytes))
-
-              ioData.pointee = inBufferList
-              ioNumDataPackets.pointee = UInt32(framesToProvide)
-
-              state.pointee.consumedFrames += framesToProvide
-
-              return noErr
-            },
-            statePtr,
-            &ioOutputDataPacketSize,
-            &outBufferList,
-            nil
-          )
-        }
-
-        let actualFramesWritten = Int(ioOutputDataPacketSize)
-        let actualBytesWritten = actualFramesWritten * outputBytesPerFrame
-
-        return (status, actualBytesWritten)
-      }
+    // Track consumed frames to support multiple callback invocations
+    struct CallbackState {
+      let inputBaseAddress: UnsafeMutableRawPointer
+      let inputDataSize: Int
+      let sourceFormat: AudioStreamBasicDescription
+      var consumedFrames: Int = 0
     }
 
-    guard result.status == noErr else {
-      Self.logger.error("AudioConverterFillComplexBuffer failed: \(result.status, privacy: .public)")
+    var callbackState = CallbackState(
+      inputBaseAddress: inputBuffer,
+      inputDataSize: inputCount,
+      sourceFormat: sourceFormat
+    )
+
+    var outBufferList = AudioBufferList()
+    outBufferList.mNumberBuffers = 1
+    outBufferList.mBuffers.mNumberChannels = targetChannels
+    outBufferList.mBuffers.mDataByteSize = UInt32(outputSize)
+    outBufferList.mBuffers.mData = outputBuffer
+
+    var ioOutputDataPacketSize = UInt32(targetFrames)
+
+    let status = withUnsafeMutablePointer(to: &callbackState) { statePtr in
+      AudioConverterFillComplexBuffer(
+        converter,
+        { (_, ioNumDataPackets, ioData, _, inUserData) -> OSStatus in
+          guard let userDataPtr = inUserData else {
+            return kAudioConverterErr_InvalidInputSize
+          }
+
+          let state = userDataPtr.assumingMemoryBound(to: CallbackState.self)
+
+          let bytesPerFrame = Int(state.pointee.sourceFormat.mBytesPerFrame)
+          let totalFrames = state.pointee.inputDataSize / bytesPerFrame
+          let remainingFrames = totalFrames - state.pointee.consumedFrames
+
+          if remainingFrames <= 0 {
+            ioNumDataPackets.pointee = 0
+            return noErr
+          }
+
+          let framesToProvide = min(remainingFrames, Int(ioNumDataPackets.pointee))
+          let bytesToProvide = framesToProvide * bytesPerFrame
+          let offsetBytes = state.pointee.consumedFrames * bytesPerFrame
+
+          var inBufferList = AudioBufferList()
+          inBufferList.mNumberBuffers = 1
+          inBufferList.mBuffers.mNumberChannels = state.pointee.sourceFormat.mChannelsPerFrame
+          inBufferList.mBuffers.mDataByteSize = UInt32(bytesToProvide)
+          inBufferList.mBuffers.mData = state.pointee.inputBaseAddress.advanced(by: offsetBytes)
+
+          ioData.pointee = inBufferList
+          ioNumDataPackets.pointee = UInt32(framesToProvide)
+
+          state.pointee.consumedFrames += framesToProvide
+
+          return noErr
+        },
+        statePtr,
+        &ioOutputDataPacketSize,
+        &outBufferList,
+        nil
+      )
+    }
+
+    guard status == noErr else {
+      Self.logger.error("AudioConverterFillComplexBuffer failed: \(status, privacy: .public)")
       return nil
     }
 
-    outputData.count = result.actualSize
-
-    return outputData
+    let actualBytesWritten = Int(ioOutputDataPacketSize) * outputBytesPerFrame
+    return Data(bytes: outputBuffer, count: actualBytesWritten)
   }
 
   private func createSampleBuffer(from data: Data, timestamp: CMTime) -> CMSampleBuffer? {

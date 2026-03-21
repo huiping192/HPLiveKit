@@ -27,6 +27,7 @@ public class CaptureManager: NSObject {
   weak var delegate: CaptureManagerDelegate?
   
   // TODO: remove preview from CaptureManager
+  @MainActor
   public var preview: UIView? {
     get {
       videoCapture.preview

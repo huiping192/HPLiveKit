@@ -153,6 +153,7 @@ public class LiveSession: NSObject, @unchecked Sendable {
     private let frameContinuation: AsyncStream<any Frame>.Continuation
     private var frameProcessingTask: Task<Void, Never>?
 
+    @MainActor
     public var preview: UIView? {
         get {
             capture?.preview
