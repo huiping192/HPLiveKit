@@ -4,7 +4,7 @@
 //
 
 import XCTest
-@testable import HPLiveKit
+@testable import HPLiveKitCore
 
 // MARK: - Mock Publisher
 

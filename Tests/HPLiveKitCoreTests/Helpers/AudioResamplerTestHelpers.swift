@@ -9,7 +9,7 @@ import Foundation
 import CoreMedia
 import AudioToolbox
 import AVFoundation
-@testable import HPLiveKit
+@testable import HPLiveKitCore
 
 /// Helper functions and utilities for AudioResampler testing
 enum AudioResamplerTestHelpers {

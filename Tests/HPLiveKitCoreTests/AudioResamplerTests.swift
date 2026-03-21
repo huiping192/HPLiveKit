@@ -8,7 +8,7 @@
 import XCTest
 import CoreMedia
 import AudioToolbox
-@testable import HPLiveKit
+@testable import HPLiveKitCore
 
 final class AudioResamplerTests: XCTestCase {
 

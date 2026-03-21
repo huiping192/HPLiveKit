@@ -1,13 +1,11 @@
 name: CI
 
-on: [push]
-
-env:
-  DEVELOPER_DIR: /Applications/Xcode_26.0.1.app
+on:
+  push:
+  pull_request:
 
 jobs:
   build:
-
     runs-on: macos-latest
 
     steps:
@@ -28,8 +26,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-spm-
 
-    - name: Resolve SPM dependencies
+    - name: Test HPLiveKitCore (macOS)
+      run: swift test --filter HPLiveKitCoreTests
+
+    - name: Resolve SPM dependencies (Example)
       run: xcodebuild -resolvePackageDependencies -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example
 
-    - name: Build
+    - name: Build Example (iOS Simulator)
       run: xcodebuild -project Example/HPLiveKit.xcodeproj -scheme HPLiveKit-Example -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug build
