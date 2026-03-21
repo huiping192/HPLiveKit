@@ -7,36 +7,36 @@ import Foundation
 
 protocol PublisherManagerDelegate: AnyObject, Sendable {
     func publisherManager(_ manager: PublisherManager, aggregatedBufferStatus: BufferState)
-    func publisherManager(_ manager: PublisherManager, url: String, stateDidChange state: LiveState)
-    func publisherManager(_ manager: PublisherManager, url: String, errorCode: LiveSocketErrorCode)
-    func publisherManager(_ manager: PublisherManager, url: String, debugInfo: LiveDebug)
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, stateDidChange state: LiveState)
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode)
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, debugInfo: LiveDebug)
 }
 
-// Per-publisher delegate bridge carrying URL context.
+// Per-publisher delegate bridge carrying stream identity context.
 // Uses nonisolated + Task pattern (same as RtmpPublisher: StreamingBufferDelegate).
 final class PublisherDelegateBridge: PublisherDelegate, @unchecked Sendable {
-    let url: String
+    let streamInfo: LiveStreamInfo
     weak var manager: PublisherManager?
 
-    init(url: String, manager: PublisherManager) {
-        self.url = url
+    init(streamInfo: LiveStreamInfo, manager: PublisherManager) {
+        self.streamInfo = streamInfo
         self.manager = manager
     }
 
     func publisher(publisher: Publisher, bufferStatus: BufferState) {
-        Task { await manager?.handleBufferStatus(from: url, status: bufferStatus) }
+        Task { await manager?.handleBufferStatus(from: streamInfo.id, status: bufferStatus) }
     }
 
     func publisher(publisher: Publisher, publishStatus: LiveState) {
-        Task { await manager?.handleStateChange(from: url, state: publishStatus) }
+        Task { await manager?.handleStateChange(from: streamInfo.id, state: publishStatus) }
     }
 
     func publisher(publisher: Publisher, errorCode: LiveSocketErrorCode) {
-        Task { await manager?.handleError(from: url, error: errorCode) }
+        Task { await manager?.handleError(from: streamInfo.id, error: errorCode) }
     }
 
     func publisher(publisher: Publisher, debugInfo: LiveDebug) {
-        Task { await manager?.handleDebugInfo(from: url, info: debugInfo) }
+        Task { await manager?.handleDebugInfo(from: streamInfo.id, info: debugInfo) }
     }
 }
 
@@ -49,8 +49,8 @@ actor PublisherManager {
         var state: LiveState = .ready
     }
 
-    private var publishers: [String: PublisherEntry] = [:]
-    private var publisherBufferStates: [String: BufferState] = [:]
+    private var publishers: [String: PublisherEntry] = [:]          // keyed by id
+    private var publisherBufferStates: [String: BufferState] = [:]   // keyed by id
     weak var delegate: (any PublisherManagerDelegate)?
 
     func setDelegate(_ delegate: (any PublisherManagerDelegate)?) {
@@ -64,10 +64,9 @@ actor PublisherManager {
 
     // Allows injecting a pre-built publisher; used by unit tests.
     func add(publisher: any Publisher, for streamInfo: LiveStreamInfo) async {
-        let url = streamInfo.url
-        let bridge = PublisherDelegateBridge(url: url, manager: self)
+        let bridge = PublisherDelegateBridge(streamInfo: streamInfo, manager: self)
         await publisher.setDelegate(delegate: bridge)
-        publishers[url] = PublisherEntry(publisher: publisher, streamInfo: streamInfo, delegateBridge: bridge)
+        publishers[streamInfo.id] = PublisherEntry(publisher: publisher, streamInfo: streamInfo, delegateBridge: bridge)
     }
 
     func removeAll() async {
@@ -112,8 +111,8 @@ actor PublisherManager {
 
     var isEmpty: Bool { publishers.isEmpty }
 
-    func handleBufferStatus(from url: String, status: BufferState) {
-        publisherBufferStates[url] = status
+    func handleBufferStatus(from id: String, status: BufferState) {
+        publisherBufferStates[id] = status
         // Most conservative signal wins: any slow path triggers bitrate decrease
         if publisherBufferStates.values.contains(where: { $0 == .increase }) {
             delegate?.publisherManager(self, aggregatedBufferStatus: .increase)
@@ -126,19 +125,22 @@ actor PublisherManager {
         }
     }
 
-    func handleStateChange(from url: String, state: LiveState) {
-        if var entry = publishers[url] {
+    func handleStateChange(from id: String, state: LiveState) {
+        if var entry = publishers[id] {
             entry.state = state
-            publishers[url] = entry
+            publishers[id] = entry
         }
-        delegate?.publisherManager(self, url: url, stateDidChange: state)
+        guard let streamInfo = publishers[id]?.streamInfo else { return }
+        delegate?.publisherManager(self, streamInfo: streamInfo, stateDidChange: state)
     }
 
-    func handleError(from url: String, error: LiveSocketErrorCode) {
-        delegate?.publisherManager(self, url: url, errorCode: error)
+    func handleError(from id: String, error: LiveSocketErrorCode) {
+        guard let streamInfo = publishers[id]?.streamInfo else { return }
+        delegate?.publisherManager(self, streamInfo: streamInfo, errorCode: error)
     }
 
-    func handleDebugInfo(from url: String, info: LiveDebug) {
-        delegate?.publisherManager(self, url: url, debugInfo: info)
+    func handleDebugInfo(from id: String, info: LiveDebug) {
+        guard let streamInfo = publishers[id]?.streamInfo else { return }
+        delegate?.publisherManager(self, streamInfo: streamInfo, debugInfo: info)
     }
 }

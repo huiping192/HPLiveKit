@@ -64,16 +64,16 @@ public protocol LiveSessionDelegate: AnyObject, Sendable {
     func liveSession(session: LiveSession, debugInfo: LiveDebug)
 
     // Per-publisher callbacks (multi-stream support)
-    func liveSession(session: LiveSession, url: String, liveStateDidChange state: LiveState)
-    func liveSession(session: LiveSession, url: String, errorCode: LiveSocketErrorCode)
-    func liveSession(session: LiveSession, url: String, debugInfo: LiveDebug)
+    func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, liveStateDidChange state: LiveState)
+    func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode)
+    func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, debugInfo: LiveDebug)
 }
 
 extension LiveSessionDelegate {
     public func liveSession(session: LiveSession, debugInfo: LiveDebug) {}
-    public func liveSession(session: LiveSession, url: String, liveStateDidChange state: LiveState) {}
-    public func liveSession(session: LiveSession, url: String, errorCode: LiveSocketErrorCode) {}
-    public func liveSession(session: LiveSession, url: String, debugInfo: LiveDebug) {}
+    public func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, liveStateDidChange state: LiveState) {}
+    public func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode) {}
+    public func liveSession(session: LiveSession, streamInfo: LiveStreamInfo, debugInfo: LiveDebug) {}
 }
 
 public class LiveSession: NSObject, @unchecked Sendable {
@@ -452,8 +452,8 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, url: String, stateDidChange state: LiveState) {
-        delegate?.liveSession(session: self, url: url, liveStateDidChange: state)
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, stateDidChange state: LiveState) {
+        delegate?.liveSession(session: self, streamInfo: streamInfo, liveStateDidChange: state)
         Task { [weak self] in
             guard let self else { return }
             let aggregated = await manager.aggregatedState
@@ -471,8 +471,8 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, url: String, errorCode: LiveSocketErrorCode) {
-        delegate?.liveSession(session: self, url: url, errorCode: errorCode)
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode) {
+        delegate?.liveSession(session: self, streamInfo: streamInfo, errorCode: errorCode)
         Task { [weak self] in
             guard let self else { return }
             if await manager.aggregatedState == .error {
@@ -481,8 +481,8 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, url: String, debugInfo: LiveDebug) {
+    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
-        delegate?.liveSession(session: self, url: url, debugInfo: debugInfo)
+        delegate?.liveSession(session: self, streamInfo: streamInfo, debugInfo: debugInfo)
     }
 }
