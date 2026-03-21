@@ -1,10 +1,9 @@
 import Foundation
 import CoreMedia
 import AudioToolbox
-import AVFoundation
 import os
 
-actor AudioResampler {
+package actor AudioResampler {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioResampler")
 
   private let targetSampleRate: Double
@@ -36,7 +35,7 @@ actor AudioResampler {
   private var cachedTargetFormat: AudioStreamBasicDescription?
   private var cachedFormatDescription: CMAudioFormatDescription?
 
-  init(targetSampleRate: Double, targetChannels: UInt32, targetBitsPerChannel: UInt32) {
+  package init(targetSampleRate: Double, targetChannels: UInt32, targetBitsPerChannel: UInt32) {
     self.targetSampleRate = targetSampleRate
     self.targetChannels = targetChannels
     self.targetBitsPerChannel = targetBitsPerChannel
@@ -55,7 +54,7 @@ actor AudioResampler {
     return outputFormat
   }
 
-  func stop() {
+  package func stop() {
     if let converter {
       AudioConverterDispose(converter)
       self.converter = nil
@@ -82,7 +81,7 @@ actor AudioResampler {
     return outputFormat
   }
   
-  func resample(_ sampleBufferBox: SampleBufferBox) -> SampleBufferBox? {
+  package func resample(_ sampleBufferBox: SampleBufferBox) -> SampleBufferBox? {
     let sampleBuffer = sampleBufferBox.samplebuffer
 
     guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) else {

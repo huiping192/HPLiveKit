@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol PublisherDelegate: AnyObject, Sendable {
+package protocol PublisherDelegate: AnyObject, Sendable {
   /** callback buffer current status */
   func publisher(publisher: Publisher, bufferStatus: BufferState)
   /** callback publish current status */
@@ -18,7 +18,7 @@ protocol PublisherDelegate: AnyObject, Sendable {
   func publisher(publisher: Publisher, debugInfo: LiveDebug)
 }
 
-protocol Publisher: Sendable {
+package protocol Publisher: Sendable {
 
   func setDelegate(delegate: PublisherDelegate?) async
 

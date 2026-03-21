@@ -8,14 +8,12 @@
 
 import Foundation
 @preconcurrency import VideoToolbox
-import HPRTMP
-import UIKit
 import os
 
 /// Video H.264 encoder using Swift 6 Actor for thread safety
 /// Input: CMSampleBuffer via encode() method (non-blocking)
 /// Output: VideoFrame via AsyncStream
-actor LiveVideoH264Encoder: VideoEncoder {
+package actor LiveVideoH264Encoder: VideoEncoder {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "VideoH264Encoder")
 
   // MARK: - AsyncStream for Input/Output
@@ -32,7 +30,7 @@ actor LiveVideoH264Encoder: VideoEncoder {
   private let outputContinuation: AsyncStream<VideoFrame>.Continuation
 
   /// Public read-only access to output stream
-  nonisolated var outputStream: AsyncStream<VideoFrame> {
+  nonisolated package var outputStream: AsyncStream<VideoFrame> {
     _outputStream
   }
 
@@ -51,7 +49,7 @@ actor LiveVideoH264Encoder: VideoEncoder {
   private var _currentVideoBitRate: UInt
 
   /// Current video bit rate in bits per second
-  var currentVideoBitRate: UInt {
+  package var currentVideoBitRate: UInt {
     _currentVideoBitRate
   }
 
@@ -64,11 +62,21 @@ actor LiveVideoH264Encoder: VideoEncoder {
   /// Notification token for foreground notification (stored for cleanup)
   private var foregroundNotificationToken: NSObjectProtocol?
 
+  /// Injected notification names for background/foreground transitions (nil = disabled)
+  private let backgroundNotificationName: Notification.Name?
+  private let foregroundNotificationName: Notification.Name?
+
   // MARK: - Initialization
 
-  init(configuration: LiveVideoConfiguration) {
+  package init(
+    configuration: LiveVideoConfiguration,
+    backgroundNotification: Notification.Name? = nil,
+    foregroundNotification: Notification.Name? = nil
+  ) {
     self.configuration = configuration
     self._currentVideoBitRate = configuration.videoBitRate
+    self.backgroundNotificationName = backgroundNotification
+    self.foregroundNotificationName = foregroundNotification
 
     // Create input stream
     (self.inputStream, self.inputContinuation) = AsyncStream.makeStream()
@@ -90,13 +98,13 @@ actor LiveVideoH264Encoder: VideoEncoder {
 
   /// Encodes a video sample buffer (non-blocking, returns immediately)
   /// The sample buffer is yielded to internal processing stream
-  nonisolated func encode(sampleBuffer: SampleBufferBox) {
+  nonisolated package func encode(sampleBuffer: SampleBufferBox) {
     inputContinuation.yield(sampleBuffer)
   }
 
   /// Dynamically adjusts the video bit rate
   /// This method is async because it accesses actor-isolated state
-  func setVideoBitRate(_ bitRate: UInt) async {
+  package func setVideoBitRate(_ bitRate: UInt) async {
     guard !isBackground else { return }
     guard let compressionSession = compressionSession else { return }
 
@@ -111,7 +119,7 @@ actor LiveVideoH264Encoder: VideoEncoder {
   }
 
   /// Stops the encoder and finishes all streams
-  func stop() {
+  package func stop() {
     // Cancel processing task
     processingTask?.cancel()
 
@@ -300,27 +308,30 @@ actor LiveVideoH264Encoder: VideoEncoder {
       NotificationCenter.default.removeObserver(token)
     }
 
-    // Register new notification observers and store tokens for cleanup
-    backgroundNotificationToken = NotificationCenter.default.addObserver(
-      forName: UIApplication.willResignActiveNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      guard let self = self else { return }
-      Self.logger.debug("Application entering background - stopping video encoding")
-      Task { await self.setBackgroundState(true) }
+    if let backgroundName = backgroundNotificationName {
+      backgroundNotificationToken = NotificationCenter.default.addObserver(
+        forName: backgroundName,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        guard let self = self else { return }
+        Self.logger.debug("Application entering background - stopping video encoding")
+        Task { await self.setBackgroundState(true) }
+      }
     }
 
-    foregroundNotificationToken = NotificationCenter.default.addObserver(
-      forName: UIApplication.didBecomeActiveNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      guard let self = self else { return }
-      Self.logger.debug("Application entering foreground - resuming video encoding")
-      Task {
-        await self.resetCompressionSession()
-        await self.setBackgroundState(false)
+    if let foregroundName = foregroundNotificationName {
+      foregroundNotificationToken = NotificationCenter.default.addObserver(
+        forName: foregroundName,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        guard let self = self else { return }
+        Self.logger.debug("Application entering foreground - resuming video encoding")
+        Task {
+          await self.resetCompressionSession()
+          await self.setBackgroundState(false)
+        }
       }
     }
   }

@@ -6,6 +6,7 @@
 //  Copyright © 2018 Huiping Guo. All rights reserved.
 //
 
+#if canImport(UIKit)
 import Foundation
 import AudioToolbox
 import AVFoundation
@@ -131,5 +132,6 @@ extension LiveAudioCapture {
       captureSession.addOutput(audioOutput)
     }
   }
-  
+
 }
+#endif // canImport(UIKit)

@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import AVFoundation
+import CoreMedia
 import HPRTMP
 
 struct RTMPAudioHeaderBuilder {

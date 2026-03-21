@@ -6,8 +6,8 @@
 //
 
 import Foundation
+import CoreAudioTypes
 import HPRTMP
-import AVFoundation
 
 /*
  AudioSpecificConfig = 2 bytes,

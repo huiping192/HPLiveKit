@@ -7,14 +7,13 @@
 
 import Foundation
 @preconcurrency import CoreMedia
-@preconcurrency import AVFoundation
 import Accelerate
 import os
 
 /// Audio mixer using Swift 6 Actor for thread safety
 /// Mixes app audio and microphone audio with configurable volume ratios
 /// IMPORTANT: Only supports 16-bit PCM audio. Other bit depths will be rejected with error logs.
-actor AudioMixer {
+package actor AudioMixer {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioMixer")
 
   private let targetSampleRate: Double
@@ -33,7 +32,7 @@ actor AudioMixer {
   private let _outputStream: AsyncStream<SampleBufferBox>
   private let outputContinuation: AsyncStream<SampleBufferBox>.Continuation
   
-  nonisolated var outputStream: AsyncStream<SampleBufferBox> {
+  nonisolated package var outputStream: AsyncStream<SampleBufferBox> {
     _outputStream
   }
 
@@ -101,7 +100,7 @@ actor AudioMixer {
     }
   }
 
-  init(targetSampleRate: Double, appVolume: Float, micVolume: Float) {
+  package init(targetSampleRate: Double, appVolume: Float, micVolume: Float) {
     self.targetSampleRate = targetSampleRate
     self.appVolume = appVolume
     self.micVolume = micVolume
@@ -134,11 +133,11 @@ actor AudioMixer {
     outputContinuation.finish()
   }
 
-  nonisolated func pushAppAudio(_ sampleBuffer: SampleBufferBox) {
+  nonisolated package func pushAppAudio(_ sampleBuffer: SampleBufferBox) {
     appAudioContinuation.yield(sampleBuffer)
   }
 
-  nonisolated func pushMicAudio(_ sampleBuffer: SampleBufferBox) {
+  nonisolated package func pushMicAudio(_ sampleBuffer: SampleBufferBox) {
     micAudioContinuation.yield(sampleBuffer)
   }
 

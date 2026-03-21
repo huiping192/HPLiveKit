@@ -79,19 +79,19 @@ public enum LiveAudioQuality {
 
 public struct LiveAudioConfiguration: Sendable {
   /// Number of channels
-  let numberOfChannels: UInt32
+  package let numberOfChannels: UInt32
   /// Sample rate
-  let audioSampleRate: LiveAudioSampleRate
+  package let audioSampleRate: LiveAudioSampleRate
   /// Bitrate
-  let audioBitRate: LiveAudioBitRate
+  package let audioBitRate: LiveAudioBitRate
 
   // Audio mixing configuration (for screenShare mode)
   /// Enable audio mixing (app audio + mic audio)
-  let audioMixingEnabled: Bool
+  package let audioMixingEnabled: Bool
   /// App audio volume ratio (0.0 - 2.0)
-  let appAudioVolume: Float
+  package let appAudioVolume: Float
   /// Mic audio volume ratio (0.0 - 2.0)
-  let micAudioVolume: Float
+  package let micAudioVolume: Float
 
   /// Initialize audio configuration
   /// - Parameters:

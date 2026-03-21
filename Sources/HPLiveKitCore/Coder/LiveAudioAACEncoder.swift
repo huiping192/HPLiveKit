@@ -14,7 +14,7 @@ import NIOCore
 import NIOFoundationCompat
 import os
 
-actor LiveAudioAACEncoder: AudioEncoder {
+package actor LiveAudioAACEncoder: AudioEncoder {
   private static let logger = Logger(subsystem: "com.hplivekit", category: "AudioAACEncoder")
 
   // MARK: - AsyncStream Properties
@@ -25,7 +25,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
   private let _outputStream: AsyncStream<AudioFrame>
   private let outputContinuation: AsyncStream<AudioFrame>.Continuation
 
-  nonisolated var outputStream: AsyncStream<AudioFrame> {
+  nonisolated package var outputStream: AsyncStream<AudioFrame> {
     _outputStream
   }
 
@@ -71,7 +71,7 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
   // MARK: - Initialization
 
-  init(configuration: LiveAudioConfiguration) {
+  package init(configuration: LiveAudioConfiguration) {
     self.configuration = configuration
 
     (self.inputStream, self.inputContinuation) = AsyncStream.makeStream()
@@ -85,11 +85,11 @@ actor LiveAudioAACEncoder: AudioEncoder {
 
   // MARK: - Public Interface
 
-  nonisolated func encode(sampleBuffer: SampleBufferBox) {
+  nonisolated package func encode(sampleBuffer: SampleBufferBox) {
     inputContinuation.yield(sampleBuffer)
   }
 
-  func stop() {
+  package func stop() {
     processingTask?.cancel()
     inputContinuation.finish()
     outputContinuation.finish()
@@ -342,6 +342,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
     )
     self.outFormatDescription = outFormatDescription
 
+    // kAppleSoftwareAudioCodecManufacturer and kAppleHardwareAudioCodecManufacturer
+    // are iOS-only constants (#if TARGET_OS_IPHONE in AudioFormat.h).
+    // On iOS, prefer hardware AAC encoder; on macOS use the default codec selection.
+    #if os(iOS)
     let requestedCodecs: [AudioClassDescription] = [
       .init(
         mType: kAudioEncoderComponentType,
@@ -354,8 +358,10 @@ actor LiveAudioAACEncoder: AudioEncoder {
         mManufacturer: kAppleHardwareAudioCodecManufacturer
       )
     ]
-
     let result = AudioConverterNewSpecific(&inputFormat, &outputFormat, 2, requestedCodecs, &converter)
+    #else
+    let result = AudioConverterNew(&inputFormat, &outputFormat, &converter)
+    #endif
     if result != noErr {
       Self.logger.error("AudioConverterNewSpecific failed with status: \(result)")
       throw LiveError.audioConverterCreationFailed(result)

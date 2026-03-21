@@ -6,6 +6,7 @@
 //  Copyright © 2018 Huiping Guo. All rights reserved.
 //
 
+#if canImport(UIKit)
 import Foundation
 import AVFoundation
 import UIKit
@@ -297,3 +298,4 @@ extension LiveVideoCapture {
     AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back).devices.first
   }
 }
+#endif // canImport(UIKit)

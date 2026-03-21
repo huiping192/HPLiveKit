@@ -7,8 +7,16 @@
 //
 
 import Foundation
-import AVFoundation
-import UIKit
+import CoreGraphics
+
+/// Video output orientation (platform-agnostic replacement for UIInterfaceOrientation)
+public enum VideoOutputOrientation: Sendable {
+  case portrait
+  case portraitUpsideDown
+  case landscapeLeft
+  case landscapeRight
+}
+
 public enum LiveVideoSessionPreset {
   /// Low resolution
   case preset360x640
@@ -16,30 +24,16 @@ public enum LiveVideoSessionPreset {
   case preset540x960
   /// High resolution
   case preset720x1280
-  
-  var avSessionPreset: AVCaptureSession.Preset {
-    switch self {
-    case .preset360x640:
-      return .vga640x480
-    case .preset540x960:
-      return .iFrame960x540
-    case .preset720x1280:
-      return .hd1280x720
-    }
-  }
-  
+
   var cameraImageSize: CGSize {
-    var size: CGSize
     switch self {
     case .preset360x640:
-      size = CGSize(width: 360, height: 640)
+      return CGSize(width: 360, height: 640)
     case .preset540x960:
-      size = CGSize(width: 540, height: 960)
+      return CGSize(width: 540, height: 960)
     case .preset720x1280:
-      size = CGSize(width: 720, height: 1280)
+      return CGSize(width: 720, height: 1280)
     }
-    
-    return size
   }
 }
 
@@ -67,45 +61,40 @@ public enum LiveVideoQuality {
 
 public struct LiveVideoConfiguration: @unchecked Sendable {
   // Video resolution, width and height should be set as multiples of 2 to avoid green borders during decoding and playback.
-  let videoSize: CGSize
-  
+  package let videoSize: CGSize
+
   // Whether the output image is aspect-ratio-respectful. Default is false.
-  var videoSizeRespectingAspectRatio: Bool = false
-  
+  package var videoSizeRespectingAspectRatio: Bool = false
+
   // Video output orientation
-  var outputImageOrientation: UIInterfaceOrientation = .portrait
-  
+  package var outputImageOrientation: VideoOutputOrientation = .portrait
+
   // Auto rotation (here, only supports left-to-right and portrait-to-portraitUpsideDown)
-  var autorotate: Bool = true
-  
+  package var autorotate: Bool = true
+
   // Video frame rate, i.e., fps
-  let videoFrameRate: UInt
-  
+  package let videoFrameRate: UInt
+
   // Video minimum frame rate, i.e., fps
-  let videoMinFrameRate: UInt
+  package let videoMinFrameRate: UInt
   // Video maximum frame rate, i.e., fps
-  let videoMaxFrameRate: UInt
-  
+  package let videoMaxFrameRate: UInt
+
   // Maximum keyframe interval, can be set to 2 times the fps, affects the size of a gop
-  var videoMaxKeyframeInterval: UInt {
+  package var videoMaxKeyframeInterval: UInt {
     videoFrameRate * 2
   }
-  
+
   // Video bitrate, unit is bps
-  let videoBitRate: UInt
+  package let videoBitRate: UInt
   // Video maximum bitrate, unit is bps
-  let videoMaxBitRate: UInt
-  
+  package let videoMaxBitRate: UInt
+
   // Video minimum bitrate, unit is bps
-  let videoMinBitRate: UInt
-  
+  package let videoMinBitRate: UInt
+
   // Session preset for resolution
-  let sessionPreset: LiveVideoSessionPreset
-  
-  // System session preset for resolution
-  var avSessionPreset: AVCaptureSession.Preset {
-    sessionPreset.avSessionPreset
-  }
+  package let sessionPreset: LiveVideoSessionPreset
 }
 
 
@@ -113,33 +102,39 @@ extension LiveVideoConfiguration {
   var isLandscape: Bool {
     outputImageOrientation == .landscapeLeft || outputImageOrientation == .landscapeRight
   }
-  
+
   // for internal use
   var internalVideoSize: CGSize {
     if videoSizeRespectingAspectRatio {
       return aspectRatioVideoSize
     }
-    
+
     return orientationFormatVideoSize
   }
-  
+
   var orientationFormatVideoSize: CGSize {
     if !isLandscape {
       return videoSize
     }
     return CGSize(width: videoSize.height, height: videoSize.width)
   }
-  
+
   var aspectRatioVideoSize: CGSize {
-    let size = AVMakeRect(aspectRatio: sessionPreset.cameraImageSize, insideRect: CGRect(x: 0, y: 0, width: orientationFormatVideoSize.width, height: orientationFormatVideoSize.height) )
-    
-    var width: Int = Int(ceil(size.width))
-    var height: Int = Int(ceil(size.height))
-    
-    width = width % 2 == 0 ? width :  width - 1
-    height = height % 2 == 0 ? height :  height - 1
-    
+    let aspectRatio = sessionPreset.cameraImageSize
+    let insideSize = orientationFormatVideoSize
+
+    // Pure CoreGraphics replacement for AVMakeRect(aspectRatio:insideRect:)
+    let widthRatio = insideSize.width / aspectRatio.width
+    let heightRatio = insideSize.height / aspectRatio.height
+    let scale = min(widthRatio, heightRatio)
+    let fittedSize = CGSize(width: aspectRatio.width * scale, height: aspectRatio.height * scale)
+
+    var width: Int = Int(ceil(fittedSize.width))
+    var height: Int = Int(ceil(fittedSize.height))
+
+    width = width % 2 == 0 ? width : width - 1
+    height = height % 2 == 0 ? height : height - 1
+
     return CGSize(width: width, height: height)
   }
-  
 }

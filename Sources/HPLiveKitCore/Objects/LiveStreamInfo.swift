@@ -43,8 +43,8 @@ public struct LiveStreamInfo: Sendable, Equatable {
   public let id: String
   public let url: String
 
-  var audioConfiguration: LiveAudioConfiguration?
-  var videoConfiguration: LiveVideoConfiguration?
+  package var audioConfiguration: LiveAudioConfiguration?
+  package var videoConfiguration: LiveVideoConfiguration?
 
   public init(url: String, id: String = UUID().uuidString) {
     self.id = id

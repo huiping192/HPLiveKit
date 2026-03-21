@@ -9,7 +9,6 @@
 import Foundation
 import CoreMedia
 import AudioToolbox
-import AVFoundation
 import os
 
 /// Utility methods for audio sample buffer operations

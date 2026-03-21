@@ -6,9 +6,9 @@
 //  Copyright © 2018 Huiping Guo. All rights reserved.
 //
 
+#if canImport(UIKit)
 import Foundation
 import UIKit
-import CoreMedia
 import ReplayKit
 import os
 
@@ -166,7 +166,11 @@ public class LiveSession: NSObject, @unchecked Sendable {
 
         // Create encoders directly (no EncoderManager needed)
         audioEncoder = LiveAudioAACEncoder(configuration: audioConfiguration)
-        videoEncoder = LiveVideoH264Encoder(configuration: videoConfiguration)
+        videoEncoder = LiveVideoH264Encoder(
+            configuration: videoConfiguration,
+            backgroundNotification: UIApplication.willResignActiveNotification,
+            foregroundNotification: UIApplication.didBecomeActiveNotification
+        )
 
         // Initialize AsyncStream for frame processing
         var continuation: AsyncStream<any Frame>.Continuation!
@@ -429,7 +433,7 @@ extension LiveSession: CaptureManagerDelegate {
 }
 
 extension LiveSession: PublisherManagerDelegate {
-    func publisherManager(_ manager: PublisherManager, aggregatedBufferStatus: BufferState) {
+    package func publisherManager(_ manager: PublisherManager, aggregatedBufferStatus: BufferState) {
         guard captureType.contains(.captureVideo) && adaptiveVideoBitrate else { return }
         Task { [weak self] in
             guard let self else { return }
@@ -452,7 +456,7 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, stateDidChange state: LiveState) {
+    package func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, stateDidChange state: LiveState) {
         delegate?.liveSession(session: self, streamInfo: streamInfo, liveStateDidChange: state)
         Task { [weak self] in
             guard let self else { return }
@@ -471,7 +475,7 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode) {
+    package func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode) {
         delegate?.liveSession(session: self, streamInfo: streamInfo, errorCode: errorCode)
         Task { [weak self] in
             guard let self else { return }
@@ -481,8 +485,9 @@ extension LiveSession: PublisherManagerDelegate {
         }
     }
 
-    func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, debugInfo: LiveDebug) {
+    package func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, debugInfo: LiveDebug) {
         self.debugInfo = debugInfo
         delegate?.liveSession(session: self, streamInfo: streamInfo, debugInfo: debugInfo)
     }
 }
+#endif // canImport(UIKit)

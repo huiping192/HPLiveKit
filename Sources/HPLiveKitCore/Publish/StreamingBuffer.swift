@@ -8,7 +8,7 @@
 import Foundation
 
 /** current buffer status */
-enum BufferState {
+package enum BufferState {
   // buffer sending status unknown
   case unknown
   // buffer stack increase, should decline bitrate
