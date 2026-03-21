@@ -39,17 +39,19 @@ public enum LiveSocketErrorCode: Int, Sendable {
 }
 
 // Stream Information
-public struct LiveStreamInfo: Sendable {
-  // --- RTMP ---
-  
+public struct LiveStreamInfo: Sendable, Equatable {
+  public let id: String
   public let url: String
-  
-  /// Audio Configuration
+
   var audioConfiguration: LiveAudioConfiguration?
-  /// Video Configuration
   var videoConfiguration: LiveVideoConfiguration?
-  
-  public init(url: String) {
+
+  public init(url: String, id: String = UUID().uuidString) {
+    self.id = id
     self.url = url
+  }
+
+  public static func == (lhs: LiveStreamInfo, rhs: LiveStreamInfo) -> Bool {
+    lhs.id == rhs.id
   }
 }

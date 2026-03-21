@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct LiveDebug {
+public struct LiveDebug: Sendable {
   /// Stream URLs
   var uploadUrl: String?
   /// Uploaded resolution
