@@ -4,7 +4,7 @@
 //
 //  Created by 郭 輝平 on 2025/10/23.
 //
-import AVFoundation
+import CoreMedia
 
 /// A wrapper for CMSampleBuffer to provide Sendable conformance for Swift 6 concurrency
 ///
@@ -20,6 +20,9 @@ import AVFoundation
 /// - Do NOT mutate the wrapped CMSampleBuffer after boxing
 /// - Do NOT share the same box across multiple concurrent write operations
 /// - Treat the wrapped CMSampleBuffer as read-only after it's been boxed
-struct SampleBufferBox: @unchecked Sendable {
-  let samplebuffer: CMSampleBuffer
+package struct SampleBufferBox: @unchecked Sendable {
+  package let samplebuffer: CMSampleBuffer
+  package init(samplebuffer: CMSampleBuffer) {
+    self.samplebuffer = samplebuffer
+  }
 }

@@ -5,7 +5,7 @@
 
 import Foundation
 
-protocol PublisherManagerDelegate: AnyObject, Sendable {
+package protocol PublisherManagerDelegate: AnyObject, Sendable {
     func publisherManager(_ manager: PublisherManager, aggregatedBufferStatus: BufferState)
     func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, stateDidChange state: LiveState)
     func publisherManager(_ manager: PublisherManager, streamInfo: LiveStreamInfo, errorCode: LiveSocketErrorCode)
@@ -40,7 +40,7 @@ final class PublisherDelegateBridge: PublisherDelegate, @unchecked Sendable {
     }
 }
 
-actor PublisherManager {
+package actor PublisherManager {
     private struct PublisherEntry {
         let publisher: any Publisher
         let streamInfo: LiveStreamInfo
@@ -53,28 +53,30 @@ actor PublisherManager {
     private var publisherBufferStates: [String: BufferState] = [:]   // keyed by id
     weak var delegate: (any PublisherManagerDelegate)?
 
-    func setDelegate(_ delegate: (any PublisherManagerDelegate)?) {
+    package init() {}
+
+    package func setDelegate(_ delegate: (any PublisherManagerDelegate)?) {
         self.delegate = delegate
     }
 
-    func add(streamInfo: LiveStreamInfo) async {
+    package func add(streamInfo: LiveStreamInfo) async {
         let publisher = RtmpPublisher(stream: streamInfo)
         await add(publisher: publisher, for: streamInfo)
     }
 
     // Allows injecting a pre-built publisher; used by unit tests.
-    func add(publisher: any Publisher, for streamInfo: LiveStreamInfo) async {
+    package func add(publisher: any Publisher, for streamInfo: LiveStreamInfo) async {
         let bridge = PublisherDelegateBridge(streamInfo: streamInfo, manager: self)
         await publisher.setDelegate(delegate: bridge)
         publishers[streamInfo.id] = PublisherEntry(publisher: publisher, streamInfo: streamInfo, delegateBridge: bridge)
     }
 
-    func removeAll() async {
+    package func removeAll() async {
         publishers.removeAll()
         publisherBufferStates.removeAll()
     }
 
-    func startAll() async {
+    package func startAll() async {
         await withTaskGroup(of: Void.self) { group in
             for entry in publishers.values {
                 group.addTask { await entry.publisher.start() }
@@ -82,7 +84,7 @@ actor PublisherManager {
         }
     }
 
-    func stopAll() async {
+    package func stopAll() async {
         await withTaskGroup(of: Void.self) { group in
             for entry in publishers.values {
                 group.addTask { await entry.publisher.stop() }
@@ -90,7 +92,7 @@ actor PublisherManager {
         }
     }
 
-    func send(frame: any Frame) async {
+    package func send(frame: any Frame) async {
         await withTaskGroup(of: Void.self) { group in
             for entry in publishers.values {
                 group.addTask { await entry.publisher.send(frame: frame) }
@@ -99,7 +101,7 @@ actor PublisherManager {
     }
 
     // Any .start -> overall .start; all .error -> overall .error; all .stop -> overall .stop
-    var aggregatedState: LiveState {
+    package var aggregatedState: LiveState {
         let states = publishers.values.map { $0.state }
         if states.isEmpty { return .ready }
         if states.contains(.start) { return .start }
@@ -109,9 +111,9 @@ actor PublisherManager {
         return states.first ?? .ready
     }
 
-    var isEmpty: Bool { publishers.isEmpty }
+    package var isEmpty: Bool { publishers.isEmpty }
 
-    func handleBufferStatus(from id: String, status: BufferState) {
+    package func handleBufferStatus(from id: String, status: BufferState) {
         publisherBufferStates[id] = status
         // Most conservative signal wins: any slow path triggers bitrate decrease
         if publisherBufferStates.values.contains(where: { $0 == .increase }) {
@@ -125,7 +127,7 @@ actor PublisherManager {
         }
     }
 
-    func handleStateChange(from id: String, state: LiveState) {
+    package func handleStateChange(from id: String, state: LiveState) {
         if var entry = publishers[id] {
             entry.state = state
             publishers[id] = entry
@@ -134,12 +136,12 @@ actor PublisherManager {
         delegate?.publisherManager(self, streamInfo: streamInfo, stateDidChange: state)
     }
 
-    func handleError(from id: String, error: LiveSocketErrorCode) {
+    package func handleError(from id: String, error: LiveSocketErrorCode) {
         guard let streamInfo = publishers[id]?.streamInfo else { return }
         delegate?.publisherManager(self, streamInfo: streamInfo, errorCode: error)
     }
 
-    func handleDebugInfo(from id: String, info: LiveDebug) {
+    package func handleDebugInfo(from id: String, info: LiveDebug) {
         guard let streamInfo = publishers[id]?.streamInfo else { return }
         delegate?.publisherManager(self, streamInfo: streamInfo, debugInfo: info)
     }

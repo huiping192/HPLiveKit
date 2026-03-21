@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import AVFoundation
+import CoreMedia
 
 /// Video encoder protocol using Swift 6 Actor model for thread safety
 /// Output is delivered via AsyncStream instead of delegate callbacks
