@@ -44,11 +44,7 @@ public class CaptureManager: NSObject {
   
   public var captureDevicePositionFront: Bool = true {
     didSet {
-      if videoCapture.captureDevicePosition == .front {
-        videoCapture.captureDevicePosition = .back
-      } else {
-        videoCapture.captureDevicePosition = .front
-      }
+      videoCapture.captureDevicePosition = captureDevicePositionFront ? .front : .back
     }
   }
 

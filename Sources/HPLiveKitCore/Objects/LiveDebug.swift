@@ -9,37 +9,37 @@ import Foundation
 
 public struct LiveDebug: Sendable {
   /// Stream URLs
-  var uploadUrl: String?
+  public var uploadUrl: String?
   /// Uploaded resolution
-  var videoSize: CGSize?
+  public var videoSize: CGSize?
   /// Time elapsed since the last statistic, in milliseconds
-  var elapsedMilli: CGFloat = 0
+  public var elapsedMilli: CGFloat = 0
   /// Current timestamp, used for calculating data within 1 second
-  var currentTimeStamp: CGFloat = 0
+  public var currentTimeStamp: CGFloat = 0
   /// Total data size
-  var allDataSize: CGFloat = 0
+  public var allDataSize: CGFloat = 0
   /// Bandwidth per second
-  var bandwidthPerSec: CGFloat = 0
+  public var bandwidthPerSec: CGFloat = 0
   /// Last measured bandwidth
-  var currentBandwidth: CGFloat = 0
-  
+  public var currentBandwidth: CGFloat = 0
+
   /// Number of frames dropped
-  var dropFrameCount: Int = 0
+  public var dropFrameCount: Int = 0
   /// Total number of frames
-  var totalFrameCount: Int = 0
-  
+  public var totalFrameCount: Int = 0
+
   /// Number of audio captures per second
-  var capturedAudioCountPerSec: Int = 0
+  public var capturedAudioCountPerSec: Int = 0
   /// Number of video captures per second
-  var capturedVideoCountPerSec: Int = 0
-  
+  public var capturedVideoCountPerSec: Int = 0
+
   /// Last measured number of audio captures
-  var currentCapturedAudioCount: Int = 0
+  public var currentCapturedAudioCount: Int = 0
   /// Last measured number of video captures
-  var currentCapturedVideoCount: Int = 0
-  
+  public var currentCapturedVideoCount: Int = 0
+
   /// Number of unsent frames (representing current buffer waiting to be sent)
-  var unsendCount: Int = 0
+  public var unsendCount: Int = 0
 }
 
 extension LiveDebug: CustomStringConvertible {
