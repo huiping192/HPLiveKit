@@ -5,6 +5,7 @@
 //  Created by Huiping Guo on 2021/11/16.
 //
 
+#if canImport(UIKit)
 import Foundation
 import UIKit
 import CoreMedia
@@ -95,8 +96,9 @@ extension CaptureManager: AudioCaptureDelegate, VideoCaptureDelegate {
   func captureOutput(capture: LiveAudioCapture, sampleBuffer: CMSampleBuffer) {
     delegate?.captureOutput(captureManager: self, audio: sampleBuffer)
   }
-  
+
   func captureOutput(capture: LiveVideoCapture, video sampleBuffer: CMSampleBuffer) {
     delegate?.captureOutput(captureManager: self, video: sampleBuffer)
   }
 }
+#endif // canImport(UIKit)
