@@ -23,16 +23,14 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Necessary for broadcasting, setting profile images, sharing images within the app, etc.</string>
+	<string>Camera access is required for live streaming.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Necessary for broadcasting.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
