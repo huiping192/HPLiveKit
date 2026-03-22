@@ -41,8 +41,7 @@ class LiveVideoCapture: NSObject {
   private var videoDevice: AVCaptureDevice?
   private var videoInput: AVCaptureDeviceInput?
   
-  // Use weak to avoid retain cycle with preview view
-  private weak var previewVideoView: PreviewView?
+  private var previewVideoView: PreviewView?
   
   // Track if session is running (thread-safe via sessionQueue)
   private var _isRunning = false
