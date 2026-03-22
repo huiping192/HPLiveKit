@@ -93,11 +93,10 @@ class LiveAudioCapture: NSObject {
   }
   
   deinit {
-    // Fix: Use async instead of sync to avoid deadlock
-    // In deinit, sync will wait for the queue, but the setter is async,
-    // causing a deadlock. Using async or direct stopRunning() is safe.
-    taskQueue.async { [weak self] in
-      self?.captureSession.stopRunning()
+    // Capture captureSession directly (not self) so the async block executes after deinit
+    let session = captureSession
+    taskQueue.async {
+      session.stopRunning()
     }
   }
   
@@ -115,10 +114,12 @@ extension LiveAudioCapture {
   
   private func configureAudio() {
     guard let audioDevice = AVCaptureDevice.default(for: .audio) else {
-      fatalError("[HPLiveKit] Can not found audio device!")
+      print("[HPLiveKit] Warning: Audio device not found. Audio capture will not work.")
+      return
     }
-    guard let audioDeviceInput = try? AVCaptureDeviceInput.init(device: audioDevice) else {
-      fatalError("[HPLiveKit] Init audio CaptureDeviceInput failed!")
+    guard let audioDeviceInput = try? AVCaptureDeviceInput(device: audioDevice) else {
+      print("[HPLiveKit] Warning: Failed to create audio capture input.")
+      return
     }
     
     if captureSession.canAddInput(audioDeviceInput) {

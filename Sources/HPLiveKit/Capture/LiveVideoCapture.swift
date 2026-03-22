@@ -60,10 +60,12 @@ class LiveVideoCapture: NSObject {
   
   private func configureVideo() {
     guard let videoDevice = frontVideoDevice else {
-      fatalError("[HPLiveKit] Can not found front video device!")
+      print("[HPLiveKit] Warning: Front video device not found. Camera capture will not work.")
+      return
     }
-    guard let videoInput = try? AVCaptureDeviceInput.init(device: videoDevice) else {
-      fatalError("[HPLiveKit] Init video CaptureDeviceInput failed!")
+    guard let videoInput = try? AVCaptureDeviceInput(device: videoDevice) else {
+      print("[HPLiveKit] Warning: Failed to create video capture input.")
+      return
     }
     
     if captureSession.canAddInput(videoInput) {
@@ -86,25 +88,25 @@ class LiveVideoCapture: NSObject {
     videoConnection?.videoOrientation = .portrait
   }
   
-  private func configurePreview() {
-    let previewVideoView = PreviewView(frame: CGRect.zero)
-    previewVideoView.videoPreviewLayer?.session = captureSession
-    
-    self.previewVideoView = previewVideoView
-  }
-  
+  @MainActor
   public var preview: UIView? {
     get {
       return previewVideoView?.superview
     }
     set {
+      if previewVideoView == nil {
+        let view = PreviewView(frame: .zero)
+        view.videoPreviewLayer?.session = captureSession
+        previewVideoView = view
+      }
+
       if previewVideoView?.superview != nil {
         previewVideoView?.removeFromSuperview()
       }
-      
+
       if let perview = newValue, let previewVideoView = previewVideoView {
         perview.insertSubview(previewVideoView, at: 0)
-        
+
         previewVideoView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
           perview.topAnchor.constraint(equalTo: previewVideoView.topAnchor),
@@ -128,10 +130,12 @@ class LiveVideoCapture: NSObject {
       if newValue == .unspecified { return }
                   
       guard let videoDevice = newValue == .front ? frontVideoDevice : backVideoDevice else {
-        fatalError("[HPLiveKit] Can not found font video device!")
+        print("[HPLiveKit] Warning: Video device not found for position: \(String(describing: newValue))")
+        return
       }
-      guard let videoInput = try? AVCaptureDeviceInput.init(device: videoDevice) else {
-        fatalError("[HPLiveKit] Init video CaptureDeviceInput failed!")
+      guard let videoInput = try? AVCaptureDeviceInput(device: videoDevice) else {
+        print("[HPLiveKit] Warning: Failed to create video capture input.")
+        return
       }
       
       captureSession.beginConfiguration()
@@ -169,7 +173,6 @@ class LiveVideoCapture: NSObject {
     
     configureNotifications()
     configureVideo()
-    configurePreview()
   }
   
   deinit {
@@ -196,7 +199,9 @@ class LiveVideoCapture: NSObject {
       previewToClean?.removeFromSuperview()
     }
     
-    UIApplication.shared.isIdleTimerDisabled = false
+    DispatchQueue.main.async {
+      UIApplication.shared.isIdleTimerDisabled = false
+    }
   }
   
   /// Start capturing video

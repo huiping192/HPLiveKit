@@ -110,26 +110,50 @@ public class LiveSession: NSObject, @unchecked Sendable {
     // Audio mixer (only for screenShare mode)
     private var audioMixer: AudioMixer?
 
+    // Lock protecting shared mutable state accessed from multiple threads/Tasks
+    private let stateLock = NSLock()
+
     // 调试信息 debug info
-    private var debugInfo: LiveDebug?
+    private var _debugInfo: LiveDebug?
+    private var debugInfo: LiveDebug? {
+        get { stateLock.withLock { _debugInfo } }
+        set { stateLock.withLock { _debugInfo = newValue } }
+    }
     // 是否开始上传  is publishing
-    private var uploading: Bool = false
+    private var _uploading: Bool = false
+    private var uploading: Bool {
+        get { stateLock.withLock { _uploading } }
+        set { stateLock.withLock { _uploading = newValue } }
+    }
     // 当前状态 current live stream state
-    private var state: LiveState?
+    private var _state: LiveState?
+    private var state: LiveState? {
+        get { stateLock.withLock { _state } }
+        set { stateLock.withLock { _state = newValue } }
+    }
     // 当前直播type current live type
     private var captureType: LiveCaptureType = LiveCaptureTypeMask.captureDefaultMask
     // 当前模式 (camera or screenShare)
     private let mode: LiveSessionMode
     /// 当前是否采集到了音频
-    private var hasCapturedAudio: Bool = false
+    private var _hasCapturedAudio: Bool = false
+    private var hasCapturedAudio: Bool {
+        get { stateLock.withLock { _hasCapturedAudio } }
+        set { stateLock.withLock { _hasCapturedAudio = newValue } }
+    }
     /// 当前是否采集到了关键帧
-    private var hasCapturedKeyFrame: Bool = false
+    private var _hasCapturedKeyFrame: Bool = false
+    private var hasCapturedKeyFrame: Bool {
+        get { stateLock.withLock { _hasCapturedKeyFrame } }
+        set { stateLock.withLock { _hasCapturedKeyFrame = newValue } }
+    }
 
     // Frame processing with AsyncStream to ensure sequential order
     private let frameStream: AsyncStream<any Frame>
     private let frameContinuation: AsyncStream<any Frame>.Continuation
     private var frameProcessingTask: Task<Void, Never>?
 
+    @MainActor
     public var preview: UIView? {
         get {
             capture?.preview
@@ -257,6 +281,15 @@ public class LiveSession: NSObject, @unchecked Sendable {
         audioEncoderTask?.cancel()
         videoEncoderTask?.cancel()
         mixerTask?.cancel()
+
+        // Release encoder system resources (VTCompressionSession / AudioConverter)
+        // Capture by value to avoid deinit-from-actor constraints
+        let ae = audioEncoder
+        let ve = videoEncoder
+        Task {
+            await ae.stop()
+            await ve.stop()
+        }
     }
 
     public func startLive(streamInfo: LiveStreamInfo) {
@@ -397,7 +430,7 @@ private extension LiveSession {
                 if let pcmData = AudioSampleBufferUtils.extractPCMData(from: mixedBufferBox.samplebuffer),
                    let format = AudioSampleBufferUtils.extractFormat(from: mixedBufferBox.samplebuffer) {
                     let rms = AudioSampleBufferUtils.calculateRMS(pcmData: pcmData, bitsPerChannel: Int(format.mBitsPerChannel))
-                    Self.logger.info("[DIAGNOSTIC] SCENARIO-B (AudioMixer) ENCODE INPUT: ts=\(timestamp.seconds)s, size=\(pcmData.count), RMS=\(String(format: "%.4f", rms)), format=\(format.mSampleRate)Hz/\(format.mChannelsPerFrame)ch/\(format.mBitsPerChannel)bit")
+                    Self.logger.debug("[DIAGNOSTIC] SCENARIO-B (AudioMixer) ENCODE INPUT: ts=\(timestamp.seconds)s, size=\(pcmData.count), RMS=\(String(format: "%.4f", rms)), format=\(format.mSampleRate)Hz/\(format.mChannelsPerFrame)ch/\(format.mBitsPerChannel)bit")
                 }
 
                 // Mixed audio already has normalized timestamp from mixer

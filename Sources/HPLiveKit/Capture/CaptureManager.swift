@@ -27,6 +27,7 @@ public class CaptureManager: NSObject {
   weak var delegate: CaptureManagerDelegate?
   
   // TODO: remove preview from CaptureManager
+  @MainActor
   public var preview: UIView? {
     get {
       videoCapture.preview
@@ -44,11 +45,7 @@ public class CaptureManager: NSObject {
   
   public var captureDevicePositionFront: Bool = true {
     didSet {
-      if videoCapture.captureDevicePosition == .front {
-        videoCapture.captureDevicePosition = .back
-      } else {
-        videoCapture.captureDevicePosition = .front
-      }
+      videoCapture.captureDevicePosition = captureDevicePositionFront ? .front : .back
     }
   }
 

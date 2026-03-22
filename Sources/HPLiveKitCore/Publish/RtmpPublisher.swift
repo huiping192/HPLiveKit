@@ -163,7 +163,7 @@ actor RtmpPublisher: Publisher {
         self.isConnected = false
         self.isConnecting = false
         self.isReconnecting = true
-        try await Task.sleep(nanoseconds: UInt64(reconnectInterval) * 1000000)
+        try await Task.sleep(nanoseconds: UInt64(reconnectInterval) * 1_000_000_000)
         await self._reconnect()
       } else if self.retryTimes4netWorkBreaken >= self.reconnectCount {
         self.delegate?.publisher(publisher: self, publishStatus: .error)
@@ -193,6 +193,8 @@ actor RtmpPublisher: Publisher {
     frameProcessingTask?.cancel()
     frameProcessingTask = nil
     frameContinuation.finish()
+
+    await buffer.stopTick()
 
     delegate?.publisher(publisher: self, publishStatus: .stop)
 
@@ -311,7 +313,7 @@ private extension RtmpPublisher {
       debugInfo.unsendCount = await buffer.list.count
     } else {
       debugInfo.currentBandwidth = debugInfo.bandwidthPerSec
-      debugInfo.currentCapturedAudioCount = debugInfo.currentCapturedAudioCount
+      debugInfo.currentCapturedAudioCount = debugInfo.capturedAudioCountPerSec
       debugInfo.currentCapturedVideoCount = debugInfo.capturedVideoCountPerSec
 
       delegate?.publisher(publisher: self, debugInfo: debugInfo)
@@ -427,9 +429,9 @@ extension RtmpPublisher: StreamingBufferDelegate {
 }
 
 
-extension ExpressibleByIntegerLiteral {
+extension FixedWidthInteger {
   var data: Data {
-    var value: Self = self
+    var value = self
     return Data(bytes: &value, count: MemoryLayout<Self>.size)
   }
 }
