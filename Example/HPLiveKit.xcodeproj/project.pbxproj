@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
-		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
-		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		DC1CF6E62AA62C1900DD6DAB /* HPLiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = DC1CF6E52AA62C1900DD6DAB /* HPLiveKit */; };
+		DC100A011AFB9204008FA782 /* LiveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC100A001AFB9204008FA782 /* LiveApp.swift */; };
+		DC100A031AFB9204008FA782 /* LiveViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC100A021AFB9204008FA782 /* LiveViewModel.swift */; };
+		DC100A051AFB9204008FA782 /* LiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC100A041AFB9204008FA782 /* LiveView.swift */; };
+		DC100A071AFB9204008FA782 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC100A061AFB9204008FA782 /* SettingsView.swift */; };
+		DC100A091AFB9204008FA782 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC100A081AFB9204008FA782 /* CameraPreviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,16 +28,18 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		607FACD01AFB9204008FA782 /* HPLiveKit_Exsample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HPLiveKit_Exsample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		607FACD01AFB9204008FA782 /* HPLiveKit_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HPLiveKit_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		607FACD71AFB9204008FA782 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		607FACDA1AFB9204008FA782 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		607FACDC1AFB9204008FA782 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		607FACDF1AFB9204008FA782 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/LaunchScreen.xib; sourceTree = "<group>"; };
 		607FACE51AFB9204008FA782 /* HPLiveKit_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HPLiveKit_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DC1CF6E42AA62BBF00DD6DAB /* HPLiveKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HPLiveKit; path = ..; sourceTree = "<group>"; };
+		DC100A001AFB9204008FA782 /* LiveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveApp.swift; sourceTree = "<group>"; };
+		DC100A021AFB9204008FA782 /* LiveViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveViewModel.swift; sourceTree = "<group>"; };
+		DC100A041AFB9204008FA782 /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
+		DC100A061AFB9204008FA782 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DC100A081AFB9204008FA782 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,7 +74,7 @@
 		607FACD11AFB9204008FA782 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				607FACD01AFB9204008FA782 /* HPLiveKit_Exsample.app */,
+				607FACD01AFB9204008FA782 /* HPLiveKit_Example.app */,
 				607FACE51AFB9204008FA782 /* HPLiveKit_Tests.xctest */,
 			);
 			name = Products;
@@ -79,9 +83,11 @@
 		607FACD21AFB9204008FA782 /* Example for HPLiveKit */ = {
 			isa = PBXGroup;
 			children = (
-				607FACD51AFB9204008FA782 /* AppDelegate.swift */,
-				607FACD71AFB9204008FA782 /* ViewController.swift */,
-				607FACD91AFB9204008FA782 /* Main.storyboard */,
+				DC100A001AFB9204008FA782 /* LiveApp.swift */,
+				DC100A021AFB9204008FA782 /* LiveViewModel.swift */,
+				DC100A041AFB9204008FA782 /* LiveView.swift */,
+				DC100A061AFB9204008FA782 /* SettingsView.swift */,
+				DC100A081AFB9204008FA782 /* CameraPreviewView.swift */,
 				607FACDC1AFB9204008FA782 /* Images.xcassets */,
 				607FACDE1AFB9204008FA782 /* LaunchScreen.xib */,
 				607FACD31AFB9204008FA782 /* Supporting Files */,
@@ -142,7 +148,7 @@
 				DC1CF6E52AA62C1900DD6DAB /* HPLiveKit */,
 			);
 			productName = HPLiveKit;
-			productReference = 607FACD01AFB9204008FA782 /* HPLiveKit_Exsample.app */;
+			productReference = 607FACD01AFB9204008FA782 /* HPLiveKit_Example.app */;
 			productType = "com.apple.product-type.application";
 		};
 		607FACE41AFB9204008FA782 /* HPLiveKit_Tests */ = {
@@ -175,7 +181,6 @@
 				TargetAttributes = {
 					607FACCF1AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
-						DevelopmentTeam = Q2N4A2LNJ8;
 						LastSwiftMigration = 0900;
 						ProvisioningStyle = Automatic;
 					};
@@ -212,7 +217,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */,
 				607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */,
 				607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */,
 			);
@@ -232,8 +236,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				607FACD81AFB9204008FA782 /* ViewController.swift in Sources */,
-				607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */,
+				DC100A011AFB9204008FA782 /* LiveApp.swift in Sources */,
+				DC100A031AFB9204008FA782 /* LiveViewModel.swift in Sources */,
+				DC100A051AFB9204008FA782 /* LiveView.swift in Sources */,
+				DC100A071AFB9204008FA782 /* SettingsView.swift in Sources */,
+				DC100A091AFB9204008FA782 /* CameraPreviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,14 +262,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
-		607FACD91AFB9204008FA782 /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				607FACDA1AFB9204008FA782 /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
 		607FACDE1AFB9204008FA782 /* LaunchScreen.xib */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -391,7 +390,7 @@
 				);
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit;
-				PRODUCT_NAME = HPLiveKit_Exsample;
+				PRODUCT_NAME = HPLiveKit_Example;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 6.0;
@@ -413,7 +412,7 @@
 				);
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = com.huiping192.HPLiveKit;
-				PRODUCT_NAME = HPLiveKit_Exsample;
+				PRODUCT_NAME = HPLiveKit_Example;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
 				SWIFT_VERSION = 6.0;
